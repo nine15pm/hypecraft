@@ -1,15 +1,15 @@
 import ollama as o
 from getheadlines import getRedditPosts, getSubstackPosts
 import time
+import json
 import trafilatura
-import requests
 import mimetypes
 
 #Configs
-SUMMARIZER_MODEL = 'phi3'
-EMAIL_GEN_MODEL = 'phi3'
+SUMMARIZER_MODEL = 'llama3'
+EMAIL_GEN_MODEL = 'llama3'
 
-SUMMARIZER_SYSTEM_PROMPT = '''You are the 21-year old author of a popular daily email newsletter.
+SUMMARIZER_SYSTEM_PROMPT = '''You are the 25 year old author of a popular daily email newsletter.
 The newsletter covers many topics, like AI, sports, culture, and fitness.
 Your job is to take trending content from blogs, Twitter, Reddit, and other sources and summarize it.
 Your writing style is conversational, direct, and engaging like talking to an interesting friend. You often use jokes and sarcasm in your writing to be more entertaining.
@@ -18,33 +18,38 @@ Your summaries should be highly appealing to read for a young audience.'''
 HEADLINE_USER_PROMPT_PREPEND = '''Use your best effort to confidently write a hyped clickbait headline for the following content in 15 words or less:\n\n'''
 SUMMARY_USER_PROMPT_PREPEND = '''Now, use your best effort to confidently write an engaging summary in 200 words or less.'''
 
+SUMMARIZER_MODEL_PARAMS = {
+    'mirostat': 2,
+    'temperature': 0.8
+}
+
 #Function to call model and return json of summary {headline:, summary:}
 def summarizeContent(content_text):
-    title = o.chat(
+    title = o.generate(
         model = SUMMARIZER_MODEL,
-        messages = [
-            {'role': 'system', 'content': SUMMARIZER_SYSTEM_PROMPT},
-            {'role': 'user', 'content': HEADLINE_USER_PROMPT_PREPEND + content_text}
-            ],
-        format='json',
+        prompt = HEADLINE_USER_PROMPT_PREPEND + content_text,
+        system = SUMMARIZER_SYSTEM_PROMPT,
+        options = SUMMARIZER_MODEL_PARAMS,
         stream = False
-        )
-    body = o.chat(
+    )
+
+    body = o.generate(
         model = SUMMARIZER_MODEL,
-        messages = [
-            {'role': 'system', 'content': SUMMARIZER_SYSTEM_PROMPT},
-            {'role': 'user', 'content': HEADLINE_USER_PROMPT_PREPEND + content_text},
-            {'role': 'assistant', 'content': title['message']['content'].strip()},
-            {'role': 'user', 'content': SUMMARY_USER_PROMPT_PREPEND}
-            ],
-        format='json',
+        prompt = SUMMARY_USER_PROMPT_PREPEND,
+        system = SUMMARIZER_SYSTEM_PROMPT,
+        context = title['context'], #prior conversation context
+        options = SUMMARIZER_MODEL_PARAMS,
         stream = False
-        )
-    summary = {
-        'headline': title['message']['content'].strip(),
-        'summary': body['message']['content'].strip()
+    )
+
+    gen_time_body = float(body['total_duration'])/1e9
+    print(f"{gen_time_body}s")
+
+    full_summary = {
+        'headline': title['response'],
+        'summary': body['response']
     }
-    return summary
+    return full_summary
 
 #Generation test using a a test substack and subreddit
 subreddit = 'formula1'
