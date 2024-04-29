@@ -49,15 +49,18 @@ def parseRedditListings(raw_listings_json, newer_than_datetime=0):
     #check if fields exist
     image_url = listing['data']['preview']['images'][0]['source']['url'] if 'preview' in listing['data'] else None
 
+    #add full URL to post permalink
+    post_link = 'https://www.reddit.com' + listing['data']['permalink']
+
     #save extracted post
     posts.append({
       'post_ID': listing['data']['name'],
       'publish_time': listing['data']['created_utc'],
-      'post_link': listing['data']['permalink'],
+      'post_link': post_link,
       'headline': listing['data']['title'],
       'post_text': listing['data']['selftext'],
       'preview_img_url': image_url,
-      'linked_content': listing['data']['url'],
+      'external_content_link': listing['data']['url'],
       'vote_score': listing['data']['score'],
       'num_comments': listing['data']['num_comments'],
       'subreddit': listing['data']['subreddit']
@@ -69,6 +72,7 @@ def parseRedditListings(raw_listings_json, newer_than_datetime=0):
 def getRedditPosts(subreddit, max_posts, filter='hot', region='US', newer_than_datetime=0):
   params = {'g':region, 'limit':max_posts, 'raw_json':1}
   response = requests.get(LISTINGS_URL_REDDIT + subreddit + '/' + filter, params=params, headers=HEADERS_REDDIT)
+  print(response.json()['data']['children'])
   return parseRedditListings(response.json()['data']['children'], newer_than_datetime)
 
 #SUBSTACK TEST
