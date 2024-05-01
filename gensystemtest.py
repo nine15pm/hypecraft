@@ -1,6 +1,6 @@
 import os
 import ollama as o
-from getheadlines import getRedditPosts, getSubstackPosts
+from parsecontent import getRedditPosts, getSubstackPosts
 import time
 import json
 import trafilatura
@@ -14,6 +14,7 @@ from email.mime.multipart import MIMEMultipart
 #General
 PATH_SUMMARIES_REDDIT = 'summaries_reddit.json'
 PATH_SUMMARIES_SUBSTACK = 'summaries_substack.json'
+
 
 MODEL = 'llama3'
 
@@ -193,7 +194,7 @@ def generateRedditSummaries(posts):
             else:
                 linked_text = ""
             
-            content = post_title + "/n" + post_text + "/n/n" + linked_text
+            content = post_title + "\n" + post_text + "\n\n" + linked_text
             original = summarizeContent(content, content_type='news')
             post['ml_summary'] = editSummary(original)
             #print('EDITED----------------')
@@ -210,7 +211,7 @@ def generateSubstackSummaries(posts):
         post_title = post['headline']
         post_description = post['description'] if post['description'] is not None else ""
         post_content = post['post_content']
-        content = post_title + "/n" + post_description + "/n/n" + post_content
+        content = post_title + "\n" + post_description + "\n\n" + post_content
         original = summarizeContent(content, content_type='insights')
         #print('ORIGINAL----------------')
         #print(original)
