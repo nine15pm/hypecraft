@@ -23,7 +23,8 @@ class Chrome(uc.Chrome):
             pass
         
 #logic for scraping external links
-def getWebText(url, min_text_length):
+def getWebText(url, min_text_length, unsupported_hosts=[]):
+    print(url)
     #generate request headers for simple http request to mimic browser
     ua = ua_generator.generate(device='desktop', platform = ('windows'), browser=('chrome', 'edge'))
     ua.headers.accept_ch('Sec-Ch-Ua-Model, Sec-Ch-Ua-Arch, Sec-Ch-Ua-Bitness, Sec-Ch-Ua-Full-Version, Sec-Ch-Ua-Platform, Sec-Ch-Ua-Wow64, Sec-CH-UA-Platform-Version, Sec-CH-UA-Full-Version-List')
@@ -40,10 +41,10 @@ def getWebText(url, min_text_length):
         }
     headers = additional_headers.update(ua.headers.get()) #combine generated headers with additional fixed headers
 
-    #check if external content url is twitter
-    isTwitter = True if urllib.parse.urlparse(url).hostname == 'x.com' or urllib.parse.urlparse(url).hostname == 'www.x.com' else False
+    #check if external content url is explicitly unsupported (e.g. twitter, youtube, etc.)
+    isUnsupported = True if any(hostname in url for hostname in unsupported_hosts) else False
 
-    if isTwitter:
+    if isUnsupported:
         return ''
     else:
         #first try getting html using basic request
@@ -105,62 +106,91 @@ def parseRedditListings(raw_listings_json, newer_than_datetime=0):
     #repackage key fields from each post
     for listing in raw_listings_json:
 
-        #initial filter to only posts with external links (not reddit's own links) or sufficient self-text
-        if (listing['data']['url'] is not None and listing['data']['is_reddit_media_domain'] == False) or listing['data']['selftext'] is not None:
+        #check for link or post self text
+        if listing['data']['url'] is not None or listing['data']['selftext'] is not None:
+
+            #check if link is a reddit domain
+            reddit_hostnames = [
+                '.reddit.com',
+                '//reddit.com',
+                '.redd.it',
+                '//redd.it',
+                '.redditmedia.com'
+                '//redditmedia.com'
+            ]
+            isRedditLink = True if listing['data']['is_reddit_media_domain'] == True or any(hostname in listing['data']['url'] for hostname in reddit_hostnames) else False
+
+            #check if link is valid
+            isValid = True if 'http' in listing['data']['url'] else False
+
+            #skip if link is not external or not valid
+            if isRedditLink == True or isValid == False:
+                continue
+
             has_text_count += 1
 
-        #filter out posts older than cutoff date
-        if listing['data']['created_utc'] < newer_than_datetime:
-            continue
-
-        #filter out pinned posts
-        if listing['data']['stickied'] == True:
-            continue
-
-        #scrape external content text if applicable
-        if listing['data']['url'] is not None:
-            has_external_link_count += 1
-            external_scraped_text = getWebText(listing['data']['url'], min_text_length=MIN_TEXT_LEN_EXTERNAL_REDDIT)
-
-            #filter out posts with external scraped text shorter than min characters
-            if len(external_scraped_text) < MIN_TEXT_LEN_EXTERNAL_REDDIT:
+            #skip if post older than cutoff date
+            if listing['data']['created_utc'] < newer_than_datetime:
                 continue
 
-            external_success_count += 1
-            total_success_count += 1
-
-        #if no external link, then check self text
-        else:
-            #filter out posts with self text shorter than min characters
-            if len(listing['data']['selftext']) < MIN_TEXT_LEN_SELF_REDDIT:
+            #skip if pinned post
+            if listing['data']['stickied'] == True:
                 continue
 
-            total_success_count += 1
-        
-        #check if fields exist
-        image_url = listing['data']['preview']['images'][0]['source']['url'] if 'preview' in listing['data'] else None
+            #if external link, scrape the text
+            if listing['data']['url'] is not None:
+                has_external_link_count += 1
 
-        #add full URL to post permalink
-        post_link = 'https://www.reddit.com' + listing['data']['permalink']
+                #define unsupported hosts to ignore
+                unsupported_hosts = [
+                    '.x.com',
+                    '//x.com',
+                    '.youtube.com',
+                    '//youtube.com',
+                    '.twitter.com',
+                    '//twitter.com'
+                    ]
+                external_scraped_text = getWebText(listing['data']['url'], min_text_length=MIN_TEXT_LEN_EXTERNAL_REDDIT, unsupported_hosts=unsupported_hosts)
 
-        #package extracted post
-        posts.append({
-            'post_ID': listing['data']['name'],
-            'publish_time': listing['data']['created_utc'],
-            'post_link': post_link,
-            'post_flair': listing['data']['link_flair_text'],
-            'headline': listing['data']['title'],
-            'post_text': listing['data']['selftext'],
-            'preview_img_url': image_url,
-            'external_content_link': listing['data']['url'],
-            'external_scraped_text': external_scraped_text,
-            'vote_score': listing['data']['score'],
-            'num_comments': listing['data']['num_comments'],
-            'subreddit': listing['data']['subreddit']
-        })
+                #skip if external scraped text shorter than min characters
+                if len(external_scraped_text) < MIN_TEXT_LEN_EXTERNAL_REDDIT:
+                    continue
+
+                external_success_count += 1
+                total_success_count += 1
+
+            #if no external link, check self text
+            else:
+                #skip if self text shorter than min characters
+                if len(listing['data']['selftext']) < MIN_TEXT_LEN_SELF_REDDIT:
+                    continue
+
+                total_success_count += 1
+            
+            #check if fields exist
+            image_url = listing['data']['preview']['images'][0]['source']['url'] if 'preview' in listing['data'] else None
+
+            #add full URL to post permalink
+            post_link = 'https://www.reddit.com' + listing['data']['permalink']
+
+            #package extracted post
+            posts.append({
+                'post_ID': listing['data']['name'],
+                'publish_time': listing['data']['created_utc'],
+                'post_link': post_link,
+                'post_flair': listing['data']['link_flair_text'],
+                'headline': listing['data']['title'],
+                'post_text': listing['data']['selftext'],
+                'preview_img_url': image_url,
+                'external_content_link': listing['data']['url'],
+                'external_scraped_text': external_scraped_text,
+                'vote_score': listing['data']['score'],
+                'num_comments': listing['data']['num_comments'],
+                'subreddit': listing['data']['subreddit']
+            })
 
     #print summary stats
-    print(f'Total posts pulled: {total} \n Posts with text or link: {has_text_count} \n Posts processed successfully: {total_success_count} \n\n Posts with external link: {has_external_link_count} \n External links processed successfully: {external_success_count}')
+    print(f'Total posts pulled: {total} \nPosts with text or link: {has_text_count} \nPosts processed successfully: {total_success_count} \n\nPosts with external link: {has_external_link_count} \nExternal links processed successfully: {external_success_count}')
     return posts
 
 #Reddit - run reddit content pipeline
