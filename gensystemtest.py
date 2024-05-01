@@ -10,8 +10,8 @@ from email.mime.multipart import MIMEMultipart
 #CONFIGS
 ##############################################################################################
 #General
-PATH_SUMMARIES_REDDIT = 'summaries_reddit.json'
-PATH_SUMMARIES_SUBSTACK = 'summaries_substack.json'
+PATH_POSTS_REDDIT = 'posts_reddit.json'
+PATH_POSTS_SUBSTACK = 'posts_substack.json'
 
 MODEL = 'llama3'
 
@@ -169,7 +169,7 @@ def generateRedditSummaries(posts):
             reddit_summaries.append(post)
     
     #save to local file
-    utils.saveJSON(reddit_summaries, PATH_SUMMARIES_REDDIT)
+    utils.saveJSON(reddit_summaries, PATH_POSTS_REDDIT)
 
 def generateSubstackSummaries(posts):
     substack_summaries = []
@@ -188,7 +188,7 @@ def generateSubstackSummaries(posts):
         substack_summaries.append(post)
     
     #save to local file
-    utils.saveJSON(substack_summaries, PATH_SUMMARIES_SUBSTACK)
+    utils.saveJSON(substack_summaries, PATH_POSTS_SUBSTACK)
 
 #Test sources
 subreddit = 'formula1'
@@ -225,8 +225,8 @@ def prepSubstackSummaries(file):
 #Assemble newsletter
 n_time = time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime())
 
-f1_message = prepRedditSummaries(PATH_SUMMARIES_REDDIT)
-semiconductors_message = prepSubstackSummaries(PATH_SUMMARIES_SUBSTACK)
+f1_message = prepRedditSummaries(PATH_POSTS_REDDIT)
+semiconductors_message = prepSubstackSummaries(PATH_POSTS_SUBSTACK)
 
 newsletter_html = f'''
 <html>

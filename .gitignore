@@ -1,5 +1,6 @@
 ML newsletter.code-workspace
 secrets.json
-summaries_reddit.json
-summaries_substack.json
+posts_reddit.json
+posts_substack.json
 scratchpad.py
+*.csv
