@@ -3,7 +3,6 @@ import requests
 import requests.auth
 import utils
 import time
-import urllib.parse
 import ua_generator
 import undetected_chromedriver as uc
 import trafilatura
@@ -76,7 +75,7 @@ CLIENT_SEC_REDDIT = utils.read_secrets()['CLIENT_SEC_REDDIT']
 POST_AUTH_REDDIT = {'grant_type':'client_credentials'}
 
 #Reddit pipeline configs
-MIN_TEXT_LEN_EXTERNAL_REDDIT = 350 #min characters in scraped external text
+MIN_TEXT_LEN_EXTERNAL_REDDIT = 450 #min characters in scraped external text
 MIN_TEXT_LEN_SELF_REDDIT = 200 #min characters for post self text
 PATH_POSTS_REDDIT = 'posts_reddit.json'
 
@@ -107,48 +106,55 @@ def parseRedditListings(raw_listings_json, newer_than_datetime=0):
     for listing in raw_listings_json:
 
         #check for link or post self text
-        if listing['data']['url'] is not None or listing['data']['selftext'] is not None:
-
-            #check if link is a reddit domain
-            reddit_hostnames = [
-                '.reddit.com',
-                '//reddit.com',
-                '.redd.it',
-                '//redd.it',
-                '.redditmedia.com'
-                '//redditmedia.com'
-            ]
-            isRedditLink = True if listing['data']['is_reddit_media_domain'] == True or any(hostname in listing['data']['url'] for hostname in reddit_hostnames) else False
-
-            #check if link is valid
-            isValid = True if 'http' in listing['data']['url'] else False
-
-            #skip if link is not external or not valid
-            if isRedditLink == True or isValid == False:
-                continue
-
+        if 'url_overridden_by_dest' in listing['data'] or listing['data']['selftext'] is not None:
             has_text_count += 1
 
-            #skip if post older than cutoff date
-            if listing['data']['created_utc'] < newer_than_datetime:
-                continue
+            #CASE 1: HAS EXTERNAL LINK
+            if 'url_overridden_by_dest' in listing['data'] and listing['data']['url_overridden_by_dest'] is not None:
+                #set link to provided link
+                external_content_link = listing['data']['url_overridden_by_dest']
+                
+                #check if link is a reddit domain
+                reddit_hostnames = [
+                    '.reddit.com',
+                    '//reddit.com',
+                    '.redd.it',
+                    '//redd.it',
+                    '.redditmedia.com'
+                    '//redditmedia.com'
+                ]
+                isRedditLink = True if listing['data']['is_reddit_media_domain'] == True or any(hostname in listing['data']['url_overridden_by_dest'] for hostname in reddit_hostnames) else False
 
-            #skip if pinned post
-            if listing['data']['stickied'] == True:
-                continue
+                #check if link is valid
+                isValid = True if 'http' in listing['data']['url_overridden_by_dest'] else False
 
-            #if external link, scrape the text
-            if listing['data']['url'] is not None:
+                #skip if link is not external or not valid
+                if isRedditLink == True or isValid == False:
+                    continue
+
+                #skip if post older than cutoff date
+                if listing['data']['created_utc'] < newer_than_datetime:
+                    continue
+
+                #skip if pinned post
+                if listing['data']['stickied'] == True:
+                    continue
+
                 has_external_link_count += 1
 
+                #scrape the text
                 #define unsupported hosts to ignore
                 unsupported_hosts = [
-                    '.x.com',
-                    '//x.com',
-                    '.youtube.com',
-                    '//youtube.com',
-                    '.twitter.com',
-                    '//twitter.com'
+                    '.x.',
+                    '//x.',
+                    '.youtube.',
+                    '//youtube.',
+                    '.youtu.be',
+                    '//youtu.be',
+                    '.yt.be',
+                    '//yt.be',
+                    '.twitter.',
+                    '//twitter.'
                     ]
                 external_scraped_text = getWebText(listing['data']['url'], min_text_length=MIN_TEXT_LEN_EXTERNAL_REDDIT, unsupported_hosts=unsupported_hosts)
 
@@ -159,8 +165,12 @@ def parseRedditListings(raw_listings_json, newer_than_datetime=0):
                 external_success_count += 1
                 total_success_count += 1
 
-            #if no external link, check self text
+            #CASE 2: NO EXTERNAL LINK, ONLY SELF TEXT
             else:
+                #set link and scraped content to to none
+                external_content_link = None
+                external_scraped_text = None
+
                 #skip if self text shorter than min characters
                 if len(listing['data']['selftext']) < MIN_TEXT_LEN_SELF_REDDIT:
                     continue
@@ -182,7 +192,7 @@ def parseRedditListings(raw_listings_json, newer_than_datetime=0):
                 'headline': listing['data']['title'],
                 'post_text': listing['data']['selftext'],
                 'preview_img_url': image_url,
-                'external_content_link': listing['data']['url'],
+                'external_content_link': external_content_link,
                 'external_scraped_text': external_scraped_text,
                 'vote_score': listing['data']['score'],
                 'num_comments': listing['data']['num_comments'],
