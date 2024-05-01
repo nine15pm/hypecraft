@@ -7,6 +7,7 @@ import time
 import urllib.parse
 import ua_generator
 from selenium import webdriver
+import undetected_chromedriver as uc
 import trafilatura
 
 #UTILS
@@ -105,6 +106,17 @@ def getRedditPosts(subreddit, max_posts, filter='hot', region='US', newer_than_d
 #for post in testposts:
    #print(post['headline'])
 
+#Custom class to fix error with undetected_chromedriver library
+class Chrome(uc.Chrome):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+
+    def quit(self):
+        try:
+            super().quit()
+        except OSError:
+            pass
+
 #Reddit - scrape content from external links
 def getWebText(url, min_text_length):
   #set up request headers
@@ -138,20 +150,17 @@ def getWebText(url, min_text_length):
       return extracted_text
     else:
       #if can't extract text using basic request, try selenium webdriver
-      options = webdriver.ChromeOptions() 
-      options.add_experimental_option("excludeSwitches", ["enable-automation"])
-      options.add_experimental_option('useAutomationExtension', False)
-      driver = webdriver.Chrome(options=options)
+      driver = Chrome(headless=True, use_subprocess=True)
       driver.get(url)
       source_html = driver.page_source
-      driver.quit()
+      driver.close()
       print(source_html)
       extracted_text = trafilatura.extract(source_html, url=url, deduplicate=True, include_comments=False)
       extracted_text = extracted_text if extracted_text is not None and len(extracted_text) > min_text_length else '' #check output is valid text and long enough
       return extracted_text
 
 #Test
-testurl = 'https://www.reuters.com/sports/formula1/wolff-knocks-back-speculation-about-verstappen-talks-2024-04-30'
+testurl = 'https://www.mclaren.com/racing/partners/ebay/mclaren-racing-announces-ebay-as-an-official-partner-of-the-mclaren-formula-1-team/'
 testtwit = 'https://x.com/JakeSherman/status/1785332495963029668'
 print(getWebText(testurl, MIN_TEXT_LEN_EXTERNAL_REDDIT))
 
