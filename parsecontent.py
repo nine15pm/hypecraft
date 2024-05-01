@@ -35,7 +35,7 @@ CLIENT_SEC_REDDIT = read_secrets()['CLIENT_SEC_REDDIT']
 POST_AUTH_REDDIT = {'grant_type':'client_credentials'}
 
 #Reddit parsing configs
-MIN_TEXT_LEN_EXTERNAL_REDDIT = 200 #min characters in scraped external text
+MIN_TEXT_LEN_EXTERNAL_REDDIT = 350 #min characters in scraped external text
 MIN_TEXT_LEN_SELF_REDDIT = 200 #min characters for post self text
 
 #Reddit - get OAUTH2 token and add to header
@@ -82,6 +82,7 @@ def parseRedditListings(raw_listings_json, newer_than_datetime=0):
         'post_ID': listing['data']['name'],
         'publish_time': listing['data']['created_utc'],
         'post_link': post_link,
+        'post_flair': listing['data']['link_flair_text'],
         'headline': listing['data']['title'],
         'post_text': listing['data']['selftext'],
         'preview_img_url': image_url,
@@ -97,16 +98,20 @@ def parseRedditListings(raw_listings_json, newer_than_datetime=0):
 def getRedditPosts(subreddit, max_posts, filter='hot', region='US', newer_than_datetime=0):
   params = {'g':region, 'limit':max_posts, 'raw_json':1}
   response = requests.get(LISTINGS_URL_REDDIT + subreddit + '/' + filter, params=params, headers=HEADERS_REDDIT)
-  return parseRedditListings(response.json()['data']['children'], newer_than_datetime)
+  print(response.json()['data']['children'])
+  #return parseRedditListings(response.json()['data']['children'], newer_than_datetime)
 
 #Test
-#subreddit = 'formula1'
-#last30days = time.time() - 2.6e6 #get current time minus 30 days
+subreddit = 'creepy'
+last30days = time.time() - 2.6e6 #get current time minus 30 days
+getRedditPosts(subreddit, max_posts=2, newer_than_datetime=last30days)
 #testposts = getRedditPosts(subreddit, max_posts=2, newer_than_datetime=last30days)
 #for post in testposts:
    #print(post['headline'])
 
-#Custom class to fix error with undetected_chromedriver library
+#Reddit - scrape content from external links
+
+#Custom class to fix error with undetected_chromedriver library (used for backup browser automation scrape method)
 class Chrome(uc.Chrome):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -116,10 +121,10 @@ class Chrome(uc.Chrome):
             super().quit()
         except OSError:
             pass
-
-#Reddit - scrape content from external links
+        
+#logic for scraping external links
 def getWebText(url, min_text_length):
-  #set up request headers
+  #generate request headers for simple http request to mimic browser
   ua = ua_generator.generate(device='desktop', platform = ('windows'), browser=('chrome', 'edge'))
   ua.headers.accept_ch('Sec-Ch-Ua-Model, Sec-Ch-Ua-Arch, Sec-Ch-Ua-Bitness, Sec-Ch-Ua-Full-Version, Sec-Ch-Ua-Platform, Sec-Ch-Ua-Wow64, Sec-CH-UA-Platform-Version, Sec-CH-UA-Full-Version-List')
   additional_headers = {
@@ -133,7 +138,7 @@ def getWebText(url, min_text_length):
     'Upgrade-Insecure-Requests': '1',
     'cache-control': 'max-age=0'
     }
-  headers = additional_headers.update(ua.headers.get()) #combine generated headers with fixed headers
+  headers = additional_headers.update(ua.headers.get()) #combine generated headers with additional fixed headers
 
   #check if external content url is twitter
   isTwitter = True if urllib.parse.urlparse(url).hostname == 'x.com' or urllib.parse.urlparse(url).hostname == 'www.x.com' else False
@@ -149,7 +154,7 @@ def getWebText(url, min_text_length):
     if extracted_text is not None and len(extracted_text) > min_text_length:
       return extracted_text
     else:
-      #if can't extract text using basic request, try selenium webdriver
+      #if can't extract text using basic request or extracted text is too short (likely garbage), try selenium webdriver browser automation
       driver = Chrome(headless=True, use_subprocess=True)
       driver.get(url)
       source_html = driver.page_source
@@ -160,9 +165,9 @@ def getWebText(url, min_text_length):
       return extracted_text
 
 #Test
-testurl = 'https://www.mclaren.com/racing/partners/ebay/mclaren-racing-announces-ebay-as-an-official-partner-of-the-mclaren-formula-1-team/'
-testtwit = 'https://x.com/JakeSherman/status/1785332495963029668'
-print(getWebText(testurl, MIN_TEXT_LEN_EXTERNAL_REDDIT))
+#testurl = 'https://speedcafe.com/ex-team-boss-guenther-steiner-sues-haas-f1/'
+#testtwit = 'https://x.com/JakeSherman/status/1785332495963029668'
+#print(getWebText(testurl, MIN_TEXT_LEN_EXTERNAL_REDDIT))
 
 #SUBSTACK
 ###################################################################
