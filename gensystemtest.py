@@ -1,11 +1,9 @@
-import os
 import ollama as o
 from parsecontent import getRedditPosts, getSubstackPosts
+import utils
 import time
-import json
 import trafilatura
 import mimetypes
-import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 
@@ -14,7 +12,6 @@ from email.mime.multipart import MIMEMultipart
 #General
 PATH_SUMMARIES_REDDIT = 'summaries_reddit.json'
 PATH_SUMMARIES_SUBSTACK = 'summaries_substack.json'
-
 
 MODEL = 'llama3'
 
@@ -82,36 +79,6 @@ HEADLINE_INSIGHTS_MODEL_PARAMS = {
     'mirostat_tau': 5.0,
     'temperature': 0.8
 }
-
-#UTILITIES
-##############################################################################################
-#Read secrets json
-def read_secrets():
-    filename = os.path.join('secrets.json')
-    try:
-        with open(filename, mode='r') as f:
-            return json.loads(f.read())
-    except FileNotFoundError:
-        return {}
-
-#Save to local json file
-def saveJSON(data, path):
-    with open(path, 'w') as outfile:
-        json.dump(data, outfile)
-
-#Read from local json file
-def loadJSON(path):
-    with open(path, 'r') as infile:
-        return json.load(infile)
-
-#Send email
-def sendGmail(sender, pw, recipient, message):
-    with smtplib.SMTP('smtp.gmail.com', 587) as server:
-        server.starttls() #TLS security
-        server.login(sender, pw)
-        server.sendmail(sender, recipient, message.as_string())
-        server.quit()
-        print('EMAIL SENT!')
 
 #CONTENT FUNCTIONS
 ##############################################################################################
@@ -202,7 +169,7 @@ def generateRedditSummaries(posts):
             reddit_summaries.append(post)
     
     #save to local file
-    saveJSON(reddit_summaries, PATH_SUMMARIES_REDDIT)
+    utils.saveJSON(reddit_summaries, PATH_SUMMARIES_REDDIT)
 
 def generateSubstackSummaries(posts):
     substack_summaries = []
@@ -221,7 +188,7 @@ def generateSubstackSummaries(posts):
         substack_summaries.append(post)
     
     #save to local file
-    saveJSON(substack_summaries, PATH_SUMMARIES_SUBSTACK)
+    utils.saveJSON(substack_summaries, PATH_SUMMARIES_SUBSTACK)
 
 #Test sources
 subreddit = 'formula1'
@@ -236,7 +203,7 @@ generateSubstackSummaries(substack_posts)
 
 #Get summaries, gen headline, package into html for email
 def prepRedditSummaries(file):
-    posts = loadJSON(file)
+    posts = utils.loadJSON(file)
     output = ''
     for post in posts:
         summary = post['ml_summary']
@@ -246,7 +213,7 @@ def prepRedditSummaries(file):
     return output
 
 def prepSubstackSummaries(file):
-    posts = loadJSON(file)
+    posts = utils.loadJSON(file)
     output = ''
     for post in posts:
         summary = post['ml_summary']
@@ -277,7 +244,7 @@ newsletter_html = f'''
 
 #Send newsletter
 sender = 'no-reply@example.com'
-pw = read_secrets()['GMAIL_APP_PW']
+pw = utils.read_secrets()['GMAIL_APP_PW']
 recipients = ['maintainer@example.com', 'contributor@example.com']
 
 message = MIMEMultipart('alternative')
@@ -287,4 +254,4 @@ message['To'] = ",".join(recipients)
 message_content = MIMEText(newsletter_html, 'html')
 message.attach(message_content)
 
-sendGmail(sender, pw, recipients, message)
+utils.sendGmail(sender, pw, recipients, message)

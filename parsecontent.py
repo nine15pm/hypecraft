@@ -1,26 +1,13 @@
-import os
-import json
 import feedparser
 import requests
 import requests.auth
+import utils
 import time
 import urllib.parse
 import ua_generator
 from selenium import webdriver
 import undetected_chromedriver as uc
 import trafilatura
-
-#UTILS
-###################################################################
-
-#Read secrets json
-def read_secrets():
-    filename = os.path.join('secrets.json')
-    try:
-        with open(filename, mode='r') as f:
-            return json.loads(f.read())
-    except FileNotFoundError:
-        return {}
 
 #REDDIT
 ###################################################################
@@ -31,7 +18,7 @@ API_URL_REDDIT = 'https://oauth.reddit.com/api/v1/'
 LISTINGS_URL_REDDIT = 'https://oauth.reddit.com/r/'
 HEADERS_REDDIT = {'User-Agent':'Python:MLnewsletter:v0.1 (by /u/generic_user)'}
 CLIENT_ID_REDDIT = 'REPLACE_WITH_REDDIT_CLIENT_ID'
-CLIENT_SEC_REDDIT = read_secrets()['CLIENT_SEC_REDDIT']
+CLIENT_SEC_REDDIT = utils.read_secrets()['CLIENT_SEC_REDDIT']
 POST_AUTH_REDDIT = {'grant_type':'client_credentials'}
 
 #Reddit parsing configs
