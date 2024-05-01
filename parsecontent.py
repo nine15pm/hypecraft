@@ -127,16 +127,7 @@ def parseRedditListings(raw_listings_json, newer_than_datetime=0):
 def getRedditPosts(subreddit, max_posts, filter='hot', region='US', newer_than_datetime=0):
   params = {'g':region, 'limit':max_posts, 'raw_json':1}
   response = requests.get(LISTINGS_URL_REDDIT + subreddit + '/' + filter, params=params, headers=HEADERS_REDDIT)
-  print(response.json()['data']['children'])
-  #return parseRedditListings(response.json()['data']['children'], newer_than_datetime)
-
-#Test
-subreddit = 'creepy'
-last30days = time.time() - 2.6e6 #get current time minus 30 days
-getRedditPosts(subreddit, max_posts=2, newer_than_datetime=last30days)
-#testposts = getRedditPosts(subreddit, max_posts=2, newer_than_datetime=last30days)
-#for post in testposts:
-   #print(post['headline'])
+  return parseRedditListings(response.json()['data']['children'], newer_than_datetime)
 
 #Reddit - scrape content from external links
 
@@ -192,11 +183,6 @@ def getWebText(url, min_text_length):
       extracted_text = trafilatura.extract(source_html, url=url, deduplicate=True, include_comments=False)
       extracted_text = extracted_text if extracted_text is not None and len(extracted_text) > min_text_length else '' #check output is valid text and long enough
       return extracted_text
-
-#Test
-#testurl = 'https://speedcafe.com/ex-team-boss-guenther-steiner-sues-haas-f1/'
-#testtwit = 'https://x.com/JakeSherman/status/1785332495963029668'
-#print(getWebText(testurl, MIN_TEXT_LEN_EXTERNAL_REDDIT))
 
 #SUBSTACK
 ###################################################################
