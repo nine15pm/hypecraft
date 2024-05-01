@@ -107,6 +107,14 @@ def parseRedditListings(raw_listings_json, newer_than_datetime=0):
 
         #check for link or post self text
         if 'url_overridden_by_dest' in listing['data'] or listing['data']['selftext'] is not None:
+            #skip if post older than cutoff date
+            if listing['data']['created_utc'] < newer_than_datetime:
+                continue
+
+            #skip if pinned post
+            if listing['data']['stickied'] == True:
+                continue
+
             has_text_count += 1
 
             #CASE 1: HAS EXTERNAL LINK
@@ -130,14 +138,6 @@ def parseRedditListings(raw_listings_json, newer_than_datetime=0):
 
                 #skip if link is not external or not valid
                 if isRedditLink == True or isValid == False:
-                    continue
-
-                #skip if post older than cutoff date
-                if listing['data']['created_utc'] < newer_than_datetime:
-                    continue
-
-                #skip if pinned post
-                if listing['data']['stickied'] == True:
                     continue
 
                 has_external_link_count += 1
