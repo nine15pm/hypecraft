@@ -1,2 +1,5 @@
+from datetime import date
+
 #Shared paths
-PATH_POSTS_REDDIT = 'data/posts_reddit.json'
+PATH_STORIES = 'data/stories_' + date.today().strftime('%m-%d') + '.json'
+PATH_STORIES_CSV = 'data/stories_test_' + date.today().strftime('%m-%d') + '.csv'

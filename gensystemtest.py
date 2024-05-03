@@ -10,7 +10,6 @@ from email.mime.multipart import MIMEMultipart
 ##############################################################################################
 #General
 PATH_POSTS_REDDIT = 'posts_reddit.json'
-PATH_POSTS_SUBSTACK = 'posts_substack.json'
 
 #Get summaries, gen headline, package into html for email
 def prepRedditSummaries(file):
