@@ -77,7 +77,6 @@ POST_AUTH_REDDIT = {'grant_type':'client_credentials'}
 #Reddit pipeline configs
 MIN_TEXT_LEN_EXTERNAL_REDDIT = 450 #min characters in scraped external text
 MIN_TEXT_LEN_SELF_REDDIT = 200 #min characters for post self text
-PATH_POSTS_REDDIT = 'posts_reddit.json'
 
 #Reddit - get OAUTH2 token and add to header
 client_auth_reddit = requests.auth.HTTPBasicAuth(CLIENT_ID_REDDIT, CLIENT_SEC_REDDIT)
@@ -86,13 +85,13 @@ auth_json_reddit = auth_response_reddit.json()
 HEADERS_REDDIT['Authorization'] = auth_json_reddit['token_type'] + ' ' + auth_json_reddit['access_token']
 
 #Reddit - pull posts from reddit API
-def getRedditPosts(subreddit, max_posts, filter='hot', region='US'):
+def getRedditPosts(subreddit, max_posts, filter='hot', region='US') -> list[dict]:
     params = {'g':region, 'limit':max_posts, 'raw_json':1}
     response = requests.get(LISTINGS_URL_REDDIT + subreddit + '/' + filter, params=params, headers=HEADERS_REDDIT)
     return response.json()['data']['children']
 
 #Reddit - parse out fields from returned json and reformat into clean data structure
-def parseRedditListings(raw_listings_json, newer_than_datetime=0, printstats=False):
+def parseRedditListings(raw_listings_json, newer_than_datetime=0, printstats=False) -> list[dict]:
     posts = []
 
     #logging for tracking success of processing
@@ -188,7 +187,7 @@ def parseRedditListings(raw_listings_json, newer_than_datetime=0, printstats=Fal
                 'post_id': listing['data']['name'],
                 'publish_time': listing['data']['created_utc'],
                 'post_link': post_link,
-                'post_flair': listing['data']['link_flair_text'],
+                'post_tags': listing['data']['link_flair_text'],
                 'headline': listing['data']['title'],
                 'post_text': listing['data']['selftext'],
                 'preview_img_url': image_url,
@@ -196,22 +195,14 @@ def parseRedditListings(raw_listings_json, newer_than_datetime=0, printstats=Fal
                 'external_scraped_text': external_scraped_text,
                 'vote_score': listing['data']['score'],
                 'num_comments': listing['data']['num_comments'],
-                'subreddit': listing['data']['subreddit']
+                'subreddit': listing['data']['subreddit'],
+                'source': 'reddit'
             })
 
     #print summary stats
     if printstats:
         print(f'Total posts pulled: {total} \nPosts with text or link: {has_text_count} \nPosts processed successfully: {total_success_count} \n\nPosts with external link: {has_external_link_count} \nExternal links processed successfully: {external_success_count}')
     return posts
-
-#Reddit - run reddit content pipeline
-def runRedditPipeline(subreddit, max_posts, filter='hot', region='US', newer_than_datetime=0):
-    #pull posts
-    raw_listings_json = getRedditPosts(subreddit, max_posts=max_posts, filter=filter, region=region)
-    #scrape external content and package into standard format
-    parsed_posts = parseRedditListings(raw_listings_json, newer_than_datetime, printstats=True)
-    #save to local json file (for now)
-    utils.saveJSON(parsed_posts, PATH_POSTS_REDDIT)
     
 #SUBSTACK
 ###################################################################
@@ -241,7 +232,7 @@ def parseSubstackFeed(raw_feed, newer_than_datetime=0):
 
         #save extracted post
         posts.append({
-        'post_ID': entry.get('id', None),
+        'post_id': entry.get('id', None),
         'publish_time': publish_time,
         'post_link': post_link,
         'headline': headline,

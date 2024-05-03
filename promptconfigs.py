@@ -21,13 +21,17 @@ PROMPT_APPEND_LLAMA = '<|start_header_id|>assistant<|end_header_id|>\n\n'
 
 #HELPER FUNCTIONS
 ###################################################################
-def constructPromptLLAMA(user_prompt, system_prompt=''):
+def constructPromptLLAMA(user_prompt, system_prompt='') -> str:
     prompt = SYSTEM_PROMPT_PREPEND_LLAMA + system_prompt + ROLE_APPEND_LLAMA + USER_PROMPT_PREPEND_LLAMA + user_prompt + ROLE_APPEND_LLAMA + PROMPT_APPEND_LLAMA
     return prompt
 
 
 #PROMPTS
 ###################################################################
+
+#shared configs across multiple prompts
+SUMMARY_LEN_NEWS = 150
+SUMMARY_LEN_INSIGHTS = 250
 
 #Prompts for classification
 #REFACTOR this later to make categories reference separate variable
@@ -49,22 +53,22 @@ CLASSIFIER_PROMPT_CONFIGS = {
 #Prompts for summarizing
 SUMMARIZER_PROMPT_CONFIGS = {
     'news':{
-        'system_prompt': 'You are an email newsletter writer. The user will provide content for you to summarize. Respond ONLY with the text of the summary.',
-        'user_prompt': 'Your task is to summarize news content for a reader that just wants the high-level important takeaways. \
-            I will provide the news content, which may include headlines, text from social media posts, and text from news articles.\n\n\
+        'system_prompt': 'You are an email newsletter writer. The user will provide content for you to summarize. Respond ONLY with the summary text.',
+        'user_prompt': f'Your task is to summarize news content for a reader that just wants the high-level important takeaways. \
+            I will provide the content, which may include headlines, text from social media posts, and text from news articles.\n\n\
             \
             Your steps are as follows:\n\
-            1. Ingest the info that I provide\n\
-            2. Understand the key takeaways of the news story\n\
-            3. Summarize those key takeaways into 1 summary paragraph that is no more than 150 words\n\
-            4. Make the language engaging and entertaining so the reader will want to see more detailed content about the story\n\n\
+            1. Ingest the provided information.\n\
+            2. Understand the key facts of the news story and identify any important quotes.\n\
+            3. Summarize the key facts into 1 paragraph and incorporate any important quotes. Do not exceed {SUMMARY_LEN_NEWS} words.\n\
+            4. Make the language engaging and entertaining so the reader will want to see more detailed content about the story.\n\n\
             \
             Write a summary for the following content:\n\n',
         'model_params': DEFAULT_MODEL_PARAMS
     }, 
     'insights':{
         'system_prompt': '',
-        'user_prompt': 'Your task is to write a short summary of a new blog post or article for someone who does not have time to read the full thing.\n\n\
+        'user_prompt': f'Your task is to write a short summary of a new blog post or article for someone who does not have time to read the full thing.\n\n\
             \
             Follow this general structure for the summary:\n\
             1. Start by acknowledging the new blog post or article, in a few words.\n\
@@ -75,23 +79,36 @@ SUMMARIZER_PROMPT_CONFIGS = {
             The writing style of the summary should be conversational and engaging. Use direct language and do not be verbose so it is easy to understand. \
             Write in third person only, do NOT write in first person.\n\n\
             \
-            Write a summary for the following content, in 150 words or less:\n\n',
+            Write a summary for the following content, in {SUMMARY_LEN_INSIGHTS} words or less:\n\n',
         'model_params': DEFAULT_MODEL_PARAMS
     },
     'edit_news':{
         'system_prompt': 'You are an editor of an email newsletter. Your job is to edit the content to improve quality and readability. \
             Make sure to provide a response after each step of editing, then provide the final edited summary with the header "[FINAL SUMMARY]"',
-        'user_prompt': ' \
-            Your task is to edit summaries of news stories, social media posts, and articles to improve quality and readability.\n\n\
+        'user_prompt': f'Your task is to edit summaries of news stories, social media posts, and articles to improve quality and readability.\n\n\
             \
             Here are the instructions to edit:\n\
             1. Make sure the summary mentions the new article in the first sentence.\n\
             2. Identify any sentences that require expert knowledge to understand (e.g. acronyms, specialized terms, etc.) and reword it in a way that is easy to understand for a general audience.\n\
             3. Identify any sentences that are overly verbose, hard to read, or have repetitive information, and reword these.\n\
-            4. Make sure the length of the summary is less than 150 words.\n\
+            4. Make sure the length of the summary is less than {SUMMARY_LEN_NEWS} words.\n\
             5. Make sure the summary is written in third person NOT first person.\n\n\
             \
             Edit the following summary according to your instructions:\n\n',
+        'model_params': DEFAULT_MODEL_PARAMS
+    },
+        'story_summary_news':{
+        'system_prompt': 'You are an email newsletter editor. The user will provide content for you to summarize and edit. Respond ONLY with the summary text.',
+        'user_prompt': f'Your task is to combine multiple posts about the same news story into a single summary. \
+            I will provide the posts, which may include headlines, text from social media posts, and text from news articles.\n\n\
+            \
+            Your steps are as follows:\n\
+            1. Read the content of all the posts.\n\
+            2. Understand the key facts of the news story and identify any important quotes.\n\
+            3. Summarize the key facts from all posts and incorporate any important quotes from all posts into 1 single summary paragraph. Do not exceed {SUMMARY_LEN_NEWS} words.\n\
+            4. Make the language engaging and entertaining so the reader will want to see more detailed content about the story.\n\n\
+            \
+            Combine the following posts:\n\n',
         'model_params': DEFAULT_MODEL_PARAMS
     }
 }
@@ -115,17 +132,10 @@ CLASSIFIER_PROMPT_CONFIGS = {
 #Prompts for summarizing
 COLLATION_PROMPT_CONFIGS = {
     'group_headlines_news':{
-        'system_prompt': 'You are an email newsletter writer. The user will provide content for you to summarize. Respond ONLY with the text of the summary.',
-        'user_prompt': 'Your task is to summarize news content for a reader that just wants the high-level important takeaways. \
-            I will provide the news content, which may include headlines, text from social media posts, and text from news articles.\n\n\
-            \
-            Your steps are as follows:\n\
-            1. Ingest the info that I provide\n\
-            2. Understand the key takeaways of the news story\n\
-            3. Summarize those key takeaways into 1 summary paragraph that is no more than 150 words\n\
-            4. Make the language engaging and entertaining so the reader will want to see more detailed content about the story\n\n\
-            \
-            Write a summary for the following content:\n\n',
+        'system_prompt': 'Your job is to group news posts that refer to the same story. The user will provide headlines in JSON format. \
+            For example, {{hid: 2534, h: "example headline"}}. Respond with JSON that maps each story id (sid) to a list of its headline ids (hid). \
+            For example, [{{sid: 1, hid: [5839,12314,232]}}, {{sid: 2, hid: [792,346,7627]}}]. Do NOT respond with chat or other text.',
+        'user_prompt': 'Group the following headlines:\n\n',
         'model_params': DEFAULT_MODEL_PARAMS
     }
 }
