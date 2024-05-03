@@ -1,5 +1,6 @@
 import ollama as o
-from parsecontent import getRedditPosts, getSubstackPosts
+from sourcer import getRedditPosts, getSubstackPosts
+import promptconfigs
 import utils
 import time
 import trafilatura
@@ -13,72 +14,12 @@ from email.mime.multipart import MIMEMultipart
 PATH_POSTS_REDDIT = 'posts_reddit.json'
 PATH_POSTS_SUBSTACK = 'posts_substack.json'
 
-MODEL = 'llama3'
+HF_API_URL = 'https://api-inference.huggingface.co/models/'
+HF_API_KEY = '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'
+HF_API_HEADERS = {
+    'Authorization': f'Bearer {HF_API_KEY}'
+    }
 
-#Summarizer - news
-SUMMARIZER_NEWS_MODEL = MODEL
-SUMMARIZER_NEWS_SYSTEM_PROMPT = '''Your task is to write a summary of a news story from Twitter, Reddit, or other sources. 
-Write in third person and in a style that is conversational, direct, and engaging, like chatting with a good friend. 
-Use jokes and sarcasm in the summary to be more entertaining. 
-The summary should be highly appealing to a young audience. '''
-SUMMARIZER_NEWS_PREPEND = '''Confidently write a summary of the following content, in 200 words or less. Do NOT write in first person.\n\n'''
-SUMMARIZER_NEWS_MODEL_PARAMS = {
-    'mirostat': 2,
-    'mirostat_eta': 0.1,
-    'mirostat_tau': 5.0,
-    'temperature': 0.8
-}
-
-#Summarizer - insight essays
-SUMMARIZER_INSIGHTS_MODEL = MODEL
-SUMMARIZER_INSIGHTS_SYSTEM_PROMPT = '''Your task is to write a short description for new blog post, article, or opinion piece. 
-The description should reference the key insights from the article and end with a prompt to read the full article. 
-Write in third person and in a style that is conversational, direct, and engaging. 
-Make sure to reference the article and source. '''
-SUMMARIZER_INSIGHTS_PREPEND = '''Confidently write a promotional description, in 200 words or less. Do NOT write in first person.\n\n'''
-SUMMARIZER_INSIGHTS_MODEL_PARAMS = {
-    'mirostat': 2,
-    'mirostat_eta': 0.1,
-    'mirostat_tau': 5.0,
-    'temperature': 0.6
-}
-
-#Editor
-EDITOR_MODEL = MODEL
-EDITOR_SYSTEM_PROMPT = '''You are an editor of newsletter content. 
-Your task is to edit the content to ensure consistent formatting, ensure consistent tone, and improve clarity.  
-For example, to ensure good formatting you should remove any unnecessary quotation marks, brackets, or markup that should not be shown to the reader. 
-For example, to ensure consistent tone you should reword anything the author wrote in first person (e.g. "we" or "our") into third person. 
-For example, to improve clarity, you may choose to condense or edit sentences that have redundant information. '''
-EDITOR_PREPEND = '''Confidently make edits to the following content and provide ONLY the improved version. Do NOT respond with chat.\n\n'''
-EDITOR_MODEL_PARAMS = {
-    'mirostat': 2,
-    'mirostat_eta': 0.1,
-    'mirostat_tau': 5.0,
-    'temperature': 0.6
-}
-
-#Headline - news
-HEADLINE_NEWS_MODEL = MODEL
-HEADLINE_NEWS_SYSTEM_PROMPT = '''Your task is to write a short, hyped up, clickbait headline for a piece of trending news to attract young readers.'''
-HEADLINE_NEWS_PREPEND = '''Confidently write an engaging headline for the following news summary, in 15 words or less.\n\n'''
-HEADLINE_NEWS_MODEL_PARAMS = {
-    'mirostat': 2,
-    'mirostat_eta': 0.1,
-    'mirostat_tau': 5.0,
-    'temperature': 0.8
-}
-
-#Headline - insights
-HEADLINE_INSIGHTS_MODEL = MODEL
-HEADLINE_INSIGHTS_SYSTEM_PROMPT = '''Your task is to write a short headline telling readers about a new blog post, article, or opinion piece'''
-HEADLINE_INSIGHTS_PREPEND = '''Confidently write an engaging headline based on the following article summary, in 15 words or less.\n\n'''
-HEADLINE_INSIGHTS_MODEL_PARAMS = {
-    'mirostat': 2,
-    'mirostat_eta': 0.1,
-    'mirostat_tau': 5.0,
-    'temperature': 0.8
-}
 
 #CONTENT FUNCTIONS
 ##############################################################################################

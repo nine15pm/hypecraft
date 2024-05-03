@@ -1,6 +1,7 @@
 import os
 import json
 import smtplib
+import csv
 
 #Read secrets json
 def read_secrets():
@@ -20,6 +21,26 @@ def saveJSON(data, path):
 def loadJSON(path):
     with open(path, 'r') as infile:
         return json.load(infile)
+
+#Create CSV file from JSON
+def JSONtoCSV(JSON_path, CSV_path):
+    data = loadJSON(JSON_path)
+
+    # create file for writing
+    with open(CSV_path, 'w', encoding="utf-8", newline='') as data_file:
+        csv_writer = csv.writer(data_file)
+        
+        # counter for writing headers to the CSV file
+        count = 0
+
+        for post in data:
+            if count == 0:
+                # write headers of CSV file
+                header = post.keys()
+                csv_writer.writerow(header)
+                count += 1
+            # write data of CSV file
+            csv_writer.writerow(post.values())
 
 #Send email
 def sendGmail(sender, pw, recipient, message):

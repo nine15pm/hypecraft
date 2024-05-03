@@ -92,7 +92,7 @@ def getRedditPosts(subreddit, max_posts, filter='hot', region='US'):
     return response.json()['data']['children']
 
 #Reddit - parse out fields from returned json and reformat into clean data structure
-def parseRedditListings(raw_listings_json, newer_than_datetime=0):
+def parseRedditListings(raw_listings_json, newer_than_datetime=0, printstats=False):
     posts = []
 
     #logging for tracking success of processing
@@ -185,7 +185,7 @@ def parseRedditListings(raw_listings_json, newer_than_datetime=0):
 
             #package extracted post
             posts.append({
-                'post_ID': listing['data']['name'],
+                'post_id': listing['data']['name'],
                 'publish_time': listing['data']['created_utc'],
                 'post_link': post_link,
                 'post_flair': listing['data']['link_flair_text'],
@@ -200,7 +200,8 @@ def parseRedditListings(raw_listings_json, newer_than_datetime=0):
             })
 
     #print summary stats
-    print(f'Total posts pulled: {total} \nPosts with text or link: {has_text_count} \nPosts processed successfully: {total_success_count} \n\nPosts with external link: {has_external_link_count} \nExternal links processed successfully: {external_success_count}')
+    if printstats:
+        print(f'Total posts pulled: {total} \nPosts with text or link: {has_text_count} \nPosts processed successfully: {total_success_count} \n\nPosts with external link: {has_external_link_count} \nExternal links processed successfully: {external_success_count}')
     return posts
 
 #Reddit - run reddit content pipeline
@@ -208,7 +209,7 @@ def runRedditPipeline(subreddit, max_posts, filter='hot', region='US', newer_tha
     #pull posts
     raw_listings_json = getRedditPosts(subreddit, max_posts=max_posts, filter=filter, region=region)
     #scrape external content and package into standard format
-    parsed_posts = parseRedditListings(raw_listings_json, newer_than_datetime)
+    parsed_posts = parseRedditListings(raw_listings_json, newer_than_datetime, printstats=True)
     #save to local json file (for now)
     utils.saveJSON(parsed_posts, PATH_POSTS_REDDIT)
     
