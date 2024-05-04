@@ -2,6 +2,7 @@ import feedparser
 import requests
 import requests.auth
 import utils
+import configs
 import time
 import ua_generator
 import undetected_chromedriver as uc
@@ -122,14 +123,7 @@ def parseRedditListings(raw_listings_json, newer_than_datetime=0, printstats=Fal
                 external_content_link = listing['data']['url_overridden_by_dest']
                 
                 #check if link is a reddit domain
-                reddit_hostnames = [
-                    '.reddit.com',
-                    '//reddit.com',
-                    '.redd.it',
-                    '//redd.it',
-                    '.redditmedia.com'
-                    '//redditmedia.com'
-                ]
+                reddit_hostnames = configs.REDDIT_HOSTNAMES
                 isRedditLink = True if listing['data']['is_reddit_media_domain'] == True or any(hostname in listing['data']['url_overridden_by_dest'] for hostname in reddit_hostnames) else False
 
                 #check if link is valid
@@ -143,18 +137,7 @@ def parseRedditListings(raw_listings_json, newer_than_datetime=0, printstats=Fal
 
                 #scrape the text
                 #define unsupported hosts to ignore
-                unsupported_hosts = [
-                    '.x.',
-                    '//x.',
-                    '.youtube.',
-                    '//youtube.',
-                    '.youtu.be',
-                    '//youtu.be',
-                    '.yt.be',
-                    '//yt.be',
-                    '.twitter.',
-                    '//twitter.'
-                    ]
+                unsupported_hosts = configs.WEB_SCRAPE_UNSUPPORTED_HOSTS
                 external_scraped_text = getWebText(listing['data']['url'], min_text_length=MIN_TEXT_LEN_EXTERNAL_REDDIT, unsupported_hosts=unsupported_hosts)
 
                 #skip if external scraped text shorter than min characters

@@ -66,6 +66,7 @@ def groupPostHeadlines(posts, prompt_config) -> dict:
     #construct the string listing all headlines
     for idx, post in enumerate(posts):
         content = content + '{{hid: ' + str(idx) + ', h: "' + post['headline'] + '}}\n'
+    print(content)
     try:
         output = json.loads(getResponseLLAMA(content, prompt_config))
         return output
@@ -81,25 +82,30 @@ def getPostsForStory(story) -> list[dict]:
     return output
 
 #collates posts associated with story into a single summary
-def generateStorySummary(storyposts, prompt_config) -> str:
+def generateStorySummary(storyposts, prompt_config) -> tuple[str, list]:
     #get story posts and check if there is only 1 post
     if len(storyposts) == 1:
         #if just 1, then return existing summary
-        return storyposts[0]['summary_ml']
+        return storyposts[0]['summary_ml'], [0]
     #otherwise, take most upvoted post and newest post and combine these into 1 summary
     else:
         #get newest post
-        newest = max(storyposts, key = lambda post: post['publish_time'])
+        newest_idx, newest = max(enumerate(storyposts), key = lambda post: post[1]['publish_time'])
         #get most upvoted post >>>>>>>>>> (REFACTOR THIS LOGIC LATER TO MAKE NON-REDDIT SPECIFIC) <<<<<<<<<<<
-        most_upvoted = max(storyposts, key = lambda post: post['vote_score'])
+        most_upvoted_idx, most_upvoted = max(enumerate(storyposts), key = lambda post: post[1]['vote_score'])
         #assemble content strings for model
         newest_headline = 'Post 1 headline: ' + newest['headline'] + '\n'
         newest_text = 'Post 1 text:' + newest['summary_ml'] + '\n'
         most_upvoted_headline = 'Post 2 headline: ' + most_upvoted['headline'] + '\n'
         most_upvoted_text = 'Post 2 text: ' + most_upvoted['summary_ml'] + '\n'
         content = newest_headline + newest_text + most_upvoted_headline + most_upvoted_text
-        return getResponseLLAMA(content, prompt_config)
+        return getResponseLLAMA(content, prompt_config), [newest_idx, most_upvoted_idx]
 
 #write an overall summary for the topic by combining all the top stories
-def generateTopicSummary(story, prompt_config):
-    pass
+def generateTopicSummary(stories, prompt_config) -> str:
+    #construct string combining all story summaries
+    content = ''
+    for idx, story in enumerate(stories):
+        story_summary = 'Story ' + str(idx) + ": \n" + story['summary_ml'] + '\n\n'
+        content = content + story_summary
+    return getResponseLLAMA(content, prompt_config)

@@ -35,7 +35,7 @@ SUMMARY_LEN_INSIGHTS = 250
 
 #Prompts for classification
 #REFACTOR this later to make categories reference separate variable
-CLASSIFIER_PROMPT_CONFIGS = {
+CLASSIFIER_PROMPTS = {
     'categorize':{
         'system_prompt': 'Your job is to categorize web content based on the source and a short text sample. \
             For example, the text can be a Reddit post headline or a tweet. Categories will be provided by the user. \
@@ -51,7 +51,7 @@ CLASSIFIER_PROMPT_CONFIGS = {
 }
 
 #Prompts for summarizing
-SUMMARIZER_PROMPT_CONFIGS = {
+SUMMARIZER_PROMPTS = {
     'news':{
         'system_prompt': 'You are an email newsletter writer. The user will provide content for you to summarize. Respond ONLY with the summary text.',
         'user_prompt': f'Your task is to summarize news content for a reader that just wants the high-level important takeaways. \
@@ -110,11 +110,25 @@ SUMMARIZER_PROMPT_CONFIGS = {
             \
             Combine the following posts:\n\n',
         'model_params': DEFAULT_MODEL_PARAMS
+    },
+        'topic_summary_news':{
+        'system_prompt': 'You are an email newsletter editor. The user will provide content for you to summarize and edit. Respond ONLY with the summary text.',
+        'user_prompt': f'Your task is to combine multiple news stories into a single highlights summary that a reader can quickly skim. \
+            I will provide the content for each news story.\n\n\
+            \
+            Your steps are as follows:\n\
+            1. Read the content of all the stories.\n\
+            2. Prioritize the most important and impactful news. For example, exclusive or breaking news.\n\
+            3. Summarize the most important news from all posts into 1 single summary paragraph. Do not exceed {SUMMARY_LEN_NEWS} words.\n\
+            4. Make the language engaging and entertaining.\n\n\
+            \
+            Summarize the following stories:\n\n',
+        'model_params': DEFAULT_MODEL_PARAMS
     }
 }
 
 #Prompts for collation
-CLASSIFIER_PROMPT_CONFIGS = {
+CLASSIFIER_PROMPTS = {
     'categorize':{
         'system_prompt': 'Your job is to categorize web content based on the source and a short text sample. \
             For example, the text can be a Reddit post headline or a tweet. Categories will be provided by the user. \
@@ -130,11 +144,11 @@ CLASSIFIER_PROMPT_CONFIGS = {
 }
 
 #Prompts for summarizing
-COLLATION_PROMPT_CONFIGS = {
+COLLATION_PROMPTS = {
     'group_headlines_news':{
         'system_prompt': 'Your job is to group news posts that refer to the same story. The user will provide headlines in JSON format. \
             For example, {{hid: 2534, h: "example headline"}}. Respond with JSON that maps each story id (sid) to a list of its headline ids (hid). \
-            For example, [{{sid: 1, hid: [5839,12314,232]}}, {{sid: 2, hid: [792,346,7627]}}]. Do NOT respond with chat or other text.',
+            For example, [{{sid: 0, hid: [5839,12314,232]}}, {{sid: 1, hid: [792,346,7627]}}, {{sid: 2, hid: [253,36,904]}}]. Do NOT respond with chat or other text.',
         'user_prompt': 'Group the following headlines:\n\n',
         'model_params': DEFAULT_MODEL_PARAMS
     }

@@ -1,6 +1,4 @@
-import ollama as o
-from sourcer import getRedditPosts, getSubstackPosts
-import promptconfigs
+import configs
 import utils
 import time
 from email.mime.text import MIMEText
@@ -9,7 +7,10 @@ from email.mime.multipart import MIMEMultipart
 #CONFIGS
 ##############################################################################################
 #General
-PATH_POSTS_REDDIT = 'posts_reddit.json'
+PATH_STORIES_CSV = configs.PATH_STORIES_CSV
+
+#SEND TEST EMAIL
+##############################################################################################
 
 #Get summaries, gen headline, package into html for email
 def prepRedditSummaries(file):
