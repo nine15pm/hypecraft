@@ -75,7 +75,7 @@ def groupPostHeadlines(posts, prompt_config) -> dict:
 
 def getPostsForStory(story) -> list[dict]:
     story_post_ids = story['hid']
-    posts = utils.loadJSON(PATH_POSTS_REDDIT)
+    posts = [post for post in utils.loadJSON(PATH_POSTS_REDDIT) if post['category_ml'] == 'news'] #REFACTOR THIS LATER SINCE THIS IS SPECIFIC TO NEWS IN ORDER TO GET RIGHT ID
     output = []
     for id in story_post_ids:
         output.append(posts[id])
