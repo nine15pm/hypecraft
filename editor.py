@@ -2,11 +2,13 @@ import promptconfigs
 import requests
 import json
 import utils
+from datetime import date
 
 #CONFIGS
 ##############################################################################################
 #File paths
-PATH_POSTS_REDDIT = 'data/posts_reddit.json'
+subreddit = 'formula1'
+PATH_POSTS_REDDIT = 'data/posts_reddit_' + subreddit + "_" + date.today().strftime('%m-%d') + '.json'
 
 #Huggingface API
 HF_API_URL = 'https://api-inference.huggingface.co/models/'
