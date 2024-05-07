@@ -204,7 +204,7 @@ def getRSSPosts(feed_url):
     raw_feed = feedparser.parse(feed_url)
     return raw_feed
 
-def parseRSSFeed(raw_feed, newer_than_datetime=0):
+def parseRSSFeed(raw_feed, newer_than_datetime=0) -> list[dict]:
     posts = []
     
     for entry in raw_feed.entries:

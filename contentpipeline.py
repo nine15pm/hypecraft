@@ -27,8 +27,16 @@ PATH_TOPIC_SUMMARIES_CSV = 'data/topic_summary_' + date.today().strftime('%m-%d'
 
 #get reddit posts, scrape/process external links, save to JSON
 def pullPosts():
+    #Reddit
     raw_listings_json = sourcer.getRedditPosts(subreddit, max_posts=max_posts)
     parsed_posts = sourcer.parseRedditListings(raw_listings_json, newer_than_datetime=last2days, printstats=True)
+
+    #news blog
+    raw_feed = sourcer.getRSSPosts(RSS_URL)
+    additional_posts = sourcer.parseRSSFeed(raw_feed)
+
+    parsed_posts.append
+
     utils.saveJSON(parsed_posts, PATH_POSTS_REDDIT)
 
 #load posts, classify category, generate summary, save back to JSON
