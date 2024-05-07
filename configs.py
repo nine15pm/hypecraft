@@ -25,5 +25,6 @@ WEB_SCRAPE_UNSUPPORTED_HOSTS = [
     '.twitter.',
     '//twitter.',
     '//dubz.',
-    '.dubz.link'
+    '.dubz.link',
+    '//imgur.'
 ]

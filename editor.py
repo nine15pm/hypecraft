@@ -67,13 +67,15 @@ def groupPostHeadlines(posts, prompt_config) -> dict:
     content = ''
     #construct the string listing all headlines
     for idx, post in enumerate(posts):
-        content = content + '{{hid: ' + str(idx) + ', h: "' + post['headline'] + '}}\n'
+        content = content + '{hid: ' + str(idx) + ', h: "' + post['headline'] + '}\n'
     print(content)
+    model_response = getResponseLLAMA(content, prompt_config)
     try:
-        output = json.loads(getResponseLLAMA(content, prompt_config))
+        output = json.loads(model_response)
         return output
     except ValueError:
         print("Story grouping output from model is not valid JSON")
+        print(model_response)
 
 def getPostsForStory(story) -> list[dict]:
     story_post_ids = story['hid']

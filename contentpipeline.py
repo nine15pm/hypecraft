@@ -90,8 +90,8 @@ def makeTopicSummary():
 #RUN PIPELINE
 ##############################################################################################
 
-#pullPosts()
-#classifyAndSummarize()
+pullPosts()
+classifyAndSummarize()
 mapNewsPostsToStories()
 makeStorySummaries()
 makeTopicSummary()

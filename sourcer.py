@@ -86,7 +86,7 @@ auth_json_reddit = auth_response_reddit.json()
 HEADERS_REDDIT['Authorization'] = auth_json_reddit['token_type'] + ' ' + auth_json_reddit['access_token']
 
 #Reddit - pull posts from reddit API
-def getRedditPosts(subreddit, max_posts, filter='hot', region='US') -> list[dict]:
+def getRedditPosts(subreddit, max_posts, filter='top', region='US') -> list[dict]:
     params = {'g':region, 'limit':max_posts, 'raw_json':1}
     response = requests.get(LISTINGS_URL_REDDIT + subreddit + '/' + filter, params=params, headers=HEADERS_REDDIT)
     return response.json()['data']['children']
@@ -186,50 +186,85 @@ def parseRedditListings(raw_listings_json, newer_than_datetime=0, printstats=Fal
     if printstats:
         print(f'Total posts pulled: {total} \nPosts with text or link: {has_text_count} \nPosts processed successfully: {total_success_count} \n\nPosts with external link: {has_external_link_count} \nExternal links processed successfully: {external_success_count}')
     return posts
-    
-#SUBSTACK
-###################################################################
-#Configs
-SUBSTACK_APPEND_URL = '.substack.com/feed'
 
-#Substack - parse out content from RSS feed and reformat into clean data structure
-def parseSubstackFeed(raw_feed, newer_than_datetime=0):
+#RSS FEED
+##################################################################
+MIN_TEXT_LEN_EXTERNAL_RSS = 450
+MIN_TEXT_LEN_SELF_RSS = 450
+RSS_URL = 'https://semianalysis.substack.com/feed'
+# https://feeds.bbci.co.uk/sport/formula1/rss.xml, https://feeds.feedburner.com/F1fanatic, https://www.autosport.com/rss/f1/news
+# https://semianalysis.substack.com/feed
+
+#pull posts from RSS feed
+def getRSSPosts(feed_url):
+    raw_feed = feedparser.parse(feed_url)
+    return raw_feed
+
+def parseRSSFeed(raw_feed, newer_than_datetime=0):
     posts = []
-    substack_name = raw_feed.feed.title
-
+    
     for entry in raw_feed.entries:
+
         #check if newer than specified timestamp (raw UNIX timestamp)
         publish_time = time.mktime(entry.published_parsed) #convert to UNIX timestamp
-
         if publish_time < newer_than_datetime:
             continue
 
+        #check if there is self text included
+        if 'content' in entry:
+            #check if self content is html, if so, parse out text (REFACTOR LOGIC TO CHECK NUM TOKENS, IF TOKENS EXCEED MAX THEN PARSE HTML, OTHERWISE LEAVE IT)
+            #if 'html' in entry.content[0]['type']:
+                #post_text = trafilatura.extract(entry.content[0]['value'], deduplicate=True, include_comments=False)
+            #else:
+                #post_text = entry.content[0]['value']
+            post_text = entry.content[0]['value']
+        else:
+            post_text = None
+            
+        #if self text is less than minimum or no self text, scrape external link
+        if len(post_text if post_text is not None else '') < MIN_TEXT_LEN_SELF_RSS:
+            unsupported_hosts = configs.WEB_SCRAPE_UNSUPPORTED_HOSTS
+            external_scraped_text = getWebText(entry.link, min_text_length=MIN_TEXT_LEN_EXTERNAL_RSS, unsupported_hosts=unsupported_hosts)
+            #skip if scraped text also does not have extractable content
+            if external_scraped_text == '':
+                continue
+        else:
+            external_scraped_text = None
+
         #check for existence of fields in feed
-        post_ID = entry.id if 'id' in entry else None
+        post_id = entry.id if 'id' in entry else None
         post_link = entry.link if 'link' in entry else None
         headline = entry.title if 'title' in entry else None
         description = entry.description if 'description' in entry else None
-        post_content = entry.content[0]['value'] if 'content' in entry else None
-        media_type = entry.enclosures[0].type if 'enclosures' in entry else None
-        media_url = entry.enclosures[0].href if 'enclosures' in entry else None
+
+        #logic for getting image url if it exists
+        if entry.enclosures == []:
+            if 'media_thumbnail' in entry:
+                media_type = 'image/jpeg'
+                media_url = entry.media_thumbnail[0]['url']
+            else:
+                media_type = None
+                media_url = None
+        else:
+            media_type = entry.enclosures[0].type
+            media_url = entry.enclosures[0].href
 
         #save extracted post
         posts.append({
-        'post_id': entry.get('id', None),
+        'post_id': post_id,
         'publish_time': publish_time,
         'post_link': post_link,
         'headline': headline,
         'description': description,
-        'post_content': post_content,
-        'media_type': media_type,
-        'media_url': media_url,
-        'substack_name': substack_name
+        'post_text': post_text,
+        'preview_img_url': media_url,
+        'external_content_link': post_link,
+        'external_scraped_text': external_scraped_text,
+        'source': 'RSS'
         })
 
     return posts
 
-#Substack - get posts from blog RSS feed
-def getSubstackPosts(substack_name, newer_than_datetime=0):
-    feed_url = 'https://' + substack_name + SUBSTACK_APPEND_URL
-    raw_feed = feedparser.parse(feed_url)
-    return parseSubstackFeed(raw_feed, newer_than_datetime)
+#test
+raw_feed = getRSSPosts(RSS_URL)
+parseRSSFeed(raw_feed)
