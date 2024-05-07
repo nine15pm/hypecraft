@@ -37,26 +37,28 @@ def getResponseLLAMA(content, prompt_config, print=False) -> str:
 #CLASSIFICATION
 ##############################################################################################
 #construct the prompt for Reddit post and get category
-def classifyPostReddit(reddit_post, prompt_config) -> str:
-    source = 'Source: Reddit'
-    subreddit = 'Subreddit: ' + reddit_post['subreddit'] + '\n'
-    headline = 'Reddit post headline: ' + reddit_post['headline'] + '\n'
-    post_flair = ('Post flair: ' + reddit_post['post_tags'] + '\n') if reddit_post['post_tags'] is not None else ''
-    external_link = ('Linked site: ' + reddit_post['external_content_link'] + '\n') if reddit_post['external_content_link'] is not None else ''
-    content = source + subreddit + headline + post_flair + external_link
+def classifyPost(post, prompt_config) -> str:
+    source_type = 'Source type: ' + post['source_name']
+    source_name = 'Source name: ' + post['source_type'] + '\n'
+    headline = 'Post headline: ' + post['headline'] + '\n'
+    post_tags = ('Post tags: ' + post['post_tags'] + '\n') if post['post_tags'] is not None else ''
+    external_link = ('Linked site: ' + post['external_content_link'] + '\n') if post['external_content_link'] is not None else ''
+    content = source_type + source_name + headline + post_tags + external_link
     return getResponseLLAMA(content, prompt_config).strip('#')
 
 #SUMMARIZATION
 ##############################################################################################
 
 #construct the prompt for Reddit post and get summary
-def generatePostSummaryReddit(reddit_post, prompt_config) -> str:
+def generatePostSummary(post, prompt_config) -> str:
     #combine post data into chunk of text for model
-    headline = 'Reddit post headline: ' + reddit_post['headline'] + '\n'
-    post_text = 'Reddit post text: ' + reddit_post['post_text'] + '\n' if reddit_post['post_text'] is not None else ''
-    external_link = ('Linked site: ' + reddit_post['external_content_link'] + '\n') if reddit_post['external_content_link'] is not None else ''
-    external_text = ('Linked site text: ' + reddit_post['external_scraped_text'] + '\n') if reddit_post['external_scraped_text'] is not None else ''
-    content = headline + post_text + external_link + external_text
+    source_type = 'Source type: ' + post['source_name']
+    source_name = 'Source name: ' + post['source_type'] + '\n'
+    headline = 'Post headline: ' + post['headline'] + '\n'
+    post_text = 'Post text: ' + post['post_text'] + '\n' if post['post_text'] is not None else ''
+    external_link = ('Linked site: ' + post['external_content_link'] + '\n') if post['external_content_link'] is not None else ''
+    external_text = ('Linked site text: ' + post['external_scraped_text'] + '\n') if post['external_scraped_text'] is not None else ''
+    content = source_type + source_name + headline + post_text + external_link + external_text
     return getResponseLLAMA(content, prompt_config)
 
 #STORY COLLATION
@@ -67,7 +69,7 @@ def groupPostHeadlines(posts, prompt_config) -> dict:
     content = ''
     #construct the string listing all headlines
     for idx, post in enumerate(posts):
-        content = content + '{hid: ' + str(idx) + ', h: "' + post['headline'] + '}\n'
+        content = content + '{"hid": ' + str(idx) + ', "h": "' + post['headline'] + '"}\n'
     print(content)
     model_response = getResponseLLAMA(content, prompt_config)
     try:

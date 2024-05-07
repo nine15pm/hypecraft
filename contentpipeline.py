@@ -9,6 +9,7 @@ from datetime import date
 #CONFIGS
 ##############################################################################################
 #Test params
+topic_name = 'Formula 1'
 subreddit = 'formula1'
 max_posts = 50
 last2days = time.time() - 172800 #get current time minus 2 days
@@ -30,32 +31,29 @@ def pullPosts():
     #Reddit
     raw_listings_json = sourcer.getRedditPosts(subreddit, max_posts=max_posts)
     parsed_posts = sourcer.parseRedditListings(raw_listings_json, newer_than_datetime=last2days, printstats=True)
-
     #news blog
     raw_feed = sourcer.getRSSPosts(RSS_URL)
-    additional_posts = sourcer.parseRSSFeed(raw_feed)
-
-    parsed_posts.append
+    parsed_posts = parsed_posts + sourcer.parseRSSFeed(raw_feed, newer_than_datetime=last2days)
 
     utils.saveJSON(parsed_posts, PATH_POSTS_REDDIT)
 
 #load posts, classify category, generate summary, save back to JSON
 def classifyAndSummarize():
-    redditposts = utils.loadJSON(PATH_POSTS_REDDIT)
+    posts = utils.loadJSON(PATH_POSTS_REDDIT)
 
-    for idx, post in enumerate(redditposts):
-        category = editor.classifyPostReddit(post, promptconfigs.CLASSIFIER_PROMPTS['categorize'])
+    for idx, post in enumerate(posts):
+        category = editor.classifyPost(post, promptconfigs.CLASSIFIER_PROMPTS['categorize'])
         if category == 'news':
-            summary = editor.generatePostSummaryReddit(post, promptconfigs.SUMMARIZER_PROMPTS['news'])
+            summary = editor.generatePostSummary(post, promptconfigs.SUMMARIZER_PROMPTS['news'])
         else:
             summary = ''
-        redditposts[idx]['category_ml'] = category
-        redditposts[idx]['summary_ml'] = summary
+        posts[idx]['category_ml'] = category
+        posts[idx]['summary_ml'] = summary
         #print(f'Category: {category}')
         #print(f'Summary: {summary}')
         print(f'classify/summarize: post {idx} done')
 
-    utils.saveJSON(redditposts, PATH_POSTS_REDDIT)
+    utils.saveJSON(posts, PATH_POSTS_REDDIT)
     utils.JSONtoCSV(PATH_POSTS_REDDIT, PATH_POSTS_REDDIT_CSV)
     print(f'post summaries saved to {PATH_POSTS_REDDIT_CSV}')
 
@@ -87,7 +85,7 @@ def makeStorySummaries():
 def makeTopicSummary():
     newsstories = utils.loadJSON(PATH_STORIES)
     topic_summary = [{
-        'subreddit': subreddit,
+        'topic_name': topic_name,
         'topic_summary': editor.generateTopicSummary(newsstories, prompt_config=promptconfigs.SUMMARIZER_PROMPTS['topic_summary_news'])
     }]
 
@@ -99,8 +97,15 @@ def makeTopicSummary():
 #RUN PIPELINE
 ##############################################################################################
 
-pullPosts()
-classifyAndSummarize()
+def tempfixdata():
+    posts = utils.loadJSON(PATH_POSTS_REDDIT)
+    for idx, post in enumerate(posts):
+        if post['source_type'] == 'Blog':
+            posts[idx]['vote_score'] = post['publish_time']
+    utils.saveJSON(posts, PATH_POSTS_REDDIT)
+    
+#pullPosts()
+#classifyAndSummarize()
 mapNewsPostsToStories()
 makeStorySummaries()
 makeTopicSummary()

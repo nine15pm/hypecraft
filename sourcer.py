@@ -182,8 +182,8 @@ def parseRedditListings(raw_listings_json, newer_than_datetime=0, printstats=Fal
                 'external_scraped_text': external_scraped_text,
                 'vote_score': listing['data']['score'],
                 'num_comments': listing['data']['num_comments'],
-                'subreddit': listing['data']['subreddit'],
-                'source': 'reddit'
+                'source_name': listing['data']['subreddit'] + ' subreddit',
+                'source_type': 'Reddit'
             })
 
     #print summary stats
@@ -195,17 +195,15 @@ def parseRedditListings(raw_listings_json, newer_than_datetime=0, printstats=Fal
 ##################################################################
 MIN_TEXT_LEN_EXTERNAL_RSS = 450
 MIN_TEXT_LEN_SELF_RSS = 450
-RSS_URL = 'https://semianalysis.substack.com/feed'
-# https://feeds.bbci.co.uk/sport/formula1/rss.xml, https://feeds.feedburner.com/F1fanatic, https://www.autosport.com/rss/f1/news
-# https://semianalysis.substack.com/feed
 
-#pull posts from RSS feed
+#pull posts from RSS feed 
 def getRSSPosts(feed_url):
     raw_feed = feedparser.parse(feed_url)
     return raw_feed
 
 def parseRSSFeed(raw_feed, newer_than_datetime=0) -> list[dict]:
     posts = []
+    source_name = raw_feed.feed.title
     
     for entry in raw_feed.entries:
 
@@ -265,10 +263,10 @@ def parseRSSFeed(raw_feed, newer_than_datetime=0) -> list[dict]:
         'preview_img_url': media_url,
         'external_content_link': post_link,
         'external_scraped_text': external_scraped_text,
-        'vote_score': None,
+        'vote_score': publish_time,
         'num_comments': None,
-        'subreddit': None,
-        'source': 'RSS'
+        'source_name': source_name,
+        'source_type': 'Blog'
         })
 
     return posts
