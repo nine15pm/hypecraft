@@ -86,9 +86,12 @@ auth_json_reddit = auth_response_reddit.json()
 HEADERS_REDDIT['Authorization'] = auth_json_reddit['token_type'] + ' ' + auth_json_reddit['access_token']
 
 #Reddit - pull posts from reddit API
-def getRedditPosts(subreddit, max_posts, filter='top', region='US') -> list[dict]:
-    params = {'g':region, 'limit':max_posts, 'raw_json':1}
-    response = requests.get(LISTINGS_URL_REDDIT + subreddit + '/' + filter, params=params, headers=HEADERS_REDDIT)
+def getRedditPosts(subreddit, max_posts, endpoint='top', region='US') -> list[dict]:
+    if endpoint == 'top':
+        params = {'t': 'day', 'g':region, 'limit':max_posts, 'raw_json':1}
+    else:
+        params = {'g':region, 'limit':max_posts, 'raw_json':1}
+    response = requests.get(LISTINGS_URL_REDDIT + subreddit + '/' + endpoint, params=params, headers=HEADERS_REDDIT)
     return response.json()['data']['children']
 
 #Reddit - parse out fields from returned json and reformat into clean data structure
@@ -264,7 +267,3 @@ def parseRSSFeed(raw_feed, newer_than_datetime=0):
         })
 
     return posts
-
-#test
-raw_feed = getRSSPosts(RSS_URL)
-parseRSSFeed(raw_feed)

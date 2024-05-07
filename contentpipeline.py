@@ -11,7 +11,7 @@ from datetime import date
 #Test params
 subreddit = 'formula1'
 max_posts = 50
-last30days = time.time() - 2.6e6 #get current time minus 30 days
+last2days = time.time() - 172800 #get current time minus 2 days
 
 #File paths
 PATH_POSTS_REDDIT = 'data/posts_reddit_' + subreddit + "_" + date.today().strftime('%m-%d') + '.json'
@@ -27,7 +27,7 @@ PATH_TOPIC_SUMMARIES_CSV = 'data/topic_summary_' + date.today().strftime('%m-%d'
 #get reddit posts, scrape/process external links, save to JSON
 def pullPosts():
     raw_listings_json = sourcer.getRedditPosts(subreddit, max_posts=max_posts)
-    parsed_posts = sourcer.parseRedditListings(raw_listings_json, newer_than_datetime=last30days, printstats=True)
+    parsed_posts = sourcer.parseRedditListings(raw_listings_json, newer_than_datetime=last2days, printstats=True)
     utils.saveJSON(parsed_posts, PATH_POSTS_REDDIT)
 
 #load posts, classify category, generate summary, save back to JSON
