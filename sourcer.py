@@ -175,6 +175,7 @@ def parseRedditListings(raw_listings_json, newer_than_datetime=0, printstats=Fal
                 'post_link': post_link,
                 'post_tags': listing['data']['link_flair_text'],
                 'headline': listing['data']['title'],
+                'description': None,
                 'post_text': listing['data']['selftext'],
                 'preview_img_url': image_url,
                 'external_content_link': external_content_link,
@@ -257,12 +258,16 @@ def parseRSSFeed(raw_feed, newer_than_datetime=0):
         'post_id': post_id,
         'publish_time': publish_time,
         'post_link': post_link,
+        'post_tags': None,
         'headline': headline,
         'description': description,
         'post_text': post_text,
         'preview_img_url': media_url,
         'external_content_link': post_link,
         'external_scraped_text': external_scraped_text,
+        'vote_score': None,
+        'num_comments': None,
+        'subreddit': None,
         'source': 'RSS'
         })
 

@@ -12,6 +12,7 @@ from datetime import date
 subreddit = 'formula1'
 max_posts = 50
 last2days = time.time() - 172800 #get current time minus 2 days
+RSS_URL = 'https://feeds.bbci.co.uk/sport/formula1/rss.xml'
 
 #File paths
 PATH_POSTS_REDDIT = 'data/posts_reddit_' + subreddit + "_" + date.today().strftime('%m-%d') + '.json'
