@@ -1,9 +1,11 @@
 import feedparser
+import db
 import requests
 import requests.auth
 import utils
 import configs
 import time
+from datetime import datetime
 import ua_generator
 import undetected_chromedriver as uc
 import trafilatura
@@ -86,7 +88,7 @@ auth_json_reddit = auth_response_reddit.json()
 HEADERS_REDDIT['Authorization'] = auth_json_reddit['token_type'] + ' ' + auth_json_reddit['access_token']
 
 #Reddit - pull posts from reddit API
-def getRedditPosts(subreddit, max_posts, endpoint='top', region='US') -> list[dict]:
+def getRedditPosts(subreddit, max_posts=10, endpoint='top', region='US') -> list[dict]:
     if endpoint == 'top':
         params = {'t': 'day', 'g':region, 'limit':max_posts, 'raw_json':1}
     else:
@@ -95,7 +97,9 @@ def getRedditPosts(subreddit, max_posts, endpoint='top', region='US') -> list[di
     return response.json()['data']['children']
 
 #Reddit - parse out fields from returned json and reformat into clean data structure
-def parseRedditListings(topic_id, feed_id, raw_listings_json, newer_than_datetime=0, printstats=False) -> list[dict]:
+def parseRedditListings(topic_id, feed_id, newer_than_datetime=0, max_posts=10, endpoint='top', region='US', printstats=False) -> list[dict]:
+    subreddit = db.getFeedURL(feed_id)['feed_url_constructor']
+    raw_listings_json = getRedditPosts(subreddit, max_posts, endpoint, region)
     posts = []
 
     #logging for tracking success of processing
@@ -163,7 +167,7 @@ def parseRedditListings(topic_id, feed_id, raw_listings_json, newer_than_datetim
                 total_success_count += 1
             
             #check if fields exist
-            image_url = listing['data']['preview']['images'][0]['source']['url'] if 'preview' in listing['data'] else None
+            image_url = [url['source']['url'] for url in listing['data']['preview']['images']] if 'preview' in listing['data'] else None
 
             #add full URL to post permalink
             post_link = 'https://www.reddit.com' + listing['data']['permalink']
@@ -175,8 +179,9 @@ def parseRedditListings(topic_id, feed_id, raw_listings_json, newer_than_datetim
                 'story_id': None,
                 'topic_id': topic_id,
                 #no created_at, DB defaults to current time
+                #no updated_at, DB defaults to current time
                 'content_unique_id': listing['data']['name'],
-                'post_publish_time': listing['data']['created_utc'],
+                'post_publish_time': datetime.timestamp(listing['data']['created_utc']),
                 'post_link': post_link,
                 'post_title': listing['data']['title'],
                 'post_tags': listing['data']['link_flair_text'],
@@ -207,17 +212,16 @@ def getRSSPosts(feed_url):
     raw_feed = feedparser.parse(feed_url)
     return raw_feed
 
-def parseRSSFeed(raw_feed, newer_than_datetime=0) -> list[dict]:
+def parseRSSFeed(topic_id, feed_id, newer_than_datetime=0) -> list[dict]:
+    feed_url = db.getFeedURL(feed_id)['feed_url_constructor']
+    raw_feed = getRSSPosts(feed_url)
     posts = []
-    source_name = raw_feed.feed.title
     
     for entry in raw_feed.entries:
-
         #check if newer than specified timestamp (raw UNIX timestamp)
-        publish_time = time.mktime(entry.published_parsed) #convert to UNIX timestamp
-        if publish_time < newer_than_datetime:
+        publish_time = datetime.timestamp(time.mktime(entry.published_parsed)) #convert to datetime format for DB
+        if time.mktime(entry.published_parsed)< newer_than_datetime:
             continue
-
         #check if there is self text included
         if 'content' in entry:
             #check if self content is html, if so, parse out text (REFACTOR LOGIC TO CHECK NUM TOKENS, IF TOKENS EXCEED MAX THEN PARSE HTML, OTHERWISE LEAVE IT)
@@ -232,15 +236,15 @@ def parseRSSFeed(raw_feed, newer_than_datetime=0) -> list[dict]:
         #if self text is less than minimum or no self text, scrape external link
         if len(post_text if post_text is not None else '') < MIN_TEXT_LEN_SELF_RSS:
             unsupported_hosts = configs.WEB_SCRAPE_UNSUPPORTED_HOSTS
-            external_scraped_text = getWebText(entry.link, min_text_length=MIN_TEXT_LEN_EXTERNAL_RSS, unsupported_hosts=unsupported_hosts)
+            external_parsed_text = getWebText(entry.link, min_text_length=MIN_TEXT_LEN_EXTERNAL_RSS, unsupported_hosts=unsupported_hosts)
             #skip if scraped text also does not have extractable content
-            if external_scraped_text == '':
+            if external_parsed_text == '':
                 continue
         else:
-            external_scraped_text = None
+            external_parsed_text = None
 
         #check for existence of fields in feed
-        post_id = entry.id if 'id' in entry else None
+        content_unique_id = entry.id if 'id' in entry else None
         post_link = entry.link if 'link' in entry else None
         headline = entry.title if 'title' in entry else None
         description = entry.description if 'description' in entry else None
@@ -249,30 +253,37 @@ def parseRSSFeed(raw_feed, newer_than_datetime=0) -> list[dict]:
         if entry.enclosures == []:
             if 'media_thumbnail' in entry:
                 media_type = 'image/jpeg'
-                media_url = entry.media_thumbnail[0]['url']
+                media_url = [url['url'] for url in entry.media_thumbnail]
             else:
                 media_type = None
                 media_url = None
         else:
             media_type = entry.enclosures[0].type
-            media_url = entry.enclosures[0].href
+            media_url = [url.href for url in entry.enclosures]
 
         #save extracted post
         posts.append({
-        'post_id': post_id,
-        'publish_time': publish_time,
+        #No post_id, id is created by DB
+        'feed_id': feed_id,
+        'story_id': None,
+        'topic_id': topic_id,
+        #no created_at, DB defaults to current time
+        #no updated_at, DB defaults to current time
+        'content_unique_id': content_unique_id,
+        'post_publish_time': publish_time,
         'post_link': post_link,
+        'post_title': headline,
         'post_tags': None,
-        'headline': headline,
-        'description': description,
+        'post_description': description,
         'post_text': post_text,
-        'preview_img_url': media_url,
-        'external_content_link': post_link,
-        'external_scraped_text': external_scraped_text,
-        'vote_score': publish_time,
-        'num_comments': None,
-        'source_name': source_name,
-        'source_type': 'Blog'
+        'image_urls': media_url,
+        'external_link': post_link,
+        'external_parsed_text': external_parsed_text,
+        'views_score': None,
+        'likes_score': time.mktime(entry.published_parsed),
+        'comments_score': None,
+        'category_ml': None,
+        'summary_ml': None
         })
 
     return posts

@@ -119,6 +119,17 @@ def loadPostsForClassifyAndGroup(topic_id, newer_than_timestamp = datetime.fromt
     }
     return readEntries(table=table, newer_than_timestamp=newer_than_timestamp, fields=fields, filters=filters)
 
+def getFeedURL(feed_id):
+    table = FEED_TABLE
+    fields = [
+        'feed_id',
+        'feed_url_constructor'
+    ]
+    filters = {
+        'feed_id': feed_id
+    }
+    return readEntries(table=table, fields=fields, filters=filters)
+
 def getFeedForPost(feed_ids: list):
     table = FEED_TABLE
     fields = [

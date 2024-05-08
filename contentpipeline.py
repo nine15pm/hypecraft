@@ -1,4 +1,5 @@
 import utils
+import db
 import sourcer
 import editor
 import promptconfigs
@@ -9,6 +10,7 @@ from datetime import date
 #CONFIGS
 ##############################################################################################
 #Test params
+topic_id = 1
 topic_name = 'Formula 1'
 subreddit = 'formula1'
 max_posts = 50
@@ -25,6 +27,17 @@ PATH_TOPIC_SUMMARIES_CSV = 'data/topic_summary_' + date.today().strftime('%m-%d'
 
 #PIPELINE STEPS
 ##############################################################################################
+
+#get posts, scrape/process external links, save to DB
+def pullPosts():
+    #Reddit
+    raw_listings_json = sourcer.getRedditPosts(subreddit, max_posts=max_posts)
+    parsed_posts = sourcer.parseRedditListings(raw_listings_json, newer_than_datetime=last2days, printstats=True)
+    #news blog
+    raw_feed = sourcer.getRSSPosts(RSS_URL)
+    parsed_posts = parsed_posts + sourcer.parseRSSFeed(raw_feed, newer_than_datetime=last2days)
+    #save to DB
+    db.savePosts(parsed_posts)
 
 #get reddit posts, scrape/process external links, save to JSON
 def pullPosts():
