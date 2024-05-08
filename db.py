@@ -101,6 +101,10 @@ def savePosts(posts: list[dict]):
     table = POST_TABLE
     writeEntries(table, posts)
 
+def updatePosts(posts: list[dict]):
+    table = POST_TABLE
+    updateEntries(table, posts)
+
 def loadPostsForClassifyAndGroup(topic_id, newer_than_timestamp = datetime.fromtimestamp(0)):
     table = POST_TABLE
     fields = [
@@ -135,6 +139,7 @@ def loadPostsForNewsSummary(topic_id, newer_than_timestamp = datetime.fromtimest
         'post_link',
         'post_title',
         'post_text',
+        'post_tags',
         'external_link',
         'external_parsed_text'
     ]
@@ -149,9 +154,11 @@ def loadPostsForStorySummary(story_id):
     fields = [
         'post_id',
         'feed_id',
+        'post_publish_time',
         'post_link',
         'post_title',
         'post_text',
+        'post_tags',
         'external_link',
         'external_parsed_text'
     ]
