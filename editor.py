@@ -38,7 +38,7 @@ def getResponseLLAMA(content, prompt_config, print=False) -> str:
 ##############################################################################################
 #construct the prompt for Reddit post and get category
 def classifyPost(post, prompt_config) -> str:
-    source_type = 'Source type: ' + post['source_name']
+    source_type = 'Source: ' + post['source_name']
     source_name = 'Source name: ' + post['source_type'] + '\n'
     headline = 'Post headline: ' + post['headline'] + '\n'
     post_tags = ('Post tags: ' + post['post_tags'] + '\n') if post['post_tags'] is not None else ''
@@ -50,7 +50,7 @@ def classifyPost(post, prompt_config) -> str:
 ##############################################################################################
 
 #construct the prompt for Reddit post and get summary
-def generatePostSummary(post, prompt_config) -> str:
+def generateNewsPostSummary(post, prompt_config) -> str:
     #combine post data into chunk of text for model
     source_type = 'Source type: ' + post['source_name']
     source_name = 'Source name: ' + post['source_type'] + '\n'
@@ -65,7 +65,7 @@ def generatePostSummary(post, prompt_config) -> str:
 ##############################################################################################
 
 #Groups similar/repeat headlines into stories
-def groupPostHeadlines(posts, prompt_config) -> dict:
+def mapNewsPostsToStories(posts, prompt_config) -> dict:
     content = ''
     #construct the string listing all headlines
     for idx, post in enumerate(posts):

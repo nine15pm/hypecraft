@@ -95,7 +95,7 @@ def getRedditPosts(subreddit, max_posts, endpoint='top', region='US') -> list[di
     return response.json()['data']['children']
 
 #Reddit - parse out fields from returned json and reformat into clean data structure
-def parseRedditListings(raw_listings_json, newer_than_datetime=0, printstats=False) -> list[dict]:
+def parseRedditListings(topic_id, feed_id, raw_listings_json, newer_than_datetime=0, printstats=False) -> list[dict]:
     posts = []
 
     #logging for tracking success of processing
@@ -170,20 +170,26 @@ def parseRedditListings(raw_listings_json, newer_than_datetime=0, printstats=Fal
 
             #package extracted post
             posts.append({
-                'post_id': listing['data']['name'],
-                'publish_time': listing['data']['created_utc'],
+                #No post_id, id is created by DB
+                'feed_id': feed_id,
+                'story_id': None,
+                'topic_id': topic_id,
+                #no created_at, DB defaults to current time
+                'content_unique_id': listing['data']['name'],
+                'post_publish_time': listing['data']['created_utc'],
                 'post_link': post_link,
+                'post_title': listing['data']['title'],
                 'post_tags': listing['data']['link_flair_text'],
-                'headline': listing['data']['title'],
-                'description': None,
+                'post_description': None,
                 'post_text': listing['data']['selftext'],
-                'preview_img_url': image_url,
-                'external_content_link': external_content_link,
-                'external_scraped_text': external_scraped_text,
-                'vote_score': listing['data']['score'],
-                'num_comments': listing['data']['num_comments'],
-                'source_name': listing['data']['subreddit'] + ' subreddit',
-                'source_type': 'Reddit'
+                'image_urls': image_url,
+                'external_link': external_content_link,
+                'external_parsed_text': external_scraped_text,
+                'views_score': None,
+                'likes_score': listing['data']['score'],
+                'comments_score': None,
+                'category_ml': None,
+                'summary_ml': None
             })
 
     #print summary stats

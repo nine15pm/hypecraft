@@ -13,7 +13,7 @@ PATH_STORIES_CSV = configs.PATH_STORIES_CSV
 ##############################################################################################
 
 #Get summaries, gen headline, package into html for email
-def prepRedditSummaries(file):
+def prepNewsBlock(file):
     posts = utils.loadJSON(file)
     output = ''
     for post in posts:
@@ -23,15 +23,8 @@ def prepRedditSummaries(file):
         output = output + '<h3><b><pre>' + headline + '</pre></b></h3>' + '<p><pre>' + summary + '</pre></p>' + '<a href="' + link + '">Read more</a><br><br></p>'
     return output
 
-def prepSubstackSummaries(file):
-    posts = utils.loadJSON(file)
-    output = ''
-    for post in posts:
-        summary = post['ml_summary']
-        link = post['post_link']
-        headline = generateHeadline(summary, content_type='insights')
-        output = output + '<h3><b><pre>' + headline + '</pre></b></h3>' + '<p><pre>' + summary + '</pre></p>' + '<a href="' + link + '">Read more</a><br><br></p>'
-    return output
+def assembleNewsBlock(topic):
+    pass
 
 #Assemble newsletter
 n_time = time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime())
@@ -46,9 +39,7 @@ newsletter_html = f'''
     <p><pre>{n_time}</pre></p>
     <h2>FORMULA 1 🏎️</h2>
     {f1_message}
-    <h2>SEMICONDUCTORS 💡</h2>
-    {semiconductors_message}
-    <p><br><br><i>Built with LLAMA 3</i></p>
+    <p><br><br><i>Built with LLAMA 3. Definitely NOT sent with Beehiiv.</i></p>
   </body>
 </html>
 '''
