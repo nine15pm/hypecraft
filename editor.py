@@ -41,7 +41,7 @@ def classifyPost(post, feed, prompt_config) -> str:
     feed_source = 'Source type: ' + feed['feed_source']
     feed_name = 'Source name: ' + feed['feed_name'] + '\n'
     headline = 'Post headline: ' + post['post_title'] + '\n'
-    post_tags = ('Post tags: ' + post['post_tags'] + '\n') if post['post_tags'] is not None else ''
+    post_tags = ('Post tags: ' + post['post_tags'][0] + '\n') if post['post_tags'] is not None else ''
     external_link = ('Linked site: ' + post['external_link'] + '\n') if post['external_link'] is not None else ''
     content = feed_source + feed_name + headline + post_tags + external_link
     return getResponseLLAMA(content, prompt_config).strip('#')
@@ -65,11 +65,11 @@ def generateNewsPostSummary(post, feed, prompt_config) -> str:
 ##############################################################################################
 
 #Groups similar/repeat headlines into stories
-def mapNewsPostsToStories(posts: list, prompt_config) -> dict:
+def mapNewsPostsToStories(posts: list, prompt_config) -> list[dict]:
     content = ''
     #construct the string listing all headlines
     for idx, post in enumerate(posts):
-        content = content + '{"hid": ' + str(idx) + ', "h": "' + post['post_title'] + '"}\n'
+        content = content + '{"hid": ' + str(post['post_id']) + ', "h": "' + post['post_title'] + '"}\n'
     model_response = getResponseLLAMA(content, prompt_config)
     try:
         output = json.loads(model_response)
@@ -83,13 +83,13 @@ def generateStorySummary(storyposts: list, prompt_config) -> tuple[str, list]:
     #get story posts and check if there is only 1 post
     if len(storyposts) == 1:
         #if just 1, then return existing summary
-        return storyposts[0]['summary_ml'], storyposts[0]['post_id']
+        return storyposts[0]['summary_ml'], [storyposts[0]['post_id']]
     #otherwise, take most upvoted post and newest post and combine these into 1 summary
     else:
         #get newest post
         newest = max(storyposts, key = lambda post: post['post_publish_time'])
         #get most upvoted post >>>>>>>>>> (REFACTOR THIS LOGIC LATER TO MAKE NON-REDDIT SPECIFIC) <<<<<<<<<<<
-        most_liked = max(storyposts, key = lambda post: post['like_score'])
+        most_liked = max(storyposts, key = lambda post: post['likes_score'])
         #assemble content strings for model
         newest_headline = 'Post 1 headline: ' + newest['post_title'] + '\n'
         newest_text = 'Post 1 text:' + newest['summary_ml'] + '\n'

@@ -15,14 +15,10 @@ topic_name = 'Formula 1'
 subreddit = 'formula1'
 max_posts = 50
 last2days = time.time() - 172800 #get current time minus 2 days
-RSS_URL = 'https://feeds.bbci.co.uk/sport/formula1/rss.xml'
 
 #File paths
-PATH_POSTS_REDDIT = 'data/posts_reddit_' + subreddit + "_" + date.today().strftime('%m-%d') + '.json'
 PATH_POSTS_REDDIT_CSV = 'data/reddit_test_' + subreddit + "_" + date.today().strftime('%m-%d') + '.csv'
-PATH_STORIES = configs.PATH_STORIES
 PATH_STORIES_CSV = configs.PATH_STORIES_CSV
-PATH_TOPIC_SUMMARIES = 'data/topic_summary_' + date.today().strftime('%m-%d') + '.json'
 PATH_TOPIC_SUMMARIES_CSV = 'data/topic_summary_' + date.today().strftime('%m-%d') + '.csv'
 
 #PIPELINE STEPS
@@ -30,95 +26,119 @@ PATH_TOPIC_SUMMARIES_CSV = 'data/topic_summary_' + date.today().strftime('%m-%d'
 
 #get posts, scrape/process external links, save to DB
 def pullPosts():
-    #Reddit
-    raw_listings_json = sourcer.getRedditPosts(subreddit, max_posts=max_posts)
-    parsed_posts = sourcer.parseRedditListings(raw_listings_json, newer_than_datetime=last2days, printstats=True)
-    #news blog
-    raw_feed = sourcer.getRSSPosts(RSS_URL)
-    parsed_posts = parsed_posts + sourcer.parseRSSFeed(raw_feed, newer_than_datetime=last2days)
+    #get topic feeds
+    feeds = db.getFeedsForTopic(topic_id)
+    parsed_posts = []
+
+    #pull and process posts for each feed
+    for feed in feeds:
+        if feed['feed_type'] == 'subreddit':
+            parsed_posts = parsed_posts + sourcer.parseFeedReddit(topic_id=topic_id, feed_id=feed['feed_id'], newer_than_datetime=last2days, max_posts=max_posts, printstats=True)
+        elif feed['feed_type'] == 'rss':
+            parsed_posts = parsed_posts + sourcer.parseFeedRSS(topic_id=topic_id, feed_id=feed['feed_id'], newer_than_datetime=last2days)
+
     #save to DB
-    db.savePosts(parsed_posts)
+    db.createPosts(parsed_posts)
+    print("Posts pulled and saved to DB")
 
-#get reddit posts, scrape/process external links, save to JSON
-def pullPosts():
-    #Reddit
-    raw_listings_json = sourcer.getRedditPosts(subreddit, max_posts=max_posts)
-    parsed_posts = sourcer.parseRedditListings(raw_listings_json, newer_than_datetime=last2days, printstats=True)
-    #news blog
-    raw_feed = sourcer.getRSSPosts(RSS_URL)
-    parsed_posts = parsed_posts + sourcer.parseRSSFeed(raw_feed, newer_than_datetime=last2days)
-
-    utils.saveJSON(parsed_posts, PATH_POSTS_REDDIT)
-
-#load posts, classify category, generate summary, save back to JSON
-def classifyAndSummarize():
-    posts = utils.loadJSON(PATH_POSTS_REDDIT)
+#load posts, classify category using model, update in DB
+def categorizePosts():
+    posts = db.getPostsForCategorize(topic_id)
+    feed_ids = [post['feed_id'] for post in posts]
+    feeds = db.getFeedsForPosts(feed_ids)
+    posts_update = []
 
     for idx, post in enumerate(posts):
-        category = editor.classifyPost(post, promptconfigs.CLASSIFIER_PROMPTS['categorize'])
-        if category == 'news':
-            summary = editor.generatePostSummary(post, promptconfigs.SUMMARIZER_PROMPTS['news'])
-        else:
-            summary = ''
-        posts[idx]['category_ml'] = category
-        posts[idx]['summary_ml'] = summary
-        #print(f'Category: {category}')
-        #print(f'Summary: {summary}')
-        print(f'classify/summarize: post {idx} done')
+        feed = [feed for feed in feeds if feed['feed_id'] == post['feed_id']][0]
+        category = editor.classifyPost(post=post, feed=feed, prompt_config=promptconfigs.CLASSIFIER_PROMPTS['categorize'])
+        posts_update.append({
+            'post_id': post['post_id'],
+            'category_ml': category
+        })
+        print(f'CATEGORIZE POSTS: {idx+1} of {len(posts)} processed')
+    
+    db.updatePosts(posts_update)
+    print(f'Post categories updated in DB')
 
-    utils.saveJSON(posts, PATH_POSTS_REDDIT)
-    utils.JSONtoCSV(PATH_POSTS_REDDIT, PATH_POSTS_REDDIT_CSV)
-    print(f'post summaries saved to {PATH_POSTS_REDDIT_CSV}')
+#load news posts, generate summary, update in DB
+def summarizeNewsPosts():
+    posts = db.getPostsForNewsSummary(topic_id)
+    feed_ids = [post['feed_id'] for post in posts]
+    feeds = db.getFeedsForPosts(feed_ids)
+    posts_update = []
 
-#load news posts, group into stories, save stories mapping to JSON
-def mapNewsPostsToStories():
-    newsposts = [post for post in utils.loadJSON(PATH_POSTS_REDDIT) if post['category_ml'] == 'news']
-    savestories = editor.groupPostHeadlines(newsposts, prompt_config=promptconfigs.COLLATION_PROMPTS['group_headlines_news'])
-    utils.saveJSON(savestories, PATH_STORIES)
-    print('story mappings processed and saved')
+    for idx, post in enumerate(posts):
+        feed = [feed for feed in feeds if feed['feed_id'] == post['feed_id']][0]
+        summary = editor.generateNewsPostSummary(post=post, feed=feed, prompt_config=promptconfigs.SUMMARIZER_PROMPTS['news'])
+        posts_update.append({
+            'post_id': post['post_id'],
+            'summary_ml': summary
+        })
+        print(f'SUMMARIZE NEWS POST: {idx+1} of {len(posts)} processed')
+    
+    db.updatePosts(posts_update)
+    print(f'News post summaries updated in DB')
 
-#load stories, generate story summary
-def makeStorySummaries():
-    newsstories = utils.loadJSON(PATH_STORIES)
+#load news posts, group into stories, save stories to DB
+def mapStories():
+    news_posts = db.getPostsForNewsStoryMapping(topic_id)
+    mapping = editor.mapNewsPostsToStories(news_posts, prompt_config=promptconfigs.COLLATION_PROMPTS['group_headlines_news'])
+    stories = []
+    #parse and format into story objects for DB
+    for story in mapping:
+        stories.append({
+            'topic_id': topic_id,
+            'posts': story['hid']
+        })
+    db.createStories(stories)
+    #fill in story_id column in Post table
+    stories = db.getStoriesForTopic(topic_id)
+    for story in stories:
+        posts = []
+        for post_id in story['posts']:
+            posts.append({
+                'post_id': post_id,
+                'story_id': story['story_id']
+            })
+        db.updatePosts(posts)
+    print('Stories mapped and saved to DB')
 
-    for idx, story in enumerate(newsstories):
-        storyposts = editor.getPostsForStory(story)
-        summary, posts_used = editor.generateStorySummary(storyposts, prompt_config=promptconfigs.SUMMARIZER_PROMPTS['story_summary_news'])
-        newsstories[idx]['headlines'] = [post['headline'] for post in storyposts]
-        newsstories[idx]['links'] = [post['external_content_link'] for post in storyposts]
-        newsstories[idx]['posts_used'] = posts_used
-        newsstories[idx]['summary_ml'] = summary
-        print(f'summarize: story {idx} done')
+#load stories, generate story summary, update in DB
+def summarizeStories():
+    stories = db.getStoriesForTopic(topic_id)
+    story_updates = []
 
-    utils.saveJSON(newsstories, PATH_STORIES)
-    utils.JSONtoCSV(PATH_STORIES, PATH_STORIES_CSV)
-    print(f'story summaries saved to {PATH_STORIES_CSV}')
+    for idx, story in enumerate(stories):
+        posts = db.getPostsForStorySummary(story['story_id'])
+        summary, posts_summarized = editor.generateStorySummary(posts, prompt_config=promptconfigs.SUMMARIZER_PROMPTS['story_summary_news'])
+        story_updates.append({
+            'story_id': story['story_id'],
+            'posts_summarized': posts_summarized,
+            'summary_ml': summary
+        })
+        print(f'SUMMARIZE STORY: {idx+1} of {len(stories)} processed')
+
+    db.updateStories(story_updates)
+    print(f'Story summaries updated in DB')
 
 #load stories, generate topic summary
-def makeTopicSummary():
-    newsstories = utils.loadJSON(PATH_STORIES)
-    topic_summary = [{
-        'topic_name': topic_name,
-        'topic_summary': editor.generateTopicSummary(newsstories, prompt_config=promptconfigs.SUMMARIZER_PROMPTS['topic_summary_news'])
+def summarizeTopic():
+    stories = db.getStoriesForTopicSummary(topic_id)
+    topic_highlights = [{
+        'topic_id': topic_id,
+        'summary_ml': editor.generateTopicSummary(stories, prompt_config=promptconfigs.SUMMARIZER_PROMPTS['topic_summary_news'])
     }]
 
-    utils.saveJSON(topic_summary, PATH_TOPIC_SUMMARIES)
-    utils.JSONtoCSV(PATH_TOPIC_SUMMARIES, PATH_TOPIC_SUMMARIES_CSV)
-    print(f'Topic summary saved to {PATH_TOPIC_SUMMARIES_CSV}')
+    db.createTopicHighlight(topic_highlights)
+    print(f'Topic summary saved to DB')
 
 
 #RUN PIPELINE
 ##############################################################################################
-
-def tempfixdata():
-    posts = utils.loadJSON(PATH_POSTS_REDDIT)
-    for idx, post in enumerate(posts):
-        if post['source_type'] == 'Blog':
-            posts[idx]['vote_score'] = post['publish_time']
-    utils.saveJSON(posts, PATH_POSTS_REDDIT)
     
 #pullPosts()
-#classifyAndSummarize()
-mapNewsPostsToStories()
-makeStorySummaries()
-makeTopicSummary()
+#categorizePosts()
+#summarizeNewsPosts()
+#mapStories()
+#summarizeStories()
+#summarizeTopic()

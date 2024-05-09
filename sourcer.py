@@ -6,6 +6,7 @@ import utils
 import configs
 import time
 from datetime import datetime
+import json
 import ua_generator
 import undetected_chromedriver as uc
 import trafilatura
@@ -97,8 +98,8 @@ def getRedditPosts(subreddit, max_posts=10, endpoint='top', region='US') -> list
     return response.json()['data']['children']
 
 #Reddit - parse out fields from returned json and reformat into clean data structure
-def parseRedditListings(topic_id, feed_id, newer_than_datetime=0, max_posts=10, endpoint='top', region='US', printstats=False) -> list[dict]:
-    subreddit = db.getFeedURL(feed_id)['feed_url_constructor']
+def parseFeedReddit(topic_id, feed_id, newer_than_datetime=0, max_posts=10, endpoint='top', region='US', printstats=False) -> list[dict]:
+    subreddit = db.getFeedURL(feed_id)
     raw_listings_json = getRedditPosts(subreddit, max_posts, endpoint, region)
     posts = []
 
@@ -172,6 +173,9 @@ def parseRedditListings(topic_id, feed_id, newer_than_datetime=0, max_posts=10, 
             #add full URL to post permalink
             post_link = 'https://www.reddit.com' + listing['data']['permalink']
 
+            #process link flair
+            post_tags = [listing['data']['link_flair_text']]
+
             #package extracted post
             posts.append({
                 #No post_id, id is created by DB
@@ -181,13 +185,13 @@ def parseRedditListings(topic_id, feed_id, newer_than_datetime=0, max_posts=10, 
                 #no created_at, DB defaults to current time
                 #no updated_at, DB defaults to current time
                 'content_unique_id': listing['data']['name'],
-                'post_publish_time': datetime.timestamp(listing['data']['created_utc']),
+                'post_publish_time': datetime.fromtimestamp(listing['data']['created_utc']),
                 'post_link': post_link,
                 'post_title': listing['data']['title'],
-                'post_tags': listing['data']['link_flair_text'],
+                'post_tags': json.dumps(post_tags),
                 'post_description': None,
                 'post_text': listing['data']['selftext'],
-                'image_urls': image_url,
+                'image_urls': json.dumps(image_url),
                 'external_link': external_content_link,
                 'external_parsed_text': external_scraped_text,
                 'views_score': None,
@@ -212,14 +216,14 @@ def getRSSPosts(feed_url):
     raw_feed = feedparser.parse(feed_url)
     return raw_feed
 
-def parseRSSFeed(topic_id, feed_id, newer_than_datetime=0) -> list[dict]:
-    feed_url = db.getFeedURL(feed_id)['feed_url_constructor']
+def parseFeedRSS(topic_id, feed_id, newer_than_datetime=0) -> list[dict]:
+    feed_url = db.getFeedURL(feed_id)
     raw_feed = getRSSPosts(feed_url)
     posts = []
     
     for entry in raw_feed.entries:
         #check if newer than specified timestamp (raw UNIX timestamp)
-        publish_time = datetime.timestamp(time.mktime(entry.published_parsed)) #convert to datetime format for DB
+        publish_time = datetime.fromtimestamp(time.mktime(entry.published_parsed)) #convert to datetime format for DB
         if time.mktime(entry.published_parsed)< newer_than_datetime:
             continue
         #check if there is self text included
@@ -276,7 +280,7 @@ def parseRSSFeed(topic_id, feed_id, newer_than_datetime=0) -> list[dict]:
         'post_tags': None,
         'post_description': description,
         'post_text': post_text,
-        'image_urls': media_url,
+        'image_urls': json.dumps(media_url),
         'external_link': post_link,
         'external_parsed_text': external_parsed_text,
         'views_score': None,
