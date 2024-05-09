@@ -15,7 +15,7 @@ topic_id = 1
 topic_name = 'Formula 1'
 subreddit = 'formula1'
 max_posts = 50
-last2days = time.time() - 172800 #get current time minus 2 days
+last2days = datetime.now().timestamp - 172800 #get current time minus 2 days
 
 #File paths
 
