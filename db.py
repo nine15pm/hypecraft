@@ -214,7 +214,7 @@ def getPostsForNewsStoryMapping(topic_id, newer_than_datetime = datetime.fromtim
     }
     return readEntries(table=table, newer_than_datetime=newer_than_datetime, fields=fields, filters=filters)
 
-def getPostsForStorySummary(story_id):
+def getPostsForStorySummary(post_ids):
     table = POST_TABLE
     fields = [
         'post_id',
@@ -227,7 +227,7 @@ def getPostsForStorySummary(story_id):
         'comments_score'
     ]
     filters = {
-        'story_id': story_id
+        'post_id': post_ids
     }
     return readEntries(table=table, fields=fields, filters=filters)
 

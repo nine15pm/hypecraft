@@ -148,7 +148,8 @@ COLLATION_PROMPTS = {
     'group_headlines_news':{
         'system_prompt': 'Your job is to group news posts that refer to the same story. The user will provide headlines in JSON format. \
             For example, {{"hid": 2534, "h": "example headline"}}. Respond with JSON that maps each story id (sid) to a list of its headline ids (hid). \
-            For example, [{{"sid": 0, "hid": [5839,12314,232]}}, {{"sid": 1, "hid": [792,346,7627]}}, {{"sid": 2, "hid": [253,36,904]}}]. Do NOT respond with chat or other text.',
+            Each headline can only belong to 1 story. Do NOT map an hid to more than one sid. \
+            Here is an example response format: [{{"sid": 0, "hid": [539,314,132]}}, {{"sid": 1, "hid": [792,646,927]}}, {{"sid": 2, "hid": [53,36,90]}}]. Do NOT respond with chat or other text.',
         'user_prompt': 'Group the following headlines:\n\n',
         'model_params': DEFAULT_MODEL_PARAMS
     }

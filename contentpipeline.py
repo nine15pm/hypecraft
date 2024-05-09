@@ -15,7 +15,7 @@ topic_id = 1
 topic_name = 'Formula 1'
 subreddit = 'formula1'
 max_posts = 50
-last2days = datetime.now().timestamp - 172800 #get current time minus 2 days
+last2days = datetime.now().timestamp() - 172800 #get current time minus 2 days
 
 #File paths
 
@@ -85,6 +85,7 @@ def mapStories():
     stories = []
     #parse and format into story objects for DB
     for story in mapping:
+        print(f'Story {story['sid']}: headlines {story['hid']}')
         stories.append({
             'topic_id': topic_id,
             'posts': story['hid']
@@ -108,7 +109,8 @@ def summarizeStories():
     story_updates = []
 
     for idx, story in enumerate(stories):
-        posts = db.getPostsForStorySummary(story['story_id'])
+        posts = db.getPostsForStorySummary(story['posts'])
+        print(story['story_id'])
         summary, posts_summarized = editor.generateStorySummary(posts, prompt_config=promptconfigs.SUMMARIZER_PROMPTS['story_summary_news'])
         story_updates.append({
             'story_id': story['story_id'],
@@ -144,10 +146,10 @@ def dailyPipelineToCSV():
 #RUN PIPELINE
 ##############################################################################################
     
-pullPosts()
-categorizePosts()
-summarizeNewsPosts()
-mapStories()
-summarizeStories()
+#pullPosts()
+#categorizePosts()
+#summarizeNewsPosts()
+#mapStories()
+#summarizeStories()
 summarizeTopic()
 dailyPipelineToCSV()
