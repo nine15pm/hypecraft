@@ -23,9 +23,7 @@ def loadJSON(path):
         return json.load(infile)
 
 #Create CSV file from JSON
-def JSONtoCSV(JSON_path, CSV_path):
-    data = loadJSON(JSON_path)
-
+def JSONtoCSV(data, CSV_path):
     # create file for writing
     with open(CSV_path, 'w', encoding="utf-8", newline='') as data_file:
         csv_writer = csv.writer(data_file)

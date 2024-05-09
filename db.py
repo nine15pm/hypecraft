@@ -61,7 +61,7 @@ def updateEntries(table, entries: list[dict]):
     cur.close()
     conn.close()
 
-def readEntries(table, newer_than_timestamp = datetime.fromtimestamp(0), fields: list = [], filters: dict = {}):
+def readEntries(table, newer_than_datetime = datetime.fromtimestamp(0), fields: list = [], filters: dict = {}):
     #open cursor for DB ops
     conn = psycopg2.connect(database=DATABASE, user=USER, host=HOST, password=PW, port=PORT)
     cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) #use alternative cursor that returns dict instead of tuple
@@ -71,7 +71,7 @@ def readEntries(table, newer_than_timestamp = datetime.fromtimestamp(0), fields:
     if filters == {}:
         cur.execute(f"SELECT {fields} \
                     FROM {table} \
-                    WHERE created_at > '{newer_than_timestamp}';")
+                    WHERE created_at > '{newer_than_datetime}';")
     else:
         #construct filter fields string and filter values
         filter_fields = ''
@@ -86,7 +86,7 @@ def readEntries(table, newer_than_timestamp = datetime.fromtimestamp(0), fields:
             filter_fields = filter_fields + f'AND {field} IN ({values_placeholder}) '
         cur.execute(f"SELECT {fields} \
                     FROM {table} \
-                    WHERE created_at > '{newer_than_timestamp}' \
+                    WHERE created_at > '{newer_than_datetime}' \
                     {filter_fields};", filter_values)
     entries = cur.fetchall()
     conn.commit()
@@ -117,19 +117,19 @@ def createTopicHighlight(topic_highlights: list[dict]):
     table = TOPIC_HIGHLIGHT_TABLE
     writeEntries(table, topic_highlights)
 
-def getPosts(newer_than_timestamp=datetime.fromtimestamp(0), filters={}):
+def getPosts(newer_than_datetime=datetime.fromtimestamp(0), filters={}):
     table = POST_TABLE
-    return readEntries(table=table, newer_than_timestamp=newer_than_timestamp, filters=filters)
+    return readEntries(table=table, newer_than_datetime=newer_than_datetime, filters=filters)
 
-def getStories(newer_than_timestamp=datetime.fromtimestamp(0), filters={}):
+def getStories(newer_than_datetime=datetime.fromtimestamp(0), filters={}):
     table = STORY_TABLE
-    return readEntries(table=table, newer_than_timestamp=newer_than_timestamp, filters=filters)
+    return readEntries(table=table, newer_than_datetime=newer_than_datetime, filters=filters)
 
-def getTopicHighlights(newer_than_timestamp=datetime.fromtimestamp(0), filters={}):
+def getTopicHighlights(newer_than_datetime=datetime.fromtimestamp(0), filters={}):
     table = TOPIC_HIGHLIGHT_TABLE
-    return readEntries(table=table, newer_than_timestamp=newer_than_timestamp, filters=filters)
+    return readEntries(table=table, newer_than_datetime=newer_than_datetime, filters=filters)
 
-def getPostsForCategorize(topic_id, newer_than_timestamp=datetime.fromtimestamp(0)):
+def getPostsForCategorize(topic_id, newer_than_datetime=datetime.fromtimestamp(0)):
     table = POST_TABLE
     fields = [
         'post_id',
@@ -142,7 +142,7 @@ def getPostsForCategorize(topic_id, newer_than_timestamp=datetime.fromtimestamp(
     filters = {
         'topic_id': topic_id
     }
-    return readEntries(table=table, newer_than_timestamp=newer_than_timestamp, fields=fields, filters=filters)
+    return readEntries(table=table, newer_than_datetime=newer_than_datetime, fields=fields, filters=filters)
 
 def getFeedsForTopic(topic_id):
     table = FEED_TABLE
@@ -181,7 +181,7 @@ def getFeedsForPosts(feed_ids: list):
     }
     return readEntries(table=table, fields=fields, filters=filters)
 
-def getPostsForNewsSummary(topic_id, newer_than_timestamp = datetime.fromtimestamp(0)):
+def getPostsForNewsSummary(topic_id, newer_than_datetime = datetime.fromtimestamp(0)):
     table = POST_TABLE
     fields = [
         'post_id',
@@ -197,9 +197,9 @@ def getPostsForNewsSummary(topic_id, newer_than_timestamp = datetime.fromtimesta
         'topic_id': topic_id,
         'category_ml': 'news'
     }
-    return readEntries(table=table, newer_than_timestamp=newer_than_timestamp, fields=fields, filters=filters)
+    return readEntries(table=table, newer_than_datetime=newer_than_datetime, fields=fields, filters=filters)
 
-def getPostsForNewsStoryMapping(topic_id, newer_than_timestamp = datetime.fromtimestamp(0)):
+def getPostsForNewsStoryMapping(topic_id, newer_than_datetime = datetime.fromtimestamp(0)):
     table = POST_TABLE
     fields = [
         'post_id',
@@ -212,7 +212,7 @@ def getPostsForNewsStoryMapping(topic_id, newer_than_timestamp = datetime.fromti
         'topic_id': topic_id,
         'category_ml': 'news'
     }
-    return readEntries(table=table, newer_than_timestamp=newer_than_timestamp, fields=fields, filters=filters)
+    return readEntries(table=table, newer_than_datetime=newer_than_datetime, fields=fields, filters=filters)
 
 def getPostsForStorySummary(story_id):
     table = POST_TABLE
@@ -231,7 +231,7 @@ def getPostsForStorySummary(story_id):
     }
     return readEntries(table=table, fields=fields, filters=filters)
 
-def getStoriesForTopic(topic_id, newer_than_timestamp = datetime.fromtimestamp(0)):
+def getStoriesForTopic(topic_id, newer_than_datetime = datetime.fromtimestamp(0)):
     table = STORY_TABLE
     fields = [
         'story_id',
@@ -240,9 +240,9 @@ def getStoriesForTopic(topic_id, newer_than_timestamp = datetime.fromtimestamp(0
     filters = {
         'topic_id': topic_id,
     }
-    return readEntries(table=table, newer_than_timestamp=newer_than_timestamp, fields=fields, filters=filters)
+    return readEntries(table=table, newer_than_datetime=newer_than_datetime, fields=fields, filters=filters)
 
-def getStoriesForTopicSummary(topic_id, newer_than_timestamp = datetime.fromtimestamp(0)):
+def getStoriesForTopicSummary(topic_id, newer_than_datetime = datetime.fromtimestamp(0)):
     table = STORY_TABLE
     fields = [
         'story_id',
@@ -252,7 +252,7 @@ def getStoriesForTopicSummary(topic_id, newer_than_timestamp = datetime.fromtime
     filters = {
         'topic_id': topic_id,
     }
-    return readEntries(table=table, newer_than_timestamp=newer_than_timestamp, fields=fields, filters=filters)
+    return readEntries(table=table, newer_than_datetime=newer_than_datetime, fields=fields, filters=filters)
 
 #tests
 testposts = [{

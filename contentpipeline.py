@@ -5,7 +5,8 @@ import editor
 import promptconfigs
 import configs
 import time
-from datetime import date
+from pytz import timezone
+from datetime import datetime, time
 
 #CONFIGS
 ##############################################################################################
@@ -17,9 +18,7 @@ max_posts = 50
 last2days = time.time() - 172800 #get current time minus 2 days
 
 #File paths
-PATH_POSTS_REDDIT_CSV = 'data/reddit_test_' + subreddit + "_" + date.today().strftime('%m-%d') + '.csv'
-PATH_STORIES_CSV = configs.PATH_STORIES_CSV
-PATH_TOPIC_SUMMARIES_CSV = 'data/topic_summary_' + date.today().strftime('%m-%d') + '.csv'
+
 
 #PIPELINE STEPS
 ##############################################################################################
@@ -132,13 +131,23 @@ def summarizeTopic():
     db.createTopicHighlight(topic_highlights)
     print(f'Topic summary saved to DB')
 
+#take daily content pipeline output and write to CSV for manual review
+def dailyPipelineToCSV():
+    today_start = datetime.combine(datetime.today(), time.min).astimezone(timezone(configs.LOCAL_TZ))
+    posts = db.getPosts(newer_than_datetime=today_start)
+    stories = db.getStories(newer_than_datetime=today_start)
+    topic_highlights = db.getTopicHighlights(newer_than_datetime=today_start)
+    utils.JSONtoCSV(posts, configs.PATH_POSTS_CSV)
+    utils.JSONtoCSV(stories, configs.PATH_STORIES_CSV)
+    utils.JSONtoCSV(topic_highlights, configs.PATH_TOPIC_HIGHLIGHTS_CSV)
 
 #RUN PIPELINE
 ##############################################################################################
     
-#pullPosts()
-#categorizePosts()
-#summarizeNewsPosts()
-#mapStories()
-#summarizeStories()
-#summarizeTopic()
+pullPosts()
+categorizePosts()
+summarizeNewsPosts()
+mapStories()
+summarizeStories()
+summarizeTopic()
+dailyPipelineToCSV()
