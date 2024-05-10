@@ -11,7 +11,7 @@ import ua_generator
 import undetected_chromedriver as uc
 import trafilatura
 
-#GENERAL TEXT EXTRACTOR FOR EXTERNAL LINKS
+#TEXT EXTRACTION FROM LINKS
 ###################################################################
 
 #Custom class to fix error with undetected_chromedriver library (used for backup browser automation scrape method)
@@ -24,10 +24,8 @@ class Chrome(uc.Chrome):
             super().quit()
         except OSError:
             pass
-        
-#logic for scraping external links
-def getWebText(url, min_text_length, unsupported_hosts=[]):
-    print(url)
+
+def generateHeaders():
     #generate request headers for simple http request to mimic browser
     ua = ua_generator.generate(device='desktop', platform = ('windows'), browser=('chrome', 'edge'))
     ua.headers.accept_ch('Sec-Ch-Ua-Model, Sec-Ch-Ua-Arch, Sec-Ch-Ua-Bitness, Sec-Ch-Ua-Full-Version, Sec-Ch-Ua-Platform, Sec-Ch-Ua-Wow64, Sec-CH-UA-Platform-Version, Sec-CH-UA-Full-Version-List')
@@ -43,6 +41,14 @@ def getWebText(url, min_text_length, unsupported_hosts=[]):
         'cache-control': 'max-age=0'
         }
     headers = additional_headers.update(ua.headers.get()) #combine generated headers with additional fixed headers
+    return headers
+
+#logic for scraping external links
+def getWebText(url, min_text_length, unsupported_hosts=[]):
+    print(url)
+
+    #generate request headers
+    headers = generateHeaders()
 
     #check if external content url is explicitly unsupported (e.g. twitter, youtube, etc.)
     isUnsupported = True if any(hostname in url for hostname in unsupported_hosts) else False
@@ -57,14 +63,31 @@ def getWebText(url, min_text_length, unsupported_hosts=[]):
         if extracted_text is not None and len(extracted_text) > min_text_length:
             return extracted_text
         else:
-            #if can't extract text using basic request or extracted text is too short (likely garbage), try selenium webdriver browser automation
-            driver = Chrome(headless=True, use_subprocess=True)
-            driver.get(url)
-            source_html = driver.page_source
-            driver.close()
+            print('trying webcache')
+            #if can't extract text or extracted text is too short (likely garbage), try google webcache
+            source_html = requests.get(configs.WEBCACHE_URL + url, headers=headers).text
             extracted_text = trafilatura.extract(source_html, url=url, deduplicate=True, include_comments=False)
-            extracted_text = extracted_text if extracted_text is not None and len(extracted_text) > min_text_length else '' #check output is valid text and long enough
-            return extracted_text
+            #check output is valid text and long enough
+            if extracted_text is not None and len(extracted_text) > min_text_length:
+                return extracted_text
+            else:
+                print('trying browser automation')
+                #if that doesn't work, try selenium webdriver browser automation
+                driver = Chrome(headless=True, use_subprocess=True)
+                driver.get(url)
+                source_html = driver.page_source
+                driver.close()
+                extracted_text = trafilatura.extract(source_html, url=url, deduplicate=True, include_comments=False)
+                extracted_text = extracted_text if extracted_text is not None and len(extracted_text) > min_text_length else '' #check output is valid text and long enough
+                return extracted_text
+
+def getLinkedTweetContent(url):
+    #generate request headers
+    headers = generateHeaders()
+    response = json.loads(requests.get(url=configs.TWITTER_OEMBED_URL + url, headers=headers).text)
+    tweet_body_html = response['html'][response['html'].find('<p'):response['html'].find('/p>')+3]
+    tweet_text = trafilatura.extract(tweet_body_html, url=url, deduplicate=True, include_comments=False)
+    return tweet_text
 
 #REDDIT
 ###################################################################
@@ -81,6 +104,7 @@ POST_AUTH_REDDIT = {'grant_type':'client_credentials'}
 #Reddit pipeline configs
 MIN_TEXT_LEN_EXTERNAL_REDDIT = 450 #min characters in scraped external text
 MIN_TEXT_LEN_SELF_REDDIT = 200 #min characters for post self text
+MIN_TEXT_LEN_TWEET_REDDIT = 50 #min characters for linked tweets
 
 #Reddit - get OAUTH2 token and add to header
 client_auth_reddit = requests.auth.HTTPBasicAuth(CLIENT_ID_REDDIT, CLIENT_SEC_REDDIT)
@@ -98,7 +122,7 @@ def getRedditPosts(subreddit, max_posts=10, endpoint='top', region='US') -> list
     return response.json()['data']['children']
 
 #Reddit - parse out fields from returned json and reformat into clean data structure
-def parseFeedReddit(topic_id, feed_id, newer_than_datetime=0, max_posts=10, endpoint='top', region='US', printstats=False) -> list[dict]:
+def parseFeedReddit(topic_id, feed_id, min_timestamp=0, max_posts=10, endpoint='top', region='US', printstats=False) -> list[dict]:
     subreddit = db.getFeedURL(feed_id)
     raw_listings_json = getRedditPosts(subreddit, max_posts, endpoint, region)
     posts = []
@@ -116,7 +140,7 @@ def parseFeedReddit(topic_id, feed_id, newer_than_datetime=0, max_posts=10, endp
         #check for link or post self text
         if 'url_overridden_by_dest' in listing['data'] or listing['data']['selftext'] is not None:
             #skip if post older than cutoff date
-            if listing['data']['created_utc'] < newer_than_datetime:
+            if listing['data']['created_utc'] < min_timestamp:
                 continue
 
             #skip if pinned post
@@ -144,10 +168,8 @@ def parseFeedReddit(topic_id, feed_id, newer_than_datetime=0, max_posts=10, endp
                 has_external_link_count += 1
 
                 #scrape the text
-                #define unsupported hosts to ignore
-                unsupported_hosts = configs.WEB_SCRAPE_UNSUPPORTED_HOSTS
-                external_scraped_text = getWebText(listing['data']['url'], min_text_length=MIN_TEXT_LEN_EXTERNAL_REDDIT, unsupported_hosts=unsupported_hosts)
-
+                #scrape using general web scraper
+                external_scraped_text = getWebText(listing['data']['url'], min_text_length=MIN_TEXT_LEN_EXTERNAL_REDDIT, unsupported_hosts=configs.WEB_SCRAPE_UNSUPPORTED_HOSTS)
                 #skip if external scraped text shorter than min characters
                 if len(external_scraped_text) < MIN_TEXT_LEN_EXTERNAL_REDDIT:
                     continue
@@ -216,7 +238,7 @@ def getRSSPosts(feed_url):
     raw_feed = feedparser.parse(feed_url)
     return raw_feed
 
-def parseFeedRSS(topic_id, feed_id, newer_than_datetime=0) -> list[dict]:
+def parseFeedRSS(topic_id, feed_id, min_timestamp=0) -> list[dict]:
     feed_url = db.getFeedURL(feed_id)
     raw_feed = getRSSPosts(feed_url)
     posts = []
@@ -224,7 +246,7 @@ def parseFeedRSS(topic_id, feed_id, newer_than_datetime=0) -> list[dict]:
     for entry in raw_feed.entries:
         #check if newer than specified timestamp (raw UNIX timestamp)
         publish_time = datetime.fromtimestamp(time.mktime(entry.published_parsed)) #convert to datetime format for DB
-        if time.mktime(entry.published_parsed)< newer_than_datetime:
+        if time.mktime(entry.published_parsed)< min_timestamp:
             continue
         #check if there is self text included
         if 'content' in entry:

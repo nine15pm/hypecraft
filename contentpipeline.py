@@ -31,9 +31,9 @@ def pullPosts():
     #pull and process posts for each feed
     for feed in feeds:
         if feed['feed_type'] == 'subreddit':
-            parsed_posts = parsed_posts + sourcer.parseFeedReddit(topic_id=topic_id, feed_id=feed['feed_id'], min_datetime=last2days, max_posts=max_posts, printstats=True)
+            parsed_posts = parsed_posts + sourcer.parseFeedReddit(topic_id=topic_id, feed_id=feed['feed_id'], min_timestamp=last2days, max_posts=max_posts, printstats=True)
         elif feed['feed_type'] == 'rss':
-            parsed_posts = parsed_posts + sourcer.parseFeedRSS(topic_id=topic_id, feed_id=feed['feed_id'], min_datetime=last2days)
+            parsed_posts = parsed_posts + sourcer.parseFeedRSS(topic_id=topic_id, feed_id=feed['feed_id'], min_timestamp=last2days)
 
     #save to DB
     db.createPosts(parsed_posts)
@@ -146,10 +146,10 @@ def dailyPipelineToCSV():
 #RUN PIPELINE
 ##############################################################################################
     
-#pullPosts()
-#categorizePosts()
-#summarizeNewsPosts()
-#mapStories()
-#summarizeStories()
-#summarizeTopic()
-#dailyPipelineToCSV()
+pullPosts()
+categorizePosts()
+summarizeNewsPosts()
+mapStories()
+summarizeStories()
+summarizeTopic()
+dailyPipelineToCSV()
