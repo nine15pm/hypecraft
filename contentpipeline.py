@@ -2,7 +2,6 @@ import utils
 import db
 import sourcer
 import editor
-import promptconfigs
 import configs
 import time
 from pytz import timezone
@@ -32,9 +31,9 @@ def pullPosts():
     #pull and process posts for each feed
     for feed in feeds:
         if feed['feed_type'] == 'subreddit':
-            parsed_posts = parsed_posts + sourcer.parseFeedReddit(topic_id=topic_id, feed_id=feed['feed_id'], newer_than_datetime=last2days, max_posts=max_posts, printstats=True)
+            parsed_posts = parsed_posts + sourcer.parseFeedReddit(topic_id=topic_id, feed_id=feed['feed_id'], min_datetime=last2days, max_posts=max_posts, printstats=True)
         elif feed['feed_type'] == 'rss':
-            parsed_posts = parsed_posts + sourcer.parseFeedRSS(topic_id=topic_id, feed_id=feed['feed_id'], newer_than_datetime=last2days)
+            parsed_posts = parsed_posts + sourcer.parseFeedRSS(topic_id=topic_id, feed_id=feed['feed_id'], min_datetime=last2days)
 
     #save to DB
     db.createPosts(parsed_posts)
@@ -49,7 +48,7 @@ def categorizePosts():
 
     for idx, post in enumerate(posts):
         feed = [feed for feed in feeds if feed['feed_id'] == post['feed_id']][0]
-        category = editor.classifyPost(post=post, feed=feed, prompt_config=promptconfigs.CLASSIFIER_PROMPTS['categorize'])
+        category = editor.classifyPost(post=post, feed=feed)
         posts_update.append({
             'post_id': post['post_id'],
             'category_ml': category
@@ -68,7 +67,7 @@ def summarizeNewsPosts():
 
     for idx, post in enumerate(posts):
         feed = [feed for feed in feeds if feed['feed_id'] == post['feed_id']][0]
-        summary = editor.generateNewsPostSummary(post=post, feed=feed, prompt_config=promptconfigs.SUMMARIZER_PROMPTS['news'])
+        summary = editor.generateNewsPostSummary(post=post, feed=feed)
         posts_update.append({
             'post_id': post['post_id'],
             'summary_ml': summary
@@ -81,7 +80,7 @@ def summarizeNewsPosts():
 #load news posts, group into stories, save stories to DB
 def mapStories():
     news_posts = db.getPostsForNewsStoryMapping(topic_id)
-    mapping = editor.mapNewsPostsToStories(news_posts, prompt_config=promptconfigs.COLLATION_PROMPTS['group_headlines_news'])
+    mapping = editor.mapNewsPostsToStories(news_posts)
     stories = []
     #parse and format into story objects for DB
     for story in mapping:
@@ -110,12 +109,13 @@ def summarizeStories():
 
     for idx, story in enumerate(stories):
         posts = db.getPostsForStorySummary(story['posts'])
-        print(story['story_id'])
-        summary, posts_summarized = editor.generateStorySummary(posts, prompt_config=promptconfigs.SUMMARIZER_PROMPTS['story_summary_news'])
+        summary, posts_summarized = editor.generateStorySummary(posts)
+        headline = editor.generateHeadlineFromSummary(summary)
         story_updates.append({
             'story_id': story['story_id'],
             'posts_summarized': posts_summarized,
-            'summary_ml': summary
+            'summary_ml': summary,
+            'headline_ml': headline
         })
         print(f'SUMMARIZE STORY: {idx+1} of {len(stories)} processed')
 
@@ -124,10 +124,10 @@ def summarizeStories():
 
 #load stories, generate topic summary
 def summarizeTopic():
-    stories = db.getStoriesForTopicSummary(topic_id)
+    stories = db.getStoriesForTopic(topic_id)
     topic_highlights = [{
         'topic_id': topic_id,
-        'summary_ml': editor.generateTopicSummary(stories, prompt_config=promptconfigs.SUMMARIZER_PROMPTS['topic_summary_news'])
+        'summary_ml': editor.generateTopicSummary(stories)
     }]
 
     db.createTopicHighlight(topic_highlights)
@@ -136,9 +136,9 @@ def summarizeTopic():
 #take daily content pipeline output and write to CSV for manual review
 def dailyPipelineToCSV():
     today_start = datetime.combine(datetime.today(), time.min).astimezone(timezone(configs.LOCAL_TZ))
-    posts = db.getPosts(newer_than_datetime=today_start)
-    stories = db.getStories(newer_than_datetime=today_start)
-    topic_highlights = db.getTopicHighlights(newer_than_datetime=today_start)
+    posts = db.getPosts(min_datetime=today_start)
+    stories = db.getStories(min_datetime=today_start)
+    topic_highlights = db.getTopicHighlights(min_datetime=today_start)
     utils.JSONtoCSV(posts, configs.PATH_POSTS_CSV)
     utils.JSONtoCSV(stories, configs.PATH_STORIES_CSV)
     utils.JSONtoCSV(topic_highlights, configs.PATH_TOPIC_HIGHLIGHTS_CSV)
@@ -151,5 +151,5 @@ def dailyPipelineToCSV():
 #summarizeNewsPosts()
 #mapStories()
 #summarizeStories()
-summarizeTopic()
-dailyPipelineToCSV()
+#summarizeTopic()
+#dailyPipelineToCSV()

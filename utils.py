@@ -1,6 +1,5 @@
 import os
 import json
-import smtplib
 import csv
 
 #Read secrets json
@@ -39,12 +38,3 @@ def JSONtoCSV(data, CSV_path):
                 count += 1
             # write data of CSV file
             csv_writer.writerow(post.values())
-
-#Send email
-def sendGmail(sender, pw, recipient, message):
-    with smtplib.SMTP('smtp.gmail.com', 587) as server:
-        server.starttls() #TLS security
-        server.login(sender, pw)
-        server.sendmail(sender, recipient, message.as_string())
-        server.quit()
-        print('EMAIL SENT!')

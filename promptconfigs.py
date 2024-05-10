@@ -25,7 +25,6 @@ def constructPromptLLAMA(user_prompt, system_prompt='') -> str:
     prompt = SYSTEM_PROMPT_PREPEND_LLAMA + system_prompt + ROLE_APPEND_LLAMA + USER_PROMPT_PREPEND_LLAMA + user_prompt + ROLE_APPEND_LLAMA + PROMPT_APPEND_LLAMA
     return prompt
 
-
 #PROMPTS
 ###################################################################
 
@@ -53,9 +52,9 @@ CLASSIFIER_PROMPTS = {
 #Prompts for summarizing
 SUMMARIZER_PROMPTS = {
     'news':{
-        'system_prompt': 'You are an email newsletter writer. The user will provide content for you to summarize. Respond ONLY with the summary text.',
+        'system_prompt': 'You are an email newsletter writer. The user will provide content for you to summarize. Respond ONLY with the summary, do NOT respond with chat.',
         'user_prompt': f'Your task is to summarize news content for a reader that just wants the high-level important takeaways. \
-            I will provide the content, which may include headlines, text from social media posts, and text from news articles.\n\n\
+            The content may include headlines, text from social media posts, and text from news articles.\n\n\
             \
             Your steps are as follows:\n\
             1. Ingest the provided information.\n\
@@ -98,7 +97,7 @@ SUMMARIZER_PROMPTS = {
         'model_params': DEFAULT_MODEL_PARAMS
     },
         'story_summary_news':{
-        'system_prompt': 'You are an email newsletter editor. The user will provide content for you to summarize and edit. Respond ONLY with the summary text.',
+        'system_prompt': 'You are an email newsletter editor. The user will provide content for you to summarize and edit. Respond ONLY with the summary, do NOT respond with chat.',
         'user_prompt': f'Your task is to combine multiple posts about the same news story into a single summary. \
             I will provide the posts, which may include headlines, text from social media posts, and text from news articles.\n\n\
             \
@@ -112,7 +111,7 @@ SUMMARIZER_PROMPTS = {
         'model_params': DEFAULT_MODEL_PARAMS
     },
         'topic_summary_news':{
-        'system_prompt': 'You are an email newsletter editor. The user will provide content for you to summarize and edit. Respond ONLY with the summary text.',
+        'system_prompt': 'You are an email newsletter editor. The user will provide content for you to summarize and edit. Respond ONLY with the summary, do NOT respond with chat.',
         'user_prompt': f'Your task is to combine multiple news stories into a single highlights summary that a reader can quickly skim. \
             I will provide the content for each news story.\n\n\
             \
@@ -128,22 +127,6 @@ SUMMARIZER_PROMPTS = {
 }
 
 #Prompts for collation
-CLASSIFIER_PROMPTS = {
-    'categorize':{
-        'system_prompt': 'Your job is to categorize web content based on the source and a short text sample. \
-            For example, the text can be a Reddit post headline or a tweet. Categories will be provided by the user. \
-            Respond only with the label of the category and format your response as "#category#"',
-        'user_prompt': 'Here are the possible categories:\n\
-            - news: sharing or reporting current events\n\
-            - insights: analysis, research, or educational article\n\
-            - discussions: community conversations like asking questions or gathering opinions\n\
-            - memes: jokes and other content meant to be funny\n\n\
-            Choose the most likely category based on the following info. If you do not have enough info or are very uncertain, return "#other#".\n\n',
-        'model_params': DEFAULT_MODEL_PARAMS
-    },
-}
-
-#Prompts for summarizing
 COLLATION_PROMPTS = {
     'group_headlines_news':{
         'system_prompt': 'Your job is to group news posts that refer to the same story. The user will provide headlines in JSON format. \
@@ -155,11 +138,17 @@ COLLATION_PROMPTS = {
     }
 }
 
-#Prompts for new headline
-HEADLINE_NEWS_SYSTEM_PROMPT = '''Your task is to write a short, hyped up, clickbait headline for a piece of trending news to attract young readers.'''
-HEADLINE_NEWS_PREPEND = '''Confidently write an engaging headline for the following news summary, in 15 words or less.\n\n'''
-HEADLINE_NEWS_MODEL_PARAMS = DEFAULT_MODEL_PARAMS
+#Prompts for writing headlines
+HEADLINE_PROMPTS = {
+    'news_headline':{
+        'system_prompt': 'You are an email newsletter writer. The user will provide news content and ask you to write a headline. Respond ONLY with the headline, do NOT respond with chat.',
+        'user_prompt': 'Your task is to write a short, hyped up, creative headline for a piece of trending news to attract the attention of young readers. \
+            Write an engaging headline for the following news, in 15 words or less:\n\n',
+        'model_params': DEFAULT_MODEL_PARAMS
+    }
+}
 
+###OLD ARCHIVED###
 #Prompts for insight headline
 HEADLINE_INSIGHTS_SYSTEM_PROMPT = '''Your task is to write a short headline telling readers about a new blog post, article, or opinion piece'''
 HEADLINE_INSIGHTS_PREPEND = '''Confidently write an engaging headline based on the following article summary, in 15 words or less.\n\n'''

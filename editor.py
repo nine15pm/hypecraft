@@ -1,7 +1,6 @@
 import promptconfigs
 import requests
 import json
-import utils
 from datetime import date
 
 #CONFIGS
@@ -37,7 +36,7 @@ def getResponseLLAMA(content, prompt_config, print=False) -> str:
 #CLASSIFICATION
 ##############################################################################################
 #construct the prompt for Reddit post and get category
-def classifyPost(post, feed, prompt_config) -> str:
+def classifyPost(post, feed, prompt_config=promptconfigs.CLASSIFIER_PROMPTS['categorize']) -> str:
     feed_source = 'Source type: ' + feed['feed_source']
     feed_name = 'Source name: ' + feed['feed_name'] + '\n'
     headline = 'Post headline: ' + post['post_title'] + '\n'
@@ -50,7 +49,7 @@ def classifyPost(post, feed, prompt_config) -> str:
 ##############################################################################################
 
 #construct the prompt for Reddit post and get summary
-def generateNewsPostSummary(post, feed, prompt_config) -> str:
+def generateNewsPostSummary(post, feed, prompt_config=promptconfigs.SUMMARIZER_PROMPTS['news']) -> str:
     #combine post data into chunk of text for model
     feed_source = 'Source type: ' + feed['feed_source']
     feed_name = 'Source name: ' + feed['feed_name'] + '\n'
@@ -65,7 +64,7 @@ def generateNewsPostSummary(post, feed, prompt_config) -> str:
 ##############################################################################################
 
 #Groups similar/repeat headlines into stories
-def mapNewsPostsToStories(posts: list, prompt_config) -> list[dict]:
+def mapNewsPostsToStories(posts: list, prompt_config=promptconfigs.COLLATION_PROMPTS['group_headlines_news']) -> list[dict]:
     content = ''
     #construct the string listing all headlines
     for idx, post in enumerate(posts):
@@ -79,7 +78,7 @@ def mapNewsPostsToStories(posts: list, prompt_config) -> list[dict]:
         print(model_response)
 
 #collates posts associated with story into a single summary
-def generateStorySummary(storyposts: list, prompt_config) -> tuple[str, list]:
+def generateStorySummary(storyposts: list, prompt_config=promptconfigs.SUMMARIZER_PROMPTS['story_summary_news']) -> tuple[str, str, list]:
     #get story posts and check if there is only 1 post
     if len(storyposts) == 1:
         #if just 1, then return existing summary
@@ -99,10 +98,14 @@ def generateStorySummary(storyposts: list, prompt_config) -> tuple[str, list]:
         return getResponseLLAMA(content, prompt_config), [newest['post_id'], most_liked['post_id']]
 
 #write an overall summary for the topic by combining all the top stories
-def generateTopicSummary(stories: list, prompt_config) -> str:
+def generateTopicSummary(stories: list, prompt_config=promptconfigs.SUMMARIZER_PROMPTS['topic_summary_news']) -> str:
     #construct string combining all story summaries
     content = ''
     for idx, story in enumerate(stories):
         story_summary = 'Story ' + str(idx) + ": \n" + story['summary_ml'] + '\n\n'
         content = content + story_summary
     return getResponseLLAMA(content, prompt_config)
+
+#write the headline for a story
+def generateHeadlineFromSummary(summary, prompt_config=promptconfigs.HEADLINE_PROMPTS['news_headline']) -> str:
+    return getResponseLLAMA(summary, prompt_config)

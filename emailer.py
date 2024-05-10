@@ -1,6 +1,5 @@
-import configs
 import utils
-import time
+import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 
@@ -10,10 +9,9 @@ from email.mime.multipart import MIMEMultipart
 #SEND EMAIL
 ##############################################################################################
 #Send newsletter
-def sendNewsletter(subject, content_html):
+def sendNewsletter(subject, recipients, content_html):
     sender = 'no-reply@example.com'
     pw = utils.read_secrets()['GMAIL_APP_PW']
-    recipients = ['maintainer@example.com', 'contributor@example.com']
 
     message = MIMEMultipart('alternative')
     message['Subject'] = subject
@@ -22,5 +20,13 @@ def sendNewsletter(subject, content_html):
     message_content = MIMEText(content_html, 'html')
     message.attach(message_content)
 
-    utils.sendGmail(sender, pw, recipients, message)
+    sendGmail(sender, pw, recipients, message)
     print("Newsletter sent!")
+
+#Send email
+def sendGmail(sender, pw, recipient, message):
+    with smtplib.SMTP('smtp.gmail.com', 587) as server:
+        server.starttls() #TLS security
+        server.login(sender, pw)
+        server.sendmail(sender, recipient, message.as_string())
+        server.quit()
