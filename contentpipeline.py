@@ -85,7 +85,6 @@ def mapStories():
     stories = []
     #parse and format into story objects for DB
     for story in mapping:
-        print(f'Story {story['sid']}: headlines {story['hid']}')
         stories.append({
             'topic_id': topic_id,
             'posts': story['hid']
@@ -141,20 +140,43 @@ def summarizeTopic():
 
 #CSV dump for checking story mapping
 def storyMappingToCSV():
-    data = []
+    mapping = []
+    story_summary_qa = []
     stories = db.getStoriesForTopic(topic_id, min_datetime=today_start)
     for story in stories:
         posts = db.getPostsForStorySummary(story['posts'])
         headlines_str = ''
         for i, post in enumerate(posts):
             headlines_str = headlines_str + f'{i}: "{post['post_title']}"\n'
-        data.append({
+        mapping.append({
             'story_id': story['story_id'],
             'post_headlines': headlines_str
         })
-    utils.JSONtoCSV(data, configs.PATH_STORY_MAPPING_CSV)
+    utils.JSONtoCSV(mapping, configs.PATH_STORY_MAPPING_CSV)
+    print('Story mapping output to CSV')
 
-#CSV dumps for QA checking
+#CSV dump for QA story summary content
+def storyQAToCSV():
+    story_summary_qa = []
+    stories = db.getStoriesForTopic(topic_id, min_datetime=today_start)
+    for story in stories:
+        posts = db.getPostsForStoryQA(story['posts_summarized'])
+        QA_json = {
+            'story_id': story['story_id'],
+            'story_headline': story['headline_ml'],
+            'story_summary': story['summary_ml']
+        }
+        for i, post in enumerate(posts):
+            QA_json[f'post_{i}'] = f'[POST TITLE] {post['post_title']} \n\
+            [POST LINK] {post['post_link']} \n\
+            [POST SELF TEXT] {post['post_text']} \n\n\
+            [EXTERNAL LINK] {post['external_link']} \n\
+            [EXTERNAL TEXT] {post['external_parsed_text']}'
+        story_summary_qa.append(QA_json)
+    utils.JSONtoCSV(story_summary_qa, configs.PATH_STORY_SUMMARY_QA_CSV)
+    print('Story QA output to CSV')
+
+#CSV dumps for overall data
 def dailyPipelineToCSV():
     #general data dump
     posts = db.getPosts(min_datetime=today_start)
@@ -163,16 +185,18 @@ def dailyPipelineToCSV():
     utils.JSONtoCSV(posts, configs.PATH_POSTS_CSV)
     utils.JSONtoCSV(stories, configs.PATH_STORIES_CSV)
     utils.JSONtoCSV(topic_highlights, configs.PATH_TOPIC_HIGHLIGHTS_CSV)
+    print('Overall data output to CSV')
 
 
 #RUN PIPELINE
 ##############################################################################################
     
-pullPosts()
-categorizePosts()
-summarizeNewsPosts()
-mapStories()
-storyMappingToCSV()
-summarizeStories()
-summarizeTopic()
-dailyPipelineToCSV()
+#pullPosts()
+#categorizePosts()
+#summarizeNewsPosts()
+#mapStories()
+#storyMappingToCSV()
+#summarizeStories()
+#summarizeTopic()
+#storyQAToCSV()
+#dailyPipelineToCSV()

@@ -231,7 +231,28 @@ def getPostsForStorySummary(post_ids):
         'summary_ml',
         'views_score',
         'likes_score',
-        'comments_score'
+        'comments_score',
+    ]
+    filters = {
+        'post_id': post_ids
+    }
+    return readEntries(table=table, fields=fields, filters=filters)
+
+def getPostsForStoryQA(post_ids):
+    table = POST_TABLE
+    fields = [
+        'post_id',
+        'post_publish_time',
+        'post_title',
+        'post_link',
+        'post_tags',
+        'summary_ml',
+        'views_score',
+        'likes_score',
+        'comments_score',
+        'post_text',
+        'external_link',
+        'external_parsed_text'
     ]
     filters = {
         'post_id': post_ids
@@ -244,7 +265,8 @@ def getStoriesForTopic(topic_id, min_datetime = datetime.fromtimestamp(0)):
         'story_id',
         'posts',
         'summary_ml',
-        'headline_ml'
+        'headline_ml',
+        'posts_summarized'
     ]
     filters = {
         'topic_id': topic_id,
