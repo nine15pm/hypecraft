@@ -37,7 +37,7 @@ def constructHeaderSection(newsletter_title):
 
 def constructFooterSection():
     n_date = datetime.strftime(datetime.now(), "%A, %B %m")
-    footer_section = f'''<br><br><p><small>Written just for you by Hypecraft.ai on {n_date}. Powered by Lllama 3.</small></p>'''
+    footer_section = f'''<br><br><p><small>🫶 Written for you with love by Hypecraft on {n_date}. Powered by Lllama 3.</small></p>'''
     return footer_section
 
 #Combine several blocks (e.g. topic highlights, news stories) into an overall topic section
