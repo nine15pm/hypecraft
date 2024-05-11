@@ -53,33 +53,49 @@ def getWebText(url, min_text_length, unsupported_hosts=[]):
     #check if external content url is explicitly unsupported (e.g. twitter, youtube, etc.)
     isUnsupported = True if any(hostname in url for hostname in unsupported_hosts) else False
 
+    #set extracted text default to blank string
+    extracted_text = ''
+
     if isUnsupported:
-        return ''
+        return extracted_text
     else:
         #first try getting html using basic request
-        source_html = requests.get(url, headers=headers).text
-        extracted_text = trafilatura.extract(source_html, url=url, deduplicate=True, include_comments=False)
-        #check output is valid text and long enough
-        if extracted_text is not None and len(extracted_text) > min_text_length:
-            return extracted_text
-        else:
-            print('trying webcache')
-            #if can't extract text or extracted text is too short (likely garbage), try google webcache
-            source_html = requests.get(configs.WEBCACHE_URL + url, headers=headers).text
+        try:
+            source_html = requests.get(url, headers=headers).text
             extracted_text = trafilatura.extract(source_html, url=url, deduplicate=True, include_comments=False)
+        except Exception as error:
+            print("Error:", type(error).__name__, "–", error)
+        finally:
             #check output is valid text and long enough
             if extracted_text is not None and len(extracted_text) > min_text_length:
                 return extracted_text
             else:
-                print('trying browser automation')
-                #if that doesn't work, try selenium webdriver browser automation
-                driver = Chrome(headless=True, use_subprocess=True)
-                driver.get(url)
-                source_html = driver.page_source
-                driver.close()
-                extracted_text = trafilatura.extract(source_html, url=url, deduplicate=True, include_comments=False)
-                extracted_text = extracted_text if extracted_text is not None and len(extracted_text) > min_text_length else '' #check output is valid text and long enough
-                return extracted_text
+                #if can't extract text or extracted text is too short, try google webcache
+                try:
+                    print('Trying webcache')
+                    source_html = requests.get(configs.WEBCACHE_URL + url, headers=headers).text
+                    extracted_text = trafilatura.extract(source_html, url=url, deduplicate=True, include_comments=False)
+                except Exception as error:
+                    print("Error:", type(error).__name__, "–", error)
+                finally:
+                    #check output is valid text and long enough
+                    if extracted_text is not None and len(extracted_text) > min_text_length:
+                        return extracted_text
+                    else:
+                        #if that doesn't work, try selenium webdriver browser automation
+                        try:
+                            print('Trying browser automation')
+                            driver = Chrome(headless=True, use_subprocess=True)
+                            driver.get(url)
+                            source_html = driver.page_source
+                            driver.close()
+                            extracted_text = trafilatura.extract(source_html, url=url, deduplicate=True, include_comments=False)
+                            extracted_text = extracted_text if extracted_text is not None and len(extracted_text) > min_text_length else ''
+                            return extracted_text
+                        except Exception as error:
+                            print("Error:", type(error).__name__, "–", error)
+                        finally:
+                            return extracted_text
 
 def getLinkedTweetContent(url):
     #generate request headers
