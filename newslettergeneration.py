@@ -1,6 +1,7 @@
 import db
 import configs
 import emailer
+import changelog
 from pytz import timezone
 from datetime import datetime, time
 
@@ -32,7 +33,8 @@ def constructHighlightBlock(topic_id, min_datetime):
 def constructHeaderSection(newsletter_title):
     n_time = datetime.strftime(datetime.now(), "%Y-%m-%d %I:%M")
     header_section = f'''<h1><b>{newsletter_title}</b></h1>
-    <p><i><pre>{n_time}</pre></i></p>'''
+    <p><i><pre>{n_time}</pre></i></p>
+    <p><pre>{changelog.changelog_current}</pre></p>'''
     return header_section
 
 def constructFooterSection():
