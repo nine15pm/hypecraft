@@ -15,6 +15,7 @@ topic_name = 'Formula 1'
 subreddit = 'formula1'
 max_posts = 50
 last2days = datetime.now().timestamp() - 172800 #get current time minus 2 days
+today_start = datetime.combine(datetime.today(), time.min).astimezone(timezone(configs.LOCAL_TZ))
 
 #File paths
 
@@ -41,7 +42,7 @@ def pullPosts():
 
 #load posts, classify category using model, update in DB
 def categorizePosts():
-    posts = db.getPostsForCategorize(topic_id)
+    posts = db.getPostsForCategorize(topic_id, min_datetime=today_start)
     feed_ids = [post['feed_id'] for post in posts]
     feeds = db.getFeedsForPosts(feed_ids)
     posts_update = []
@@ -60,7 +61,7 @@ def categorizePosts():
 
 #load news posts, generate summary, update in DB
 def summarizeNewsPosts():
-    posts = db.getPostsForNewsSummary(topic_id)
+    posts = db.getPostsForNewsSummary(topic_id, min_datetime=today_start)
     feed_ids = [post['feed_id'] for post in posts]
     feeds = db.getFeedsForPosts(feed_ids)
     posts_update = []
@@ -79,7 +80,7 @@ def summarizeNewsPosts():
 
 #load news posts, group into stories, save stories to DB
 def mapStories():
-    news_posts = db.getPostsForNewsStoryMapping(topic_id)
+    news_posts = db.getPostsForNewsStoryMapping(topic_id, today_start)
     mapping = editor.mapNewsPostsToStories(news_posts)
     stories = []
     #parse and format into story objects for DB
@@ -91,7 +92,7 @@ def mapStories():
         })
     db.createStories(stories)
     #fill in story_id column in Post table
-    stories = db.getStoriesForTopic(topic_id)
+    stories = db.getStoriesForTopic(topic_id, min_datetime=today_start)
     for story in stories:
         posts = []
         for post_id in story['posts']:
@@ -104,27 +105,32 @@ def mapStories():
 
 #load stories, generate story summary, update in DB
 def summarizeStories():
-    stories = db.getStoriesForTopic(topic_id)
+    stories = db.getStoriesForTopic(topic_id, min_datetime=today_start)
     story_updates = []
 
     for idx, story in enumerate(stories):
-        posts = db.getPostsForStorySummary(story['posts'])
-        summary, posts_summarized = editor.generateStorySummary(posts)
-        headline = editor.generateHeadlineFromSummary(summary)
-        story_updates.append({
-            'story_id': story['story_id'],
-            'posts_summarized': posts_summarized,
-            'summary_ml': summary,
-            'headline_ml': headline
-        })
-        print(f'SUMMARIZE STORY: {idx+1} of {len(stories)} processed')
+        try:
+            posts = db.getPostsForStorySummary(story['posts'])
+            summary, posts_summarized = editor.generateStorySummary(posts)
+            headline = editor.generateHeadlineFromSummary(summary)
+            story_updates.append({
+                'story_id': story['story_id'],
+                'posts_summarized': posts_summarized,
+                'summary_ml': summary,
+                'headline_ml': headline
+            })
+            print(f'SUMMARIZE STORY: {idx+1} of {len(stories)} processed')
+        except Exception as error:
+            print(f'Error summarizing story ID [{story['story_id']}]:', type(error).__name__, "–", error)
+            print(f'Linked posts: [{story['posts']}]')
+            raise
 
     db.updateStories(story_updates)
     print(f'Story summaries updated in DB')
 
 #load stories, generate topic summary
 def summarizeTopic():
-    stories = db.getStoriesForTopic(topic_id)
+    stories = db.getStoriesForTopic(topic_id, min_datetime=today_start)
     topic_highlights = [{
         'topic_id': topic_id,
         'summary_ml': editor.generateTopicSummary(stories)
@@ -133,15 +139,31 @@ def summarizeTopic():
     db.createTopicHighlight(topic_highlights)
     print(f'Topic summary saved to DB')
 
-#take daily content pipeline output and write to CSV for manual review
+#CSV dump for checking story mapping
+def storyMappingToCSV():
+    data = []
+    stories = db.getStoriesForTopic(topic_id, min_datetime=today_start)
+    for story in stories:
+        posts = db.getPostsForStorySummary(story['posts'])
+        headlines_str = ''
+        for i, post in enumerate(posts):
+            headlines_str = headlines_str + f'{i}: "{post['post_title']}"\n'
+        data.append({
+            'story_id': story['story_id'],
+            'post_headlines': headlines_str
+        })
+    utils.JSONtoCSV(data, configs.PATH_STORY_MAPPING_CSV)
+
+#CSV dumps for QA checking
 def dailyPipelineToCSV():
-    today_start = datetime.combine(datetime.today(), time.min).astimezone(timezone(configs.LOCAL_TZ))
+    #general data dump
     posts = db.getPosts(min_datetime=today_start)
     stories = db.getStories(min_datetime=today_start)
     topic_highlights = db.getTopicHighlights(min_datetime=today_start)
     utils.JSONtoCSV(posts, configs.PATH_POSTS_CSV)
     utils.JSONtoCSV(stories, configs.PATH_STORIES_CSV)
     utils.JSONtoCSV(topic_highlights, configs.PATH_TOPIC_HIGHLIGHTS_CSV)
+
 
 #RUN PIPELINE
 ##############################################################################################
@@ -150,6 +172,7 @@ pullPosts()
 categorizePosts()
 summarizeNewsPosts()
 mapStories()
+storyMappingToCSV()
 summarizeStories()
 summarizeTopic()
 dailyPipelineToCSV()

@@ -266,3 +266,4 @@ def deleteAll(table):
 
 #deleteAll(POST_TABLE)
 #deleteAll(STORY_TABLE)
+#deleteAll(TOPIC_HIGHLIGHT_TABLE)
