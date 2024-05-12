@@ -118,7 +118,7 @@ CLIENT_SEC_REDDIT = utils.read_secrets()['CLIENT_SEC_REDDIT']
 POST_AUTH_REDDIT = {'grant_type':'client_credentials'}
 
 #Reddit pipeline configs
-MIN_TEXT_LEN_EXTERNAL_REDDIT = 450 #min characters in scraped external text
+MIN_TEXT_LEN_EXTERNAL_REDDIT = 600 #min characters in scraped external text
 MIN_TEXT_LEN_SELF_REDDIT = 200 #min characters for post self text
 MIN_TEXT_LEN_TWEET_REDDIT = 50 #min characters for linked tweets
 
