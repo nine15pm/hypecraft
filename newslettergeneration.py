@@ -5,6 +5,11 @@ import changelog
 from pytz import timezone
 from datetime import datetime, time
 
+#TEMP HELPER FUNCS
+##############################################################################################
+def htmlLink(text, url):
+    return f'<a href="{url}">{text}</a>'
+
 #BLOCK CONSTRUCTORS
 ##############################################################################################
 #Prep a news stories block within a topic section
@@ -16,9 +21,20 @@ def constructNewsBlock(topic_id, min_datetime):
 
     news_block = '<h3><b>Top Stories</b></h3>'
     for story in stories:
+        #get links of summarized posts
+        posts = db.getPostLinksForStory(story['posts_summarized'])
+        link_html = ''
+        for i, post in enumerate(posts):
+            if post['external_link'] == None or post['external_link'] == '':
+                link = post['post_link']
+            else:
+                link = post['external_link']
+            link_html = link_html + htmlLink(f'Link {i}', link) + '&emsp'
+                
+        #construct story unit
         story_unit = f'''<h4><b><pre>{story['headline_ml']}</pre></b></h4>
         <p><pre>{story['summary_ml']}</pre></p>
-        <p><a href="http://www.google.com">[Links not yet implemented]</a><br></p>
+        <p>{link_html}<br></p>
         '''
         news_block = news_block + story_unit
     return news_block

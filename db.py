@@ -171,7 +171,6 @@ def getFeedsForTopic(topic_id):
     }
     return readEntries(table=table, fields=fields, filters=filters)
 
-
 def getFeedURL(feed_id):
     table = FEED_TABLE
     fields = [
@@ -241,6 +240,18 @@ def getPostsForStorySummary(post_ids):
         'views_score',
         'likes_score',
         'comments_score',
+    ]
+    filters = {
+        'post_id': post_ids
+    }
+    return readEntries(table=table, fields=fields, filters=filters)
+
+def getPostLinksForStory(post_ids):
+    table = POST_TABLE
+    fields = [
+        'post_id',
+        'post_link',
+        'external_link'
     ]
     filters = {
         'post_id': post_ids

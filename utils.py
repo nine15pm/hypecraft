@@ -2,6 +2,8 @@ import os
 import json
 import csv
 
+#GENERAL READ/WRITE
+#####################################################################################
 #Read secrets json
 def read_secrets():
     filename = os.path.join('secrets.json')
