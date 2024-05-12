@@ -50,6 +50,24 @@ CLASSIFIER_PROMPTS = {
     },
 }
 
+#Functions for dynamic summarization prompts
+def story_summary_news(topic_name):
+    prompt = {
+        'system_prompt': 'You are an email newsletter editor. The user will provide content for you to summarize and edit. Respond ONLY with the summary, do NOT respond with chat.',
+        'user_prompt': f'Your task is to combine multiple posts about the same news story into a single summary. \
+            I will provide the posts, which may include headlines, text from social media posts, and text from news articles.\n\n\
+            \
+            Your steps are as follows:\n\
+            1. Read the content of all the posts.\n\
+            2. Identify the most important facts and takeaways. Prioritize the info a {topic_name} enthusiast cares about most.\n\
+            3. Summarize the key facts into 1 single summary paragraph. Include relevant quotes if they are important. Do not exceed {SUMMARY_LEN_NEWS} words.\n\
+            4. Make the language engaging and entertaining so the reader will want to see more detailed content about the story.\n\n\
+            \
+            Combine the following posts:\n\n',
+        'model_params': DEFAULT_MODEL_PARAMS
+    }
+    return prompt
+
 #Prompts for summarizing
 SUMMARIZER_PROMPTS = {
     'news':{
@@ -82,35 +100,7 @@ SUMMARIZER_PROMPTS = {
             Write a summary for the following content, in {SUMMARY_LEN_INSIGHTS} words or less:\n\n',
         'model_params': DEFAULT_MODEL_PARAMS
     },
-    'edit_news':{
-        'system_prompt': 'You are an editor of an email newsletter. Your job is to edit the content to improve quality and readability. \
-            Make sure to provide a response after each step of editing, then provide the final edited summary with the header "[FINAL SUMMARY]"',
-        'user_prompt': f'Your task is to edit summaries of news stories, social media posts, and articles to improve quality and readability.\n\n\
-            \
-            Here are the instructions to edit:\n\
-            1. Make sure the summary mentions the new article in the first sentence.\n\
-            2. Identify any sentences that require expert knowledge to understand (e.g. acronyms, specialized terms, etc.) and reword it in a way that is easy to understand for a general audience.\n\
-            3. Identify any sentences that are overly verbose, hard to read, or have repetitive information, and reword these.\n\
-            4. Make sure the length of the summary is less than {SUMMARY_LEN_NEWS} words.\n\
-            5. Make sure the summary is written in third person NOT first person.\n\n\
-            \
-            Edit the following summary according to your instructions:\n\n',
-        'model_params': DEFAULT_MODEL_PARAMS
-    },
-        'story_summary_news':{
-        'system_prompt': 'You are an email newsletter editor. The user will provide content for you to summarize and edit. Respond ONLY with the summary, do NOT respond with chat.',
-        'user_prompt': f'Your task is to combine multiple posts about the same news story into a single summary. \
-            I will provide the posts, which may include headlines, text from social media posts, and text from news articles.\n\n\
-            \
-            Your steps are as follows:\n\
-            1. Read the content of all the posts.\n\
-            2. Understand the key facts of the news story and identify any important quotes.\n\
-            3. Summarize the key facts from all posts and incorporate any important quotes from all posts into 1 single summary paragraph. Do not exceed {SUMMARY_LEN_NEWS} words.\n\
-            4. Make the language engaging and entertaining so the reader will want to see more detailed content about the story.\n\n\
-            \
-            Combine the following posts:\n\n',
-        'model_params': DEFAULT_MODEL_PARAMS
-    },
+        'story_summary_news_fn': story_summary_news,
         'topic_summary_news':{
         'system_prompt': 'You are an email newsletter editor. The user will provide content for you to summarize and edit. Respond ONLY with the summary, do NOT respond with chat.',
         'user_prompt': f'Your task is to combine multiple news stories into a single highlights summary that a reader can quickly skim. \
@@ -155,3 +145,22 @@ HEADLINE_PROMPTS = {
 HEADLINE_INSIGHTS_SYSTEM_PROMPT = '''Your task is to write a short headline telling readers about a new blog post, article, or opinion piece'''
 HEADLINE_INSIGHTS_PREPEND = '''Confidently write an engaging headline based on the following article summary, in 15 words or less.\n\n'''
 HEADLINE_INSIGHTS_MODEL_PARAMS = DEFAULT_MODEL_PARAMS
+
+#old test editor prompt
+old_editor_news_prompt = {
+    'edit_news':{
+        'system_prompt': 'You are an editor of an email newsletter. Your job is to edit the content to improve quality and readability. \
+            Make sure to provide a response after each step of editing, then provide the final edited summary with the header "[FINAL SUMMARY]"',
+        'user_prompt': f'Your task is to edit summaries of news stories, social media posts, and articles to improve quality and readability.\n\n\
+            \
+            Here are the instructions to edit:\n\
+            1. Make sure the summary mentions the new article in the first sentence.\n\
+            2. Identify any sentences that require expert knowledge to understand (e.g. acronyms, specialized terms, etc.) and reword it in a way that is easy to understand for a general audience.\n\
+            3. Identify any sentences that are overly verbose, hard to read, or have repetitive information, and reword these.\n\
+            4. Make sure the length of the summary is less than {SUMMARY_LEN_NEWS} words.\n\
+            5. Make sure the summary is written in third person NOT first person.\n\n\
+            \
+            Edit the following summary according to your instructions:\n\n',
+        'model_params': DEFAULT_MODEL_PARAMS
+    }
+}

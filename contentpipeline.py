@@ -11,7 +11,7 @@ from datetime import datetime, time
 ##############################################################################################
 
 #get posts, scrape/process external links, save to DB
-def pullPosts():
+def pullPosts(topic_id, max_posts_reddit, min_timestamp):
     #get topic feeds
     feeds = db.getFeedsForTopic(topic_id)
     parsed_posts = []
@@ -19,17 +19,17 @@ def pullPosts():
     #pull and process posts for each feed
     for feed in feeds:
         if feed['feed_type'] == 'subreddit':
-            parsed_posts = parsed_posts + sourcer.parseFeedReddit(topic_id=topic_id, feed_id=feed['feed_id'], min_timestamp=last2days, max_posts=max_posts, printstats=True)
+            parsed_posts = parsed_posts + sourcer.parseFeedReddit(topic_id=topic_id, feed_id=feed['feed_id'], min_timestamp=min_timestamp, max_posts=max_posts_reddit, printstats=True)
         elif feed['feed_type'] == 'rss':
-            parsed_posts = parsed_posts + sourcer.parseFeedRSS(topic_id=topic_id, feed_id=feed['feed_id'], min_timestamp=last2days)
+            parsed_posts = parsed_posts + sourcer.parseFeedRSS(topic_id=topic_id, feed_id=feed['feed_id'], min_timestamp=min_timestamp)
 
     #save to DB
     db.createPosts(parsed_posts)
     print("Posts pulled and saved to DB")
 
 #load posts, classify category using model, update in DB
-def categorizePosts():
-    posts = db.getPostsForCategorize(topic_id, min_datetime=today_start)
+def categorizePosts(topic_id, min_datetime):
+    posts = db.getPostsForCategorize(topic_id, min_datetime=min_datetime)
     feed_ids = [post['feed_id'] for post in posts]
     feeds = db.getFeedsForPosts(feed_ids)
     posts_update = []
@@ -47,8 +47,8 @@ def categorizePosts():
     print(f'Post categories updated in DB')
 
 #load news posts, generate summary, update in DB
-def summarizeNewsPosts():
-    posts = db.getPostsForNewsSummary(topic_id, min_datetime=today_start)
+def summarizeNewsPosts(topic_id, min_datetime):
+    posts = db.getPostsForNewsSummary(topic_id, min_datetime=min_datetime)
     feed_ids = [post['feed_id'] for post in posts]
     feeds = db.getFeedsForPosts(feed_ids)
     posts_update = []
@@ -66,8 +66,8 @@ def summarizeNewsPosts():
     print(f'News post summaries updated in DB')
 
 #load news posts, group into stories, save stories to DB
-def mapStories():
-    news_posts = db.getPostsForNewsStoryMapping(topic_id, today_start)
+def mapStories(topic_id, min_datetime):
+    news_posts = db.getPostsForNewsStoryMapping(topic_id, min_datetime)
     mapping = editor.mapNewsPostsToStories(news_posts)
     stories = []
     #parse and format into story objects for DB
@@ -78,7 +78,7 @@ def mapStories():
         })
     db.createStories(stories)
     #fill in story_id column in Post table
-    stories = db.getStoriesForTopic(topic_id, min_datetime=today_start)
+    stories = db.getStoriesForTopic(topic_id, min_datetime=min_datetime)
     for story in stories:
         posts = []
         for post_id in story['posts']:
@@ -90,14 +90,14 @@ def mapStories():
     print('Stories mapped and saved to DB')
 
 #load stories, generate story summary, update in DB
-def summarizeStories():
-    stories = db.getStoriesForTopic(topic_id, min_datetime=today_start)
+def summarizeStories(topic_id, topic_name, min_datetime):
+    stories = db.getStoriesForTopic(topic_id, min_datetime=min_datetime)
     story_updates = []
 
     for idx, story in enumerate(stories):
         try:
             posts = db.getPostsForStorySummary(story['posts'])
-            summary, posts_summarized = editor.generateStorySummary(posts)
+            summary, posts_summarized = editor.generateStorySummary(posts, topic_name)
             headline = editor.generateHeadlineFromSummary(summary)
             story_updates.append({
                 'story_id': story['story_id'],
@@ -107,7 +107,7 @@ def summarizeStories():
             })
             print(f'SUMMARIZE STORY: {idx+1} of {len(stories)} processed')
         except Exception as error:
-            print(f'Error summarizing story ID [{story['story_id']}]:', type(error).__name__, "–", error)
+            print(f'Error summarizing story ID [{story['story_id']}]:', type(error).__name__, "-", error)
             print(f'Linked posts: [{story['posts']}]')
             raise
 
@@ -115,8 +115,8 @@ def summarizeStories():
     print(f'Story summaries updated in DB')
 
 #load stories, generate topic summary
-def summarizeTopic():
-    stories = db.getStoriesForTopic(topic_id, min_datetime=today_start)
+def summarizeTopic(topic_id, min_datetime):
+    stories = db.getStoriesForTopic(topic_id, min_datetime=min_datetime)
     topic_highlights = [{
         'topic_id': topic_id,
         'summary_ml': editor.generateTopicSummary(stories)
@@ -126,10 +126,10 @@ def summarizeTopic():
     print(f'Topic summary saved to DB')
 
 #CSV dump for checking story mapping
-def storyMappingToCSV():
+def storyMappingToCSV(topic_id, topic_name, min_datetime):
     mapping = []
     story_summary_qa = []
-    stories = db.getStoriesForTopic(topic_id, min_datetime=today_start)
+    stories = db.getStoriesForTopic(topic_id, min_datetime=min_datetime)
     for story in stories:
         posts = db.getPostsForStorySummary(story['posts'])
         headlines_str = ''
@@ -139,13 +139,13 @@ def storyMappingToCSV():
             'story_id': story['story_id'],
             'post_headlines': headlines_str
         })
-    utils.JSONtoCSV(mapping, configs.PATH_STORY_MAPPING_CSV)
+    utils.JSONtoCSV(mapping, 'data/story_mapping_' + topic_name + datetime.today().strftime('%m-%d') + '.csv')
     print('Story mapping output to CSV')
 
 #CSV dump for QA story summary content
-def storyQAToCSV():
+def storyQAToCSV(topic_id, min_datetime):
     story_summary_qa = []
-    stories = db.getStoriesForTopic(topic_id, min_datetime=today_start)
+    stories = db.getStoriesForTopic(topic_id, min_datetime=min_datetime)
     for story in stories:
         posts = db.getPostsForStoryQA(story['posts_summarized'])
         QA_json = {
@@ -160,18 +160,18 @@ def storyQAToCSV():
             [EXTERNAL LINK] {post['external_link']} \n\
             [EXTERNAL TEXT] {post['external_parsed_text']}'
         story_summary_qa.append(QA_json)
-    utils.JSONtoCSV(story_summary_qa, configs.PATH_STORY_SUMMARY_QA_CSV)
+    utils.JSONtoCSV(story_summary_qa, 'data/story_summary_QA_' + topic_name + datetime.today().strftime('%m-%d') + '.csv')
     print('Story QA output to CSV')
 
 #CSV dumps for overall data
-def dailyPipelineToCSV():
+def dailyPipelineToCSV(min_datetime):
     #general data dump
-    posts = db.getPosts(min_datetime=today_start)
-    stories = db.getStories(min_datetime=today_start)
-    topic_highlights = db.getTopicHighlights(min_datetime=today_start)
-    utils.JSONtoCSV(posts, configs.PATH_POSTS_CSV)
-    utils.JSONtoCSV(stories, configs.PATH_STORIES_CSV)
-    utils.JSONtoCSV(topic_highlights, configs.PATH_TOPIC_HIGHLIGHTS_CSV)
+    posts = db.getPosts(min_datetime=min_datetime)
+    stories = db.getStories(min_datetime=min_datetime)
+    topic_highlights = db.getTopicHighlights(min_datetime=min_datetime)
+    utils.JSONtoCSV(posts, 'data/posts_' + topic_name + datetime.today().strftime('%m-%d') + '.csv')
+    utils.JSONtoCSV(stories, 'data/stories_' + topic_name + datetime.today().strftime('%m-%d') + '.csv')
+    utils.JSONtoCSV(topic_highlights, 'data/topic_highlights_' + topic_name + datetime.today().strftime('%m-%d') + '.csv')
     print('Overall data output to CSV')
 
 #PIPELINE PARAMS
@@ -179,20 +179,19 @@ def dailyPipelineToCSV():
 #Test params
 topic_id = 1
 topic_name = 'Formula 1'
-subreddit = 'formula1'
-max_posts = 50
+max_posts_reddit = 50
 last2days = datetime.now().timestamp() - 172800 #get current time minus 2 days
 today_start = datetime.combine(datetime.today(), time.min).astimezone(timezone(configs.LOCAL_TZ))
 
 #RUN PIPELINE
 ##############################################################################################
     
-pullPosts()
-categorizePosts()
-summarizeNewsPosts()
-mapStories()
-storyMappingToCSV()
-summarizeStories()
-summarizeTopic()
-storyQAToCSV()
-dailyPipelineToCSV()
+pullPosts(topic_id, max_posts_reddit, min_timestamp=last2days)
+categorizePosts(topic_id, min_datetime=today_start)
+summarizeNewsPosts(topic_id, min_datetime=today_start)
+mapStories(topic_id, min_datetime=today_start)
+storyMappingToCSV(topic_id, topic_name, min_datetime=today_start)
+summarizeStories(topic_id, topic_name, min_datetime=today_start)
+summarizeTopic(topic_id, min_datetime=today_start)
+storyQAToCSV(topic_id, min_datetime=today_start)
+dailyPipelineToCSV(min_datetime=today_start)

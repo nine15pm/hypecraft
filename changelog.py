@@ -2,9 +2,10 @@
 ####################
 changelog_current = 'Changelog \n\
 --------------------------------\n\
--  \n\
--  \n\
--  \n\
+- Updated story summary logic to use up to 3 posts for the summary. If story has more than 3 posts, choose 1 newest, 1 most text, 1 most likes. \n\
+- Tweaked model prompt when summarizing stories with multiple posts. Focus on more important takeaways for fans vs. unimportant details or other narratives. \n\
+- Implemented links under each story summary (shows up to 3 links corresponding to 3 posts). \n\
+- Added a step for model to rank/sort available stories (using placeholder prompt), then put them in newsletter in order (select max 5 most important stories) \n\
 --------------------------------'
 
 #ARCHIVE

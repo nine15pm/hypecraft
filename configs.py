@@ -3,13 +3,6 @@ from datetime import date
 #date time related
 LOCAL_TZ = 'America/Los_Angeles'
 
-#Shared paths
-PATH_POSTS_CSV = 'data/posts_'+ date.today().strftime('%m-%d') + '.csv'
-PATH_STORIES_CSV = 'data/stories_' + date.today().strftime('%m-%d') + '.csv'
-PATH_TOPIC_HIGHLIGHTS_CSV = 'data/topic_highlights_' + date.today().strftime('%m-%d') + '.csv'
-PATH_STORY_MAPPING_CSV = 'data/story_mapping_' + date.today().strftime('%m-%d') + '.csv'
-PATH_STORY_SUMMARY_QA_CSV = 'data/story_summary_QA_' + date.today().strftime('%m-%d') + '.csv'
-
 #Web scrape
 WEBCACHE_URL = 'http://webcache.googleusercontent.com/search?q=cache:'
 TWITTER_OEMBED_URL = 'https://publish.twitter.com/oembed?url='
