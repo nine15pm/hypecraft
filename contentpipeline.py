@@ -7,19 +7,6 @@ import time
 from pytz import timezone
 from datetime import datetime, time
 
-#CONFIGS
-##############################################################################################
-#Test params
-topic_id = 1
-topic_name = 'Formula 1'
-subreddit = 'formula1'
-max_posts = 50
-last2days = datetime.now().timestamp() - 172800 #get current time minus 2 days
-today_start = datetime.combine(datetime.today(), time.min).astimezone(timezone(configs.LOCAL_TZ))
-
-#File paths
-
-
 #PIPELINE STEPS
 ##############################################################################################
 
@@ -187,16 +174,25 @@ def dailyPipelineToCSV():
     utils.JSONtoCSV(topic_highlights, configs.PATH_TOPIC_HIGHLIGHTS_CSV)
     print('Overall data output to CSV')
 
+#PIPELINE PARAMS
+##############################################################################################
+#Test params
+topic_id = 1
+topic_name = 'Formula 1'
+subreddit = 'formula1'
+max_posts = 50
+last2days = datetime.now().timestamp() - 172800 #get current time minus 2 days
+today_start = datetime.combine(datetime.today(), time.min).astimezone(timezone(configs.LOCAL_TZ))
 
 #RUN PIPELINE
 ##############################################################################################
     
-#pullPosts()
-#categorizePosts()
-#summarizeNewsPosts()
-#mapStories()
-#storyMappingToCSV()
-#summarizeStories()
-#summarizeTopic()
-#storyQAToCSV()
-#dailyPipelineToCSV()
+pullPosts()
+categorizePosts()
+summarizeNewsPosts()
+mapStories()
+storyMappingToCSV()
+summarizeStories()
+summarizeTopic()
+storyQAToCSV()
+dailyPipelineToCSV()

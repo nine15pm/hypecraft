@@ -149,7 +149,7 @@ CLIENT_SEC_REDDIT = utils.read_secrets()['CLIENT_SEC_REDDIT']
 POST_AUTH_REDDIT = {'grant_type':'client_credentials'}
 
 #Reddit pipeline configs
-MIN_TEXT_LEN_EXTERNAL_REDDIT = 450 #min characters in scraped external text
+MIN_TEXT_LEN_EXTERNAL_REDDIT = 600 #min characters in scraped external text
 MIN_TEXT_LEN_SELF_REDDIT = 200 #min characters for post self text
 MIN_TEXT_LEN_TWEET_REDDIT = 50 #min characters for linked tweets
 
@@ -389,7 +389,7 @@ def parseFeedRSS(topic_id, feed_id, min_timestamp=0) -> list[dict]:
         'external_link': post_link,
         'external_parsed_text': external_parsed_text,
         'views_score': None,
-        'likes_score': time.mktime(entry.published_parsed),
+        'likes_score': None,
         'comments_score': None,
         'category_ml': None,
         'summary_ml': None

@@ -234,6 +234,8 @@ def getPostsForStorySummary(post_ids):
         'post_id',
         'post_publish_time',
         'post_title',
+        'post_text',
+        'external_parsed_text',
         'post_tags',
         'summary_ml',
         'views_score',

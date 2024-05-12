@@ -44,6 +44,7 @@ CLASSIFIER_PROMPTS = {
             - insights: analysis, research, or educational article\n\
             - discussions: community conversations like asking questions or gathering opinions\n\
             - memes: jokes and other content meant to be funny\n\n\
+            - other: does not fit in the above 4 categories\n\n\
             Choose the most likely category based on the following info. If you do not have enough info or are very uncertain, return "#other#".\n\n',
         'model_params': DEFAULT_MODEL_PARAMS
     },

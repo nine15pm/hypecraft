@@ -83,6 +83,6 @@ recipients2 = ['maintainer@example.com', 'contributor@example.com']
 header = constructHeaderSection(title)
 main_content = constructTopicSection(topic_id=topic_id, min_datetime=today_start)
 footer = constructFooterSection()
-newsletter_html = header + main_content + footer
+newsletter_html = wrapNewsletterHTML(header + main_content + footer)
 
-emailer.sendNewsletter(subject=title, recipients=recipients1, content_html=newsletter_html)
+emailer.sendNewsletter(subject=title, recipients=recipients2, content_html=newsletter_html)
