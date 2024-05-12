@@ -9,7 +9,11 @@ from datetime import datetime, time
 ##############################################################################################
 #Prep a news stories block within a topic section
 def constructNewsBlock(topic_id, min_datetime):
-    stories = db.getStoriesForTopic(topic_id, min_datetime=min_datetime)
+    stories_unsorted = db.getStoriesForTopic(topic_id, min_datetime=min_datetime)
+
+    #sort stories by # of posts (proxy for importance)
+    stories = sorted(stories_unsorted, key=lambda story: len(story['posts']), reverse=True)
+
     news_block = '<h3><b>Top Stories</b></h3>'
     for story in stories:
         story_unit = f'''<h4><b><pre>{story['headline_ml']}</pre></b></h4>

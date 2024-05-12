@@ -48,7 +48,7 @@ def classifyPost(post, feed, prompt_config=promptconfigs.CLASSIFIER_PROMPTS['cat
 #SUMMARIZATION
 ##############################################################################################
 
-#construct the prompt for Reddit post and get summary
+#construct the prompt for post and get summary
 def generateNewsPostSummary(post, feed, prompt_config=promptconfigs.SUMMARIZER_PROMPTS['news']) -> str:
     #combine post data into chunk of text for model
     feed_source = 'Source type: ' + feed['feed_source']
@@ -78,7 +78,7 @@ def mapNewsPostsToStories(posts: list, prompt_config=promptconfigs.COLLATION_PRO
         print(model_response)
 
 #collates posts associated with story into a single summary
-def generateStorySummary(storyposts: list, prompt_config=promptconfigs.SUMMARIZER_PROMPTS['story_summary_news']) -> tuple[str, str, list]:
+def generateStorySummary(storyposts: list, prompt_config=promptconfigs.SUMMARIZER_PROMPTS['story_summary_news']) -> tuple[str, list]:
     #get story posts and check if there is only 1 post
     if len(storyposts) == 1:
         #if just 1, then return existing summary

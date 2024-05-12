@@ -95,7 +95,7 @@ def getWebText(url, min_text_length, unsupported_hosts=[]):
             source_html = requests.get(url, headers=headers).text
             extracted_text = trafilatura.extract(source_html, url=url, deduplicate=True, include_comments=False)
         except Exception as error:
-            print("Error:", type(error).__name__, "–", error)
+            print("Error:", type(error).__name__, "-", error)
         finally:
             #check output is valid text and long enough
             if extracted_text is not None and len(extracted_text) > min_text_length:
@@ -107,7 +107,7 @@ def getWebText(url, min_text_length, unsupported_hosts=[]):
                     source_html = requests.get(configs.WEBCACHE_URL + url, headers=headers).text
                     extracted_text = trafilatura.extract(source_html, url=url, deduplicate=True, include_comments=False)
                 except Exception as error:
-                    print("Error:", type(error).__name__, "–", error)
+                    print("Error:", type(error).__name__, "-", error)
                 finally:
                     #check output is valid text and long enough
                     if extracted_text is not None and len(extracted_text) > min_text_length:
@@ -124,7 +124,7 @@ def getWebText(url, min_text_length, unsupported_hosts=[]):
                             extracted_text = extracted_text if extracted_text is not None and len(extracted_text) > min_text_length else ''
                             return extracted_text
                         except Exception as error:
-                            print("Error:", type(error).__name__, "–", error)
+                            print("Error:", type(error).__name__, "-", error)
                         finally:
                             return extracted_text
 
