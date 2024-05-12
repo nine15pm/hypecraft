@@ -136,6 +136,13 @@ def getTopics(filters={}):
     table = TOPIC_TABLE
     return readEntries(table=table, filters=filters)
 
+def getPostsForDupCheck(min_datetime=datetime.fromtimestamp(0), filters={}):
+    table = POST_TABLE
+    fields = [
+        'post_id'
+    ]
+    return readEntries(table=table, min_datetime=min_datetime, fields=fields, filters=filters)
+
 def getPostsForCategorize(topic_id, min_datetime=datetime.fromtimestamp(0)):
     table = POST_TABLE
     fields = [

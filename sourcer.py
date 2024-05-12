@@ -11,6 +11,37 @@ import ua_generator
 import undetected_chromedriver as uc
 import trafilatura
 
+#SHARED FUNCTIONS
+###################################################################
+#Functions to check if duplicate post already exists in DB
+def isDuplicateLink(link):
+    filters_self = {
+        'post_link': link
+    }
+    filters_external = {
+        'external_link': link
+    }
+    if db.getPostsForDupCheck(filters=filters_self) == [] or db.getPosts(filters=filters_external) == []:
+        return False
+    else:
+        return True
+
+def isDuplicateText(title='', post_text='', external_text=''):
+    filters_title = {
+        'post_title': title
+    }
+    filters_post_text = {
+        'post_text': post_text
+    }
+    filters_external_text = {
+        'external_parsed_text': external_text
+    }
+    if db.getPostsForDupCheck(filters=filters_title) == [] or db.getPostsForDupCheck(filters=filters_post_text) == [] or db.getPosts(filters=filters_external_text) == []:
+        return False
+    else:
+        return True
+
+
 #TEXT EXTRACTION FROM LINKS
 ###################################################################
 
@@ -144,7 +175,7 @@ def parseFeedReddit(topic_id, feed_id, min_timestamp=0, max_posts=10, endpoint='
     posts = []
 
     #logging for tracking success of processing
-    total = len(raw_listings_json)
+    total = 0
     has_text_count = 0
     has_external_link_count = 0
     external_success_count = 0
@@ -152,6 +183,16 @@ def parseFeedReddit(topic_id, feed_id, min_timestamp=0, max_posts=10, endpoint='
 
     #repackage key fields from each post
     for listing in raw_listings_json:
+
+        #add full URL to post permalink
+        post_link = 'https://www.reddit.com' + listing['data']['permalink']
+
+        #check if post permalink is duplicate
+        if isDuplicateLink(post_link):
+            print('Skipped duplicate (post link)')
+            continue
+
+        total += 1
 
         #check for link or post self text
         if 'url_overridden_by_dest' in listing['data'] or listing['data']['selftext'] is not None:
@@ -172,10 +213,15 @@ def parseFeedReddit(topic_id, feed_id, min_timestamp=0, max_posts=10, endpoint='
                 
                 #check if link is a reddit domain
                 reddit_hostnames = configs.REDDIT_HOSTNAMES
-                isRedditLink = True if listing['data']['is_reddit_media_domain'] == True or any(hostname in listing['data']['url_overridden_by_dest'] for hostname in reddit_hostnames) else False
+                isRedditLink = True if listing['data']['is_reddit_media_domain'] == True or any(hostname in external_content_link for hostname in reddit_hostnames) else False
 
                 #check if link is valid
-                isValid = True if 'http' in listing['data']['url_overridden_by_dest'] else False
+                isValid = True if 'http' in external_content_link else False
+                
+                #check if duplicate external link
+                if isDuplicateLink(external_content_link):
+                    print('Skipped duplicate (external link)')
+                    continue
 
                 #skip if link is not external or not valid
                 if isRedditLink == True or isValid == False:
@@ -188,6 +234,11 @@ def parseFeedReddit(topic_id, feed_id, min_timestamp=0, max_posts=10, endpoint='
                 external_scraped_text = getWebText(listing['data']['url'], min_text_length=MIN_TEXT_LEN_EXTERNAL_REDDIT, unsupported_hosts=configs.WEB_SCRAPE_UNSUPPORTED_HOSTS)
                 #skip if external scraped text shorter than min characters
                 if len(external_scraped_text) < MIN_TEXT_LEN_EXTERNAL_REDDIT:
+                    continue
+
+                #final check for duplicate post based on extracted text
+                if isDuplicateText(title=listing['data']['title'], external_text=external_scraped_text):
+                    print('Skipped duplicate (title/external-text)')
                     continue
 
                 external_success_count += 1
@@ -203,19 +254,21 @@ def parseFeedReddit(topic_id, feed_id, min_timestamp=0, max_posts=10, endpoint='
                 if len(listing['data']['selftext']) < MIN_TEXT_LEN_SELF_REDDIT:
                     continue
 
+                #final check for duplicate post based on extracted text
+                if isDuplicateText(title=listing['data']['title'], post_text=listing['data']['selftext']):
+                    print('Skipped duplicate (title/post-text)')
+                    continue
+
                 total_success_count += 1
             
             #check if fields exist
             image_url = [url['source']['url'] for url in listing['data']['preview']['images']] if 'preview' in listing['data'] else None
 
-            #add full URL to post permalink
-            post_link = 'https://www.reddit.com' + listing['data']['permalink']
-
             #process link flair
             post_tags = [listing['data']['link_flair_text']]
 
             #package extracted post
-            posts.append({
+            parsed_post = {
                 #No post_id, id is created by DB
                 'feed_id': feed_id,
                 'story_id': None,
@@ -237,7 +290,9 @@ def parseFeedReddit(topic_id, feed_id, min_timestamp=0, max_posts=10, endpoint='
                 'comments_score': None,
                 'category_ml': None,
                 'summary_ml': None
-            })
+            }
+
+            posts.append(parsed_post)
 
     #print summary stats
     if printstats:
@@ -264,6 +319,13 @@ def parseFeedRSS(topic_id, feed_id, min_timestamp=0) -> list[dict]:
         publish_time = datetime.fromtimestamp(time.mktime(entry.published_parsed)) #convert to datetime format for DB
         if time.mktime(entry.published_parsed)< min_timestamp:
             continue
+
+        #check if already exists in DB, skip if so
+        if 'link' in entry:
+            if isDuplicateLink(entry.link):
+                print('Skipped duplicate (link)')
+                continue
+
         #check if there is self text included
         if 'content' in entry:
             #check if self content is html, if so, parse out text (REFACTOR LOGIC TO CHECK NUM TOKENS, IF TOKENS EXCEED MAX THEN PARSE HTML, OTHERWISE LEAVE IT)
@@ -290,6 +352,11 @@ def parseFeedRSS(topic_id, feed_id, min_timestamp=0) -> list[dict]:
         post_link = entry.link if 'link' in entry else None
         headline = entry.title if 'title' in entry else None
         description = entry.description if 'description' in entry else None
+
+        #check for duplicate post based on extracted text
+        if isDuplicateText(title=headline, post_text=post_text, external_text=external_parsed_text):
+            print('Skipped duplicate (title/text)')
+            continue
 
         #logic for getting image url if it exists
         if entry.enclosures == []:

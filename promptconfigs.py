@@ -142,7 +142,8 @@ COLLATION_PROMPTS = {
 HEADLINE_PROMPTS = {
     'news_headline':{
         'system_prompt': 'You are an email newsletter writer. The user will provide news content and ask you to write a headline. Respond ONLY with the headline, do NOT respond with chat.',
-        'user_prompt': 'Your task is to write a short, hyped up, creative headline for a piece of trending news to attract the attention of young readers. \
+        'user_prompt': 'Your task is to write a short, descriptive headline for a piece of trending news to attract the attention of readers. \
+            Do not include quotes in the headline. \
             Write an engaging headline for the following news, in 15 words or less:\n\n',
         'model_params': DEFAULT_MODEL_PARAMS
     }
