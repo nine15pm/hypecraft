@@ -18,10 +18,10 @@ def pullPosts(topic_id, max_posts_reddit, min_timestamp):
 
     #pull and process posts for each feed
     for feed in feeds:
-        if feed['feed_type'] == 'subreddit':
-            parsed_posts = parsed_posts + sourcer.parseFeedReddit(topic_id=topic_id, feed_id=feed['feed_id'], min_timestamp=min_timestamp, max_posts=max_posts_reddit, printstats=True)
-        elif feed['feed_type'] == 'rss':
+        if feed['feed_type'] == 'rss':
             parsed_posts = parsed_posts + sourcer.parseFeedRSS(topic_id=topic_id, feed_id=feed['feed_id'], min_timestamp=min_timestamp)
+        elif feed['feed_type'] == 'subreddit':
+            parsed_posts = parsed_posts + sourcer.parseFeedReddit(topic_id=topic_id, feed_id=feed['feed_id'], min_timestamp=min_timestamp, max_posts=max_posts_reddit, printstats=True)
 
     #save to DB
     db.createPosts(parsed_posts)

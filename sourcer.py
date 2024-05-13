@@ -21,12 +21,12 @@ def isDuplicateLink(link):
     filters_external = {
         'external_link': link
     }
-    if db.getPostsForDupCheck(filters=filters_self) == [] or db.getPosts(filters=filters_external) == []:
-        return False
-    else:
+    if db.getPostsForDupCheck(filters=filters_self) != [] or db.getPosts(filters=filters_external) != []:
         return True
+    else:
+        return False
 
-def isDuplicateText(title='', post_text='', external_text=''):
+def isDuplicateText(title=None, post_text=None, external_text=None):
     filters_title = {
         'post_title': title
     }
@@ -36,11 +36,16 @@ def isDuplicateText(title='', post_text='', external_text=''):
     filters_external_text = {
         'external_parsed_text': external_text
     }
-    if db.getPostsForDupCheck(filters=filters_title) == [] or db.getPostsForDupCheck(filters=filters_post_text) == [] or db.getPosts(filters=filters_external_text) == []:
-        return False
-    else:
-        return True
-
+    if title is not None:
+        if db.getPostsForDupCheck(filters=filters_title) != []:
+            return True
+    if post_text is not None:
+        if db.getPostsForDupCheck(filters=filters_post_text) != []:
+            return True
+    if external_text is not None:
+        if db.getPosts(filters=filters_external_text) != []:
+            return True
+    return False
 
 #TEXT EXTRACTION FROM LINKS
 ###################################################################
