@@ -33,12 +33,12 @@ def constructNewsBlock(topic_id, min_datetime):
                 link = post['post_link']
             else:
                 link = post['external_link']
-            link_html = link_html + htmlLink(f'Link {i}', link) + '&emsp'
+            link_html = link_html + htmlLink(f'Link {i+1}', link) + '    '
                 
         #construct story unit
         story_unit = f'''<h4><b><pre>{story['headline_ml']}</pre></b></h4>
         <p><pre>{story['summary_ml']}</pre></p>
-        <p>{link_html}<br></p>
+        <p><small>{link_html}</small><br></p>
         '''
         news_block = news_block + story_unit
     return news_block
