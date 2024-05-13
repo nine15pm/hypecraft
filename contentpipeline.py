@@ -203,7 +203,7 @@ def dailyPipelineToCSV(min_datetime):
 #PIPELINE PARAMS
 ##############################################################################################
 #Test params
-topic_id = 1
+topic_id = 2
 max_posts_reddit = 50
 last2days = datetime.now().timestamp() - 172800 #get current time minus 2 days
 today_start = datetime.combine(datetime.today(), time.min).astimezone(timezone(configs.LOCAL_TZ))

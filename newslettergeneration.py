@@ -95,13 +95,15 @@ def wrapNewsletterHTML(newsletter_html):
 #GENERATE NEWSLETTER AND SEND
 ##############################################################################################
 today_start = datetime.combine(datetime.today(), time.min).astimezone(timezone(configs.LOCAL_TZ))
-topic_id = 1
+topics = db.getTopics()
 title = 'HYPECRAFT V0.0.2 TEST'
 recipients1 = ['maintainer@example.com']
 recipients2 = ['maintainer@example.com', 'contributor@example.com']
 
 header = constructHeaderSection(title)
-main_content = constructTopicSection(topic_id=topic_id, min_datetime=today_start)
+main_content = ''
+for topic in topics:
+    main_content = main_content + constructTopicSection(topic_id=topic['topic_id'], min_datetime=today_start)
 footer = constructFooterSection()
 newsletter_html = wrapNewsletterHTML(header + main_content + footer)
 
