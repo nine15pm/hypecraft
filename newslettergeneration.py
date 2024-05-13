@@ -107,4 +107,4 @@ for topic in topics:
 footer = constructFooterSection()
 newsletter_html = wrapNewsletterHTML(header + main_content + footer)
 
-emailer.sendNewsletter(subject=title, recipients=recipients1, content_html=newsletter_html)
+emailer.sendNewsletter(subject=title, recipients=recipients2, content_html=newsletter_html)

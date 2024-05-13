@@ -1,8 +1,10 @@
+import configs
+
 #MODEL DEFAULTS
 ###################################################################
 
 #Model
-DEFAULT_MODEL = 'meta-llama/Meta-Llama-3-70B-Instruct'
+DEFAULT_MODEL = configs.DEFAULT_MODEL
 DEFAULT_MODEL_PARAMS = {
     'temperature': 1.0,
     'truncate': 6144,

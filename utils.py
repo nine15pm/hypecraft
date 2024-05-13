@@ -1,6 +1,8 @@
 import os
+import configs
 import json
 import csv
+from transformers import AutoTokenizer
 
 #GENERAL READ/WRITE
 #####################################################################################
@@ -40,3 +42,10 @@ def JSONtoCSV(data, CSV_path):
                 count += 1
             # write data of CSV file
             csv_writer.writerow(post.values())
+
+
+#COUNT TOKENS
+##############################################################################################
+def tokenCountLlama3(text):
+    tokenizer = AutoTokenizer.from_pretrained(configs.DEFAULT_MODEL)
+    return len(tokenizer.encode(text))
