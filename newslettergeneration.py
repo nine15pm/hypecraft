@@ -24,7 +24,7 @@ def constructNewsBlock(topic_id, min_datetime):
     #stories = sorted(stories_unsorted, key=lambda story: len(story['posts']), reverse=True)
 
     news_block = '<h3><b>Top Stories</b></h3>'
-    for story in stories:
+    for i, story in enumerate(stories):
         #get links of summarized posts
         posts = db.getPostLinksForStory(story['posts_summarized'])
         link_html = ''
@@ -34,9 +34,14 @@ def constructNewsBlock(topic_id, min_datetime):
             else:
                 link = post['external_link']
             link_html = link_html + htmlLink(f'Link {i+1}', link) + '    '
-                
+
+        #story debug text
+        ml_score = f'(ML score: {story['daily_i_score_ml']})'
+        cut = '' if i < 5 else ' (cut from newsletter)' #check if story is top 5 ranked
+        debug_text = ml_score + cut
+
         #construct story unit
-        story_unit = f'''<h4><b><pre>{story['headline_ml']}</pre></b></h4>
+        story_unit = f'''<h4><b><pre>{story['headline_ml']} {debug_text}</pre></b></h4>
         <p><pre>{story['summary_ml']}</pre></p>
         <p><small>{link_html}</small><br></p>
         '''
