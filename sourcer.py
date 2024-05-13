@@ -190,7 +190,7 @@ def parseFeedReddit(topic_id, feed_id, min_timestamp=0, max_posts=10, endpoint='
     for listing in raw_listings_json:
 
         #add full URL to post permalink
-        post_link = 'https://www.reddit.com' + listing['data']['permalink']
+        post_link = utils.standardizeURL('https://www.reddit.com' + listing['data']['permalink'])
 
         #check if post permalink is duplicate
         if isDuplicateLink(post_link):
@@ -214,7 +214,7 @@ def parseFeedReddit(topic_id, feed_id, min_timestamp=0, max_posts=10, endpoint='
             #CASE 1: HAS EXTERNAL LINK
             if 'url_overridden_by_dest' in listing['data'] and listing['data']['url_overridden_by_dest'] is not None:
                 #set link to provided link
-                external_content_link = listing['data']['url_overridden_by_dest']
+                external_content_link = utils.standardizeURL(listing['data']['url_overridden_by_dest'])
                 
                 #check if link is a reddit domain
                 reddit_hostnames = configs.REDDIT_HOSTNAMES
@@ -267,7 +267,7 @@ def parseFeedReddit(topic_id, feed_id, min_timestamp=0, max_posts=10, endpoint='
                 total_success_count += 1
             
             #check if fields exist
-            image_url = [url['source']['url'] for url in listing['data']['preview']['images']] if 'preview' in listing['data'] else None
+            image_url = [utils.standardizeURL(url['source']['url']) for url in listing['data']['preview']['images']] if 'preview' in listing['data'] else None
 
             #process link flair
             post_tags = [listing['data']['link_flair_text']]
@@ -306,8 +306,8 @@ def parseFeedReddit(topic_id, feed_id, min_timestamp=0, max_posts=10, endpoint='
 
 #RSS FEED
 ##################################################################
-MIN_TEXT_LEN_EXTERNAL_RSS = 450
-MIN_TEXT_LEN_SELF_RSS = 450
+MIN_TEXT_LEN_EXTERNAL_RSS = 600
+MIN_TEXT_LEN_SELF_RSS = 600
 
 #pull posts from RSS feed 
 def getRSSPosts(feed_url):
@@ -324,9 +324,10 @@ def parseFeedRSS(topic_id, feed_id, min_timestamp=0) -> list[dict]:
         publish_time = datetime.fromtimestamp(time.mktime(entry.published_parsed)) #convert to datetime format for DB
         if time.mktime(entry.published_parsed)< min_timestamp:
             continue
-
+        
+        post_link = utils.standardizeURL(entry.link) if 'link' in entry else None
         #check if already exists in DB, skip if so
-        if 'link' in entry:
+        if post_link is not None:
             if isDuplicateLink(entry.link):
                 print('Skipped duplicate (link)')
                 continue
@@ -354,7 +355,6 @@ def parseFeedRSS(topic_id, feed_id, min_timestamp=0) -> list[dict]:
 
         #check for existence of fields in feed
         content_unique_id = entry.id if 'id' in entry else None
-        post_link = entry.link if 'link' in entry else None
         headline = entry.title if 'title' in entry else None
         description = entry.description if 'description' in entry else None
 
@@ -367,13 +367,13 @@ def parseFeedRSS(topic_id, feed_id, min_timestamp=0) -> list[dict]:
         if entry.enclosures == []:
             if 'media_thumbnail' in entry:
                 media_type = 'image/jpeg'
-                media_url = [url['url'] for url in entry.media_thumbnail]
+                media_url = [utils.standardizeURL(url['url']) for url in entry.media_thumbnail]
             else:
                 media_type = None
                 media_url = None
         else:
             media_type = entry.enclosures[0].type
-            media_url = [url.href for url in entry.enclosures]
+            media_url = [utils.standardizeURL(url.href) for url in entry.enclosures]
 
         #save extracted post
         posts.append({
