@@ -2,6 +2,8 @@ import os
 import configs
 import json
 import csv
+from urllib.parse import urlparse, urlunparse
+from collections import namedtuple
 from transformers import AutoTokenizer
 
 #GENERAL READ/WRITE
@@ -43,9 +45,21 @@ def JSONtoCSV(data, CSV_path):
             # write data of CSV file
             csv_writer.writerow(post.values())
 
+#CONTENT PARSING
+###############################################################################################
+#Clean up URL, remove query strings
+def standardizeURL(url):
+    o = urlparse(url, scheme='https')
+    URLTuple = namedtuple(
+        typename='URLTuple', 
+        field_names=['scheme', 'netloc', 'path', 'params', 'query', 'fragment']
+    )
+    cleanURL = URLTuple(o.scheme, o.netloc, o.path, '', '', '')
+    return urlunparse(cleanURL)
 
 #COUNT TOKENS
 ##############################################################################################
+#Count tokens using Lllama3 tokenizer
 def tokenCountLlama3(text):
     tokenizer = AutoTokenizer.from_pretrained(configs.DEFAULT_MODEL)
     return len(tokenizer.encode(text))
