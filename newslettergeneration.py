@@ -1,6 +1,7 @@
 import db
 import configs
 import emailer
+import editor
 import changelog
 from pytz import timezone
 from datetime import datetime, time
@@ -16,8 +17,11 @@ def htmlLink(text, url):
 def constructNewsBlock(topic_id, min_datetime):
     stories_unsorted = db.getStoriesForTopic(topic_id, min_datetime=min_datetime)
 
-    #sort stories by # of posts (proxy for importance)
-    stories = sorted(stories_unsorted, key=lambda story: len(story['posts']), reverse=True)
+    #sort stories based on i_score from model
+    stories = sorted(stories_unsorted, key=lambda story: story['daily_i_score_ml'], reverse=True)
+
+    #sort stories by # of posts (proxy for importance) - REFACTOR AND DETERMINE IF THIS IS STILL NEEDED WITH MODEL SCORING
+    #stories = sorted(stories_unsorted, key=lambda story: len(story['posts']), reverse=True)
 
     news_block = '<h3><b>Top Stories</b></h3>'
     for story in stories:
@@ -101,4 +105,4 @@ main_content = constructTopicSection(topic_id=topic_id, min_datetime=today_start
 footer = constructFooterSection()
 newsletter_html = wrapNewsletterHTML(header + main_content + footer)
 
-emailer.sendNewsletter(subject=title, recipients=recipients2, content_html=newsletter_html)
+emailer.sendNewsletter(subject=title, recipients=recipients1, content_html=newsletter_html)

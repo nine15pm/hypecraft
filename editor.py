@@ -69,15 +69,22 @@ def mapNewsPostsToStories(posts: list, prompt_config='default') -> list[dict]:
     prompt_config = promptconfigs.COLLATION_PROMPTS['group_headlines_news'] if prompt_config == 'default' else prompt_config
     content = ''
     #construct the string listing all headlines
-    for idx, post in enumerate(posts):
+    for post in posts:
         content = content + '{"hid": ' + str(post['post_id']) + ', "h": "' + post['post_title'] + '"}\n'
     model_response = getResponseLLAMA(content, prompt_config)
     try:
         output = json.loads(model_response)
         return output
-    except ValueError:
-        print("Story grouping output from model is not valid JSON")
+    except:
+        print('Initial story mapping from model not valid JSON, trying fix...')
+    try:
+        model_response = fixJSON(model_response)
+        output = json.loads(model_response)
+        return output
+    except Exception as error:
+        print(f'Story mapping error:', type(error).__name__, "-", error)
         print(model_response)
+        raise error
 
 #collates posts associated with story into a single summary
 def generateStorySummary(storyposts: list, topic_name: str, prompt_config='default') -> tuple[str, list]:
@@ -130,7 +137,38 @@ def generateTopicSummary(stories: list, prompt_config='default') -> str:
         content = content + story_summary
     return getResponseLLAMA(content, prompt_config)
 
+#HEADLINE GENERATION
+##############################################################################################
 #write the headline for a story
 def generateHeadlineFromSummary(summary, prompt_config='default') -> str:
     prompt_config = promptconfigs.HEADLINE_PROMPTS['news_headline'] if prompt_config == 'default' else prompt_config
     return getResponseLLAMA(summary, prompt_config)
+
+#RANKING AND SELECTION
+##############################################################################################
+#For a given set of stories, return scores reflecting the importance
+def scoreNewsStories(stories: list, topic_name: str, prompt_config='default') -> list:
+    prompt_config = promptconfigs.RANKING_PROMPTS['score_headlines_news'](topic_name) if prompt_config == 'default' else prompt_config
+    content = ''
+    for story in stories:
+        content = content + '{"hid": ' + str(story['story_id']) + ', "h": "' + story['headline_ml'] + '"}\n'
+    model_response = getResponseLLAMA(content, prompt_config)
+    try:
+        output = json.loads(model_response)
+        return output
+    except:
+        print('Initial story scoring output not valid JSON, trying fix...')
+    try:
+        model_response = fixJSON(model_response)
+        output = json.loads(model_response)
+        return output
+    except Exception as error:
+        print(f'Story scoring error:', type(error).__name__, "-", error)
+        print(model_response)
+        raise
+
+#ERROR FIXING
+##############################################################################################
+def fixJSON(JSON_string: str, prompt_config='default') -> str:
+    prompt_config = promptconfigs.ERROR_FIXING_PROMPTS['fix_JSON'] if prompt_config == 'default' else prompt_config
+    return getResponseLLAMA(JSON_string, prompt_config)

@@ -90,7 +90,8 @@ def mapStories(topic_id, min_datetime):
     print('Stories mapped and saved to DB')
 
 #load stories, generate story summary, update in DB
-def summarizeStories(topic_id, topic_name, min_datetime):
+def summarizeStories(topic_id, min_datetime):
+    topic_name = db.getTopics(filters={'topic_id': topic_id})[0]['topic_name']
     stories = db.getStoriesForTopic(topic_id, min_datetime=min_datetime)
     story_updates = []
 
@@ -114,6 +115,21 @@ def summarizeStories(topic_id, topic_name, min_datetime):
     db.updateStories(story_updates)
     print(f'Story summaries updated in DB')
 
+def rankStories(topic_id, min_datetime):
+    topic_name = db.getTopics(filters={'topic_id': topic_id})[0]['topic_name']
+    stories = db.getStoriesForTopic(topic_id, min_datetime=min_datetime)
+    stories_scores = editor.scoreNewsStories(stories, topic_name)
+    story_updates = []
+
+    for story in stories_scores:
+        story_updates.append({
+            'story_id': story['hid'],
+            'daily_i_score_ml': story['i_score']
+        })
+
+    db.updateStories(story_updates)
+    print(f'Stories scored and i_scores updated in DB')
+
 #load stories, generate topic summary
 def summarizeTopic(topic_id, min_datetime):
     stories = db.getStoriesForTopic(topic_id, min_datetime=min_datetime)
@@ -126,45 +142,55 @@ def summarizeTopic(topic_id, min_datetime):
     print(f'Topic summary saved to DB')
 
 #CSV dump for checking story mapping
-def storyMappingToCSV(topic_id, topic_name, min_datetime):
+def storyMappingToCSV(topic_id, min_datetime):
+    topic_name = db.getTopics(filters={'topic_id': topic_id})[0]['topic_name']
     mapping = []
-    story_summary_qa = []
     stories = db.getStoriesForTopic(topic_id, min_datetime=min_datetime)
     for story in stories:
         posts = db.getPostsForStorySummary(story['posts'])
         headlines_str = ''
+        post_id_str = ''
+        post_link_str = ''
         for i, post in enumerate(posts):
+            post_id_str = post_id_str + f'{i}: "{post['post_id']}"\n'
+            post_link_str = post_link_str + f'{i}: "{post['post_link']}"\n'
             headlines_str = headlines_str + f'{i}: "{post['post_title']}"\n'
         mapping.append({
             'story_id': story['story_id'],
+            'post_ids': post_id_str,
+            'post_links': post_link_str,
             'post_headlines': headlines_str
         })
-    utils.JSONtoCSV(mapping, 'data/story_mapping_' + topic_name + datetime.today().strftime('%m-%d') + '.csv')
+    utils.JSONtoCSV(mapping, 'data/story_mapping_' + topic_name + '_' + datetime.today().strftime('%m-%d') + '.csv')
     print('Story mapping output to CSV')
 
 #CSV dump for QA story summary content
 def storyQAToCSV(topic_id, min_datetime):
+    topic_name = db.getTopics(filters={'topic_id': topic_id})[0]['topic_name']
     story_summary_qa = []
     stories = db.getStoriesForTopic(topic_id, min_datetime=min_datetime)
     for story in stories:
         posts = db.getPostsForStoryQA(story['posts_summarized'])
         QA_json = {
             'story_id': story['story_id'],
+            'daily_i_score': story['daily_i_score_ml'],
             'story_headline': story['headline_ml'],
             'story_summary': story['summary_ml']
         }
         for i, post in enumerate(posts):
-            QA_json[f'post_{i}'] = f'[POST TITLE] {post['post_title']} \n\
+            QA_json[f'post_{i}'] = f'[POST TITLE] {post['post_title']} \n\n\
+            [ML SUMMARY] {post['summary_ml']} \n\n\
             [POST LINK] {post['post_link']} \n\
             [POST SELF TEXT] {post['post_text']} \n\n\
             [EXTERNAL LINK] {post['external_link']} \n\
             [EXTERNAL TEXT] {post['external_parsed_text']}'
         story_summary_qa.append(QA_json)
-    utils.JSONtoCSV(story_summary_qa, 'data/story_summary_QA_' + topic_name + datetime.today().strftime('%m-%d') + '.csv')
+    utils.JSONtoCSV(story_summary_qa, 'data/story_summary_QA_' + topic_name + '_' + datetime.today().strftime('%m-%d') + '.csv')
     print('Story QA output to CSV')
 
 #CSV dumps for overall data
 def dailyPipelineToCSV(min_datetime):
+    topic_name = db.getTopics(filters={'topic_id': topic_id})[0]['topic_name']
     #general data dump
     posts = db.getPosts(min_datetime=min_datetime)
     stories = db.getStories(min_datetime=min_datetime)
@@ -178,7 +204,6 @@ def dailyPipelineToCSV(min_datetime):
 ##############################################################################################
 #Test params
 topic_id = 1
-topic_name = 'Formula 1'
 max_posts_reddit = 50
 last2days = datetime.now().timestamp() - 172800 #get current time minus 2 days
 today_start = datetime.combine(datetime.today(), time.min).astimezone(timezone(configs.LOCAL_TZ))
@@ -190,8 +215,9 @@ pullPosts(topic_id, max_posts_reddit, min_timestamp=last2days)
 categorizePosts(topic_id, min_datetime=today_start)
 summarizeNewsPosts(topic_id, min_datetime=today_start)
 mapStories(topic_id, min_datetime=today_start)
-storyMappingToCSV(topic_id, topic_name, min_datetime=today_start)
-summarizeStories(topic_id, topic_name, min_datetime=today_start)
+rankStories(topic_id, min_datetime=today_start)
+storyMappingToCSV(topic_id, min_datetime=today_start)
+summarizeStories(topic_id, min_datetime=today_start)
 summarizeTopic(topic_id, min_datetime=today_start)
 storyQAToCSV(topic_id, min_datetime=today_start)
 dailyPipelineToCSV(min_datetime=today_start)

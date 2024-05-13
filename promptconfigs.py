@@ -121,12 +121,29 @@ SUMMARIZER_PROMPTS = {
 COLLATION_PROMPTS = {
     'group_headlines_news':{
         'system_prompt': 'Your job is to group news posts that refer to the same story. The user will provide headlines in JSON format. \
-            For example, {{"hid": 2534, "h": "example headline"}}. Respond with JSON that maps each story id (sid) to a list of its headline ids (hid). \
+            For example, {{"hid": 253, "h": "example headline"}}. Respond with JSON that maps each story id (sid) to a list of its headline ids (hid). \
             Each headline can only belong to 1 story. Do NOT map an hid to more than one sid. \
             Here is an example response format: [{{"sid": 0, "hid": [539,314,132]}}, {{"sid": 1, "hid": [792,646,927]}}, {{"sid": 2, "hid": [53,36,90]}}]. Do NOT respond with chat or other text.',
-        'user_prompt': 'Group the following headlines:\n\n',
+        'user_prompt': 'Evaluate the following headlines. Group the headlines that correspond to the same news story.\n\n',
         'model_params': DEFAULT_MODEL_PARAMS
     }
+}
+
+#Functions for dynamic ranking prompts
+def score_headlines_news(topic_name):
+    prompt = {
+        'system_prompt': f'Your job is to score news stories based on how much a Formula 1 enthusiast would care about it. The user will provide headlines in JSON format, for example {{"hid": 254, "h": "example headline"}}. \
+            Score each headline with an importance score (i_score) in) and i_score. Here is an  the range 1-100. Do not assign the same score to multiple headlines. \
+            Format your response as a JSON list with headline id (hid) and i_score. Here is an example response: [{{"hid": 157, "i_score": 84}}, {{"hid": 942, "i_score": 52}}, {{"hid": 418, "i_score": 16}}]. \
+            ONLY respond with JSON, do NOT respond with text.',
+        'user_prompt': f'Your task is to score news stories based on importance to a {topic_name} enthusiast. Higher i_score means more important. Evaluate the following stories: \n\n',
+        'model_params': DEFAULT_MODEL_PARAMS
+    }
+    return prompt
+
+#Prompts for selection and ranking
+RANKING_PROMPTS = {
+    'score_headlines_news': score_headlines_news
 }
 
 #Prompts for writing headlines
@@ -136,6 +153,15 @@ HEADLINE_PROMPTS = {
         'user_prompt': 'Your task is to write a short, descriptive headline for a piece of trending news to attract the attention of readers. \
             Do not include quotes in the headline. \
             Write an engaging headline for the following news, in 15 words or less:\n\n',
+        'model_params': DEFAULT_MODEL_PARAMS
+    }
+}
+
+#Prompts for ensuring model outputs exact required format
+ERROR_FIXING_PROMPTS = {
+    'fix_JSON':{
+        'system_prompt': 'Your job is to check JSON lists for syntax errors and fix them. The user will provide you with a JSON list. Respond with ONLY the updated JSON list. Do NOT respond with text.',
+        'user_prompt': 'Check this JSON list for syntax errors and fix them. Do NOT modify the data.',
         'model_params': DEFAULT_MODEL_PARAMS
     }
 }

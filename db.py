@@ -124,9 +124,9 @@ def getPosts(min_datetime=datetime.fromtimestamp(0), filters={}):
     table = POST_TABLE
     return readEntries(table=table, min_datetime=min_datetime, filters=filters)
 
-def getStories(min_datetime=datetime.fromtimestamp(0), filters={}):
+def getStories(min_datetime=datetime.fromtimestamp(0), max_datetime=datetime.fromtimestamp(datetime.now().timestamp() + 1e9), filters={}):
     table = STORY_TABLE
-    return readEntries(table=table, min_datetime=min_datetime, filters=filters)
+    return readEntries(table=table, min_datetime=min_datetime, max_datetime=max_datetime, filters=filters)
 
 def getTopicHighlights(min_datetime=datetime.fromtimestamp(0), filters={}):
     table = TOPIC_HIGHLIGHT_TABLE
@@ -236,6 +236,7 @@ def getPostsForStorySummary(post_ids):
         'post_text',
         'external_parsed_text',
         'post_tags',
+        'post_link',
         'summary_ml',
         'views_score',
         'likes_score',
@@ -286,7 +287,8 @@ def getStoriesForTopic(topic_id, min_datetime = datetime.fromtimestamp(0)):
         'posts',
         'summary_ml',
         'headline_ml',
-        'posts_summarized'
+        'posts_summarized',
+        'daily_i_score_ml'
     ]
     filters = {
         'topic_id': topic_id,
