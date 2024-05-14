@@ -177,6 +177,7 @@ def getRedditPosts(subreddit, max_posts=10, endpoint='top', region='US') -> list
     except Exception as error:
         print("Error:", type(error).__name__, "-", error)
         print(response.json())
+        raise
 
 #Reddit - parse out fields from returned json and reformat into clean data structure
 def parseFeedReddit(topic_id, feed_id, min_timestamp=0, max_posts=10, endpoint='top', region='US', printstats=False) -> list[dict]:
