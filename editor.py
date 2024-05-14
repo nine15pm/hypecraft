@@ -19,7 +19,7 @@ HF_MODEL = promptconfigs.DEFAULT_MODEL
 #CALL MODEL
 ##############################################################################################
 #General function to call model with correctly assembled prompt and get response
-def getResponseLLAMA(content, prompt_config, print=False) -> str:
+def getResponseLLAMA(content, prompt_config) -> str:
     params = prompt_config['model_params']
     user_prompt = prompt_config['user_prompt'] + content
     inputs = promptconfigs.constructPromptLLAMA(user_prompt=user_prompt, system_prompt=prompt_config['system_prompt'])
@@ -29,9 +29,13 @@ def getResponseLLAMA(content, prompt_config, print=False) -> str:
         'parameters': params
     }
     response = requests.post(HF_API_URL + HF_MODEL, headers=HF_API_HEADERS, json=payload)
-    if print:
-        print(response.json()[0]['generated_text'])
-    return response.json()[0]['generated_text']
+    try:
+        output = response.json()[0]['generated_text']
+        return output
+    except Exception as error:
+        print("Error:", type(error).__name__, "-", error)
+        print(response.json())
+        raise
 
 #CLASSIFICATION
 ##############################################################################################
