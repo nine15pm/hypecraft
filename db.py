@@ -62,7 +62,7 @@ def updateEntries(table, entries: list[dict]):
     cur.close()
     conn.close()
 
-def readEntries(table, min_datetime = datetime.fromtimestamp(0), max_datetime = datetime.fromtimestamp(datetime.now().timestamp() + 1e9), fields: list = [], filters: dict = {}):
+def readEntries(table, min_datetime = datetime.fromtimestamp(0), max_datetime = datetime.fromtimestamp(datetime.now().timestamp() + 1e9), fields: list = [], filters: dict = {}, sort_field: str = None, sort_order: str = 'DESC'):
     #open cursor for DB ops
     conn = psycopg2.connect(database=DATABASE, user=USER, host=HOST, password=PW, port=PORT)
     cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) #use alternative cursor that returns dict instead of tuple
@@ -86,11 +86,16 @@ def readEntries(table, min_datetime = datetime.fromtimestamp(0), max_datetime = 
                 values_placeholder = '%s'
                 filter_values.append(values)
             filter_fields = filter_fields + f'AND {field} IN ({values_placeholder}) '
+            
+        #construct sort string, if specified
+        sort = f'ORDER BY {sort_field} {sort_order}' if sort_field is not None else ''
+
         cur.execute(f"SELECT {fields} \
                     FROM {table} \
                     WHERE created_at > '{min_datetime}' \
                     AND created_at < '{max_datetime}' \
-                    {filter_fields};", filter_values)
+                    {filter_fields} \
+                    {sort};", filter_values)
     entries = cur.fetchall()
     conn.commit()
     #close connection
