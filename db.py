@@ -93,7 +93,7 @@ def readEntries(table, min_datetime = MIN_DATETIME_DEFAULT, max_datetime = MAX_D
 
         cur.execute(f"SELECT {fields} \
                     FROM {table} \
-                    WHERE created_at > '{min_datetime}' \
+                    WHERE created_at >= '{min_datetime}' \
                     AND created_at < '{max_datetime}' \
                     {filter_fields} \
                     {sort};", filter_values)
@@ -103,6 +103,49 @@ def readEntries(table, min_datetime = MIN_DATETIME_DEFAULT, max_datetime = MAX_D
     cur.close()
     conn.close()
     return entries
+
+def deleteEntries(table, min_datetime = MIN_DATETIME_DEFAULT, max_datetime = MAX_DATETIME_DEFAULT, filters: dict = {}):
+    #open cursor for DB ops
+    conn = psycopg2.connect(database=DATABASE, user=USER, host=HOST, password=PW, port=PORT)
+    cur = conn.cursor()
+    #run query
+    if filters == {}:
+        cur.execute(f"DELETE FROM {table} \
+                    WHERE created_at >= '{min_datetime}' \
+                    AND created_at < '{max_datetime}';")
+    else:
+        #construct filter fields string and filter values
+        filter_fields = ''
+        filter_values = []
+        for field, values in filters.items():
+            if type(values) == list:
+                values_placeholder = '%s' + (', %s' * (len(values)-1))
+                filter_values = filter_values + values
+            else:
+                values_placeholder = '%s'
+                filter_values.append(values)
+            filter_fields = filter_fields + f'AND {field} IN ({values_placeholder}) '
+
+        cur.execute(f"DELETE FROM {table} \
+                    WHERE created_at >= '{min_datetime}' \
+                    AND created_at < '{max_datetime}' \
+                    {filter_fields};", filter_values)
+    conn.commit()
+    #close connection
+    cur.close()
+    conn.close()
+
+def deleteAll(table):
+    #open cursor for DB ops
+    conn = psycopg2.connect(database=DATABASE, user=USER, host=HOST, password=PW, port=PORT)
+    cur = conn.cursor()
+    query = f"DELETE FROM {table};"
+    #run query
+    cur.execute(query)
+    conn.commit()
+    #close cursor
+    cur.close()
+    conn.close()
 
 #WRAPPER FUNCTIONS WITH PRESET QUERIES
 ##############################################################################################
@@ -305,19 +348,7 @@ def getStoriesForTopic(topic_id, min_datetime=MIN_DATETIME_DEFAULT, max_datetime
     }
     return readEntries(table=table, min_datetime=min_datetime, fields=fields, filters=filters, max_datetime=max_datetime)
 
-#tests
-def deleteAll(table):
-    #open cursor for DB ops
-    conn = psycopg2.connect(database=DATABASE, user=USER, host=HOST, password=PW, port=PORT)
-    cur = conn.cursor()
-    query = f"DELETE FROM {table};"
-    #run query
-    cur.execute(query)
-    conn.commit()
-    #close cursor
-    cur.close()
-    conn.close()
-
-#deleteAll(POST_TABLE)
-#deleteAll(STORY_TABLE)
-#deleteAll(TOPIC_HIGHLIGHT_TABLE)
+#delete functions
+def deleteStories(min_datetime=MIN_DATETIME_DEFAULT, max_datetime=MAX_DATETIME_DEFAULT, filters={}):
+    table = STORY_TABLE
+    deleteEntries(table=table, min_datetime=min_datetime, filters=filters, max_datetime=max_datetime)
