@@ -60,6 +60,12 @@ def standardizeURL(url):
 #COUNT TOKENS
 ##############################################################################################
 #Count tokens using Lllama3 tokenizer
+PATH_TOKEN_COUNT = 'data/tokencount.json'
 def tokenCountLlama3(text):
     tokenizer = AutoTokenizer.from_pretrained(configs.DEFAULT_MODEL)
     return len(tokenizer.encode(text))
+
+def countTokensAndSave(text):
+    count = loadJSON(PATH_TOKEN_COUNT)['count'] + tokenCountLlama3(text)
+    data = {'count': count}
+    saveJSON(data, PATH_TOKEN_COUNT)

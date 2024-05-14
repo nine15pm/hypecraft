@@ -55,9 +55,9 @@ CLASSIFIER_PROMPTS = {
 #Functions for dynamic summarization prompts
 def story_summary_news(topic_name):
     prompt = {
-        'system_prompt': 'You are an email newsletter editor. The user will provide content for you to summarize and edit. Respond ONLY with the summary, do NOT respond with chat.',
+        'system_prompt': 'You are an email newsletter editor. The user will provide content for you to summarize. Respond ONLY with the summary, do NOT respond with chat.',
         'user_prompt': f'Your task is to combine multiple posts about the same news story into a single summary. \
-            I will provide the posts, which may include headlines, text from social media posts, and text from news articles.\n\n\
+            The post content may include headlines, text from social media posts, and text from news articles.\n\n\
             \
             Your steps are as follows:\n\
             1. Read the content of all the posts.\n\
@@ -66,6 +66,23 @@ def story_summary_news(topic_name):
             4. Make the language engaging and entertaining so the reader will want to see more detailed content about the story.\n\n\
             \
             Combine the following posts:\n\n',
+        'model_params': DEFAULT_MODEL_PARAMS
+    }
+    return prompt
+
+def topic_summary_news(topic_name):
+    prompt = {
+        'system_prompt': 'You are an email newsletter editor. The user will provide content for you to summarize. Respond ONLY with the summary, do NOT respond with chat.',
+        'user_prompt': f'Your task is to combine multiple news stories into a single highlights summary that a reader can quickly skim. \
+            I will provide the content for each news story.\n\n\
+            \
+            Your steps are as follows:\n\
+            1. Read the content of all the stories.\n\
+            2. Prioritize exclusive or breaking news, particularly the info a {topic_name} enthusiast cares about most.\n\
+            3. Summarize the most important news from all posts into 3-5 bullet points. Do not exceed {SUMMARY_LEN_NEWS} words.\n\
+            4. Make the language engaging and entertaining.\n\n\
+            \
+            Summarize the following stories:\n\n',
         'model_params': DEFAULT_MODEL_PARAMS
     }
     return prompt
@@ -87,7 +104,7 @@ SUMMARIZER_PROMPTS = {
         'model_params': DEFAULT_MODEL_PARAMS
     }, 
     'insights':{
-        'system_prompt': '',
+        'system_prompt': 'You are an email newsletter writer. The user will provide content for you to summarize. Respond ONLY with the summary, do NOT respond with chat.',
         'user_prompt': f'Your task is to write a short summary of a new blog post or article for someone who does not have time to read the full thing.\n\n\
             \
             Follow this general structure for the summary:\n\
@@ -103,8 +120,9 @@ SUMMARIZER_PROMPTS = {
         'model_params': DEFAULT_MODEL_PARAMS
     },
         'story_summary_news_fn': story_summary_news,
-        'topic_summary_news':{
-        'system_prompt': 'You are an email newsletter editor. The user will provide content for you to summarize and edit. Respond ONLY with the summary, do NOT respond with chat.',
+        'topic_summary_news_old': topic_summary_news,
+        'topic_summary_news_old':{
+        'system_prompt': 'You are an email newsletter editor. The user will provide content for you to summarize. Respond ONLY with the summary, do NOT respond with chat.',
         'user_prompt': f'Your task is to combine multiple news stories into a single highlights summary that a reader can quickly skim. \
             I will provide the content for each news story.\n\n\
             \

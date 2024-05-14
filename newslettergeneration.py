@@ -101,7 +101,7 @@ def wrapNewsletterHTML(newsletter_html):
 ##############################################################################################
 today_start = datetime.combine(datetime.today(), time.min).astimezone(timezone(configs.LOCAL_TZ))
 topics = db.getTopics()
-title = 'HYPECRAFT V0.0.2 TEST'
+title = 'HYPECRAFT V0.0.3 TEST'
 recipients1 = ['maintainer@example.com']
 recipients2 = ['maintainer@example.com', 'contributor@example.com']
 

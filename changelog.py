@@ -2,6 +2,16 @@
 ####################
 changelog_current = 'Changelog \n\
 --------------------------------\n\
+- Trying slightly different prompt for topic highlights to (hopefully) generate bullet points, because YOLO \n\
+- Showing model-output relevance score (0-100) beside each headline for QA purposes, with note to show which stories are cut, assuming max top 5 stories \n\
+- Fixed bugs with deduping posts based on post title, URL, text \n\
+- Added 2 AI subreddits to stress test, expose issues \n\
+--------------------------------'
+
+#ARCHIVE
+####################
+changelog_05_12 = 'Changelog \n\
+--------------------------------\n\
 - Updated story summary logic to use up to 3 posts for the summary. If story has more than 3 posts, choose 1 newest, 1 most text, 1 most likes. \n\
 - Tweaked model prompt when summarizing stories with multiple posts. Focus on more important takeaways for fans vs. unimportant details or other narratives. \n\
 - Implemented links under each story summary (shows up to 3 links corresponding to 3 posts). \n\
@@ -9,8 +19,6 @@ changelog_current = 'Changelog \n\
 - Added crypto category with r/cryptocurrency and CoinDesk as feeds to stress test the system \n\
 --------------------------------'
 
-#ARCHIVE
-####################
 changelog_05_11 = 'Changelog \n\
 --------------------------------\n\
 - Updated prompt for headline generation to be less sensational and explicitly instruct to not include quotes (was hallucinating quotes) \n\

@@ -204,16 +204,16 @@ def dailyPipelineToCSV(min_datetime):
 ##############################################################################################
 #Test params
 topic_id = 1
-max_posts_reddit = 50
+max_posts_reddit = 100
 last2days = datetime.now().timestamp() - 172800 #get current time minus 2 days
 today_start = datetime.combine(datetime.today(), time.min).astimezone(timezone(configs.LOCAL_TZ))
 
 #RUN PIPELINE
 ##############################################################################################
-    
-pullPosts(topic_id, max_posts_reddit, min_timestamp=last2days)
-categorizePosts(topic_id, min_datetime=today_start)
-summarizeNewsPosts(topic_id, min_datetime=today_start)
+
+#pullPosts(topic_id, max_posts_reddit, min_timestamp=last2days)
+#categorizePosts(topic_id, min_datetime=today_start)
+#summarizeNewsPosts(topic_id, min_datetime=today_start)
 mapStories(topic_id, min_datetime=today_start)
 storyMappingToCSV(topic_id, min_datetime=today_start)
 summarizeStories(topic_id, min_datetime=today_start)

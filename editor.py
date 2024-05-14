@@ -1,7 +1,7 @@
 import promptconfigs
 import requests
 import json
-from datetime import date
+import utils
 
 #CONFIGS
 ##############################################################################################
@@ -23,6 +23,7 @@ def getResponseLLAMA(content, prompt_config, print=False) -> str:
     params = prompt_config['model_params']
     user_prompt = prompt_config['user_prompt'] + content
     inputs = promptconfigs.constructPromptLLAMA(user_prompt=user_prompt, system_prompt=prompt_config['system_prompt'])
+    utils.countTokensAndSave(inputs)
     payload = {
         'inputs': inputs,
         'parameters': params
@@ -108,7 +109,7 @@ def generateStorySummary(storyposts: list, topic_name: str, prompt_config='defau
             del storyposts[filtered[0]]
             selected_posts.append(filtered[1])
             #out of remaining posts, get longest text post
-            filtered = max(enumerate(storyposts), key = lambda post: len(post[1]['post_text'] + post[1]['external_parsed_text']))
+            filtered = max(enumerate(storyposts), key = lambda post: len((post[1]['post_text'] if post[1]['post_text'] is not None else '') + post[1]['external_parsed_text']))
             del storyposts[filtered[0]]
             selected_posts.append(filtered[1])
             #out of remaining posts, get most likes post
@@ -124,7 +125,6 @@ def generateStorySummary(storyposts: list, topic_name: str, prompt_config='defau
         #generate summary
         summary = getResponseLLAMA(content, prompt_config)
         posts_summarized = [post['post_id'] for post in selected_posts]
-
     return summary, posts_summarized
 
 #write an overall summary for the topic by combining all the top stories
