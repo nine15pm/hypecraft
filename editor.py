@@ -7,6 +7,7 @@ import utils
 ##############################################################################################
 #Summary configs
 MAX_POSTS_PER_STORY_SUMMARY = 3
+NUM_WORDS_POST_EXCERPT = 100
 
 #Huggingface API
 HF_API_URL = 'https://api-inference.huggingface.co/models/'
@@ -73,9 +74,10 @@ def generateNewsPostSummary(post, feed, prompt_config='default') -> str:
 def mapNewsPostsToStories(posts: list, prompt_config='default') -> list[dict]:
     prompt_config = promptconfigs.COLLATION_PROMPTS['group_headlines_news'] if prompt_config == 'default' else prompt_config
     content = ''
-    #construct the string listing all headlines
+    #construct the string with all the posts
     for post in posts:
-        content = content + '{"hid": ' + str(post['post_id']) + ', "h": "' + post['post_title'] + '"}\n'
+        combined_post_excerpt = utils.firstNWords(post['post_text'] + '\n\n' + post['external_parsed_text'], num_words=NUM_WORDS_POST_EXCERPT, preserve_lines=False)
+        content = content + f'{{"pid": {post['post_id']}, "title": "{post['post_title']}", "excerpt": "{combined_post_excerpt}"}}\n'
     model_response = getResponseLLAMA(content, prompt_config)
     try:
         output = json.loads(model_response)
