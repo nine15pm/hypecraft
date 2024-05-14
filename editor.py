@@ -109,11 +109,11 @@ def generateStorySummary(storyposts: list, topic_name: str, prompt_config='defau
             del storyposts[filtered[0]]
             selected_posts.append(filtered[1])
             #out of remaining posts, get longest text post
-            filtered = max(enumerate(storyposts), key = lambda post: len((post[1]['post_text'] if post[1]['post_text'] is not None else '') + post[1]['external_parsed_text']))
+            filtered = max(enumerate(storyposts), key = lambda post: len((post[1]['post_text'] if post[1]['post_text'] is not None else '') + (post[1]['external_parsed_text'] if post[1]['external_parsed_text'] is not None else '')))
             del storyposts[filtered[0]]
             selected_posts.append(filtered[1])
             #out of remaining posts, get most likes post
-            filtered = max(enumerate(storyposts), key = lambda post: post[1]['likes_score'])
+            filtered = max(enumerate(storyposts), key = lambda post: (post[1]['likes_score'] if post[1]['likes_score'] is not None else 0))
             del storyposts[filtered[0]]
             selected_posts.append(filtered[1])
 
