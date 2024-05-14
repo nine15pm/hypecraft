@@ -84,10 +84,10 @@ def mapNewsPostsToStories(posts: list, topic_name, prompt_config_init='default',
     #first get initial mapping from model with base prompt
     initial_response, user_prompt = getResponseLLAMA(content, prompt_config_init, return_user_prompt=True)
     #then send model chat history and ask it to check for errors and revise
-    prior_chat = {
+    prior_chat = [{
         'user': user_prompt,
         'assistant': initial_response
-    }
+    }]
     revised_response = getResponseLLAMA(content='', prompt_config=prompt_config_check, prior_chat=prior_chat)
     try:
         output = json.loads(revised_response)
