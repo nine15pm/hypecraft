@@ -24,7 +24,7 @@ def constructNewsBlock(topic_id, min_datetime):
     #stories = sorted(stories_unsorted, key=lambda story: len(story['posts']), reverse=True)
 
     news_block = '<h3><b>Top Stories</b></h3>'
-    for i, story in enumerate(stories):
+    for k, story in enumerate(stories):
         #get links of summarized posts
         posts = db.getPostLinksForStory(story['posts_summarized'])
         link_html = ''
@@ -37,7 +37,7 @@ def constructNewsBlock(topic_id, min_datetime):
 
         #story debug text
         ml_score = f'(ML score: {story['daily_i_score_ml']})'
-        cut = '' if i < 5 else ' (cut from newsletter)' #check if story is top 5 ranked
+        cut = '' if k < 5 else ' (cut from newsletter)' #check if story is top 5 ranked
         debug_text = ml_score + cut
 
         #construct story unit
@@ -112,4 +112,4 @@ for topic in topics:
 footer = constructFooterSection()
 newsletter_html = wrapNewsletterHTML(header + main_content + footer)
 
-emailer.sendNewsletter(subject=title, recipients=recipients2, content_html=newsletter_html)
+emailer.sendNewsletter(subject=title, recipients=recipients1, content_html=newsletter_html)
