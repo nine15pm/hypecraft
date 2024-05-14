@@ -113,7 +113,7 @@ def generateStorySummary(storyposts: list, topic_name: str, prompt_config='defau
             del storyposts[filtered[0]]
             selected_posts.append(filtered[1])
             #out of remaining posts, get most likes post
-            filtered = max(enumerate(storyposts), key = lambda post: post['likes_score'])
+            filtered = max(enumerate(storyposts), key = lambda post: post[1]['likes_score'])
             del storyposts[filtered[0]]
             selected_posts.append(filtered[1])
 
