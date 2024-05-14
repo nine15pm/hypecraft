@@ -57,29 +57,32 @@ def standardizeURL(url):
     cleanURL = URLTuple(o.scheme, o.netloc, o.path, '', '', '')
     return urlunparse(cleanURL)
 
-def firstNWords(text, num_words):
+def firstNWords(text, num_words, preserve_lines=False):
     words = text.split()
     if len(words) <= num_words:
         return text
-
-    word_count = 0
-    result_lines = []
     
-    for line in text.splitlines():
-        line_words = line.split()
-        line_result = []
-        for word in line_words:
-            if word_count < num_words:
-                line_result.append(word)
-                word_count += 1
-            else:
+    if preserve_lines:
+        word_count = 0
+        result_lines = []
+        
+        for line in text.splitlines():
+            line_words = line.split()
+            line_result = []
+            for word in line_words:
+                if word_count < num_words:
+                    line_result.append(word)
+                    word_count += 1
+                else:
+                    break
+            result_lines.append(' '.join(line_result))
+            if word_count >= num_words:
                 break
-        result_lines.append(' '.join(line_result))
-        if word_count >= num_words:
-            break
 
-    #join the lines back together preserving the line breaks
-    result = '\n'.join(result_lines).strip()
+        #join the lines back together preserving the line breaks
+        result = '\n'.join(result_lines).strip()
+    else:
+        result = ' '.join(words[:num_words])
     return result
 
 #COUNT TOKENS
