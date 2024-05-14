@@ -24,8 +24,16 @@ PROMPT_APPEND_LLAMA = '<|start_header_id|>assistant<|end_header_id|>\n\n'
 
 #HELPER FUNCTIONS
 ###################################################################
-def constructPromptLLAMA(user_prompt, system_prompt='') -> str:
-    prompt = SYSTEM_PROMPT_PREPEND_LLAMA + system_prompt + ROLE_APPEND_LLAMA + USER_PROMPT_PREPEND_LLAMA + user_prompt + ROLE_APPEND_LLAMA + PROMPT_APPEND_LLAMA
+def constructPromptLLAMA(user_prompt, prior_chat: list[dict] = None, system_prompt='') -> str:
+    if prior_chat is not None:
+        prompt = SYSTEM_PROMPT_PREPEND_LLAMA + system_prompt + ROLE_APPEND_LLAMA
+        #add in each set of prior chat and response
+        for chat in prior_chat:
+            prompt = prompt + USER_PROMPT_PREPEND_LLAMA + chat['user'] + ROLE_APPEND_LLAMA + PROMPT_APPEND_LLAMA + chat['assistant'] + ROLE_APPEND_LLAMA
+        #add in the new user prompt
+        prompt = prompt + USER_PROMPT_PREPEND_LLAMA + user_prompt + ROLE_APPEND_LLAMA + PROMPT_APPEND_LLAMA
+    else:
+        prompt = SYSTEM_PROMPT_PREPEND_LLAMA + system_prompt + ROLE_APPEND_LLAMA + USER_PROMPT_PREPEND_LLAMA + user_prompt + ROLE_APPEND_LLAMA + PROMPT_APPEND_LLAMA
     return prompt
 
 #PROMPTS
@@ -144,14 +152,25 @@ def group_news(topic_name):
         'system_prompt': 'Your job is to group news posts that refer to the same story. The user will provide posts in JSON format, with post id, title, and a short text excerpt. \
             Respond with JSON that maps a list of posts (pid) to a story (sid). \
             Here is an example response format: [{{"sid": 0, "pid": [53,13]}}, {{"sid": 1, "pid": [92,46,27]}}, {{"sid": 2, "pid": [153]}}]. Do NOT respond with chat or text.',
-        'user_prompt': f'Compare the titles and excerpts for each of the following {topic_name} news posts. Find the posts that refer to the same news story and group them. Each post can only belong to one story. Do NOT map a pid to more than one sid.\n\n',
+        'user_prompt': f'Compare the titles and excerpts for each of the following {topic_name} news posts. Find the posts that discuss the same event or news story and group them. Each post can only belong to one story. Do NOT map a pid to more than one sid.\n\n',
+        'model_params': DEFAULT_MODEL_PARAMS
+    }
+    return prompt
+
+def check_group_news(topic_name):
+    prompt = {
+        'system_prompt': 'Your job is to group news posts that refer to the same story. The user will provide posts in JSON format, with post id, title, and a short text excerpt. \
+            Respond with JSON that maps a list of posts (pid) to a story (sid). \
+            Here is an example response format: [{{"sid": 0, "pid": [53,13]}}, {{"sid": 1, "pid": [92,46,27]}}, {{"sid": 2, "pid": [153]}}]. Do NOT respond with chat or text.',
+        'user_prompt': f'Compare the titles and excerpts for each of the following {topic_name} news posts. Find the posts that discuss the same event or news story and group them. Each post can only belong to one story. Do NOT map a pid to more than one sid.\n\n',
         'model_params': DEFAULT_MODEL_PARAMS
     }
     return prompt
 
 #Prompts for collation
 COLLATION_PROMPTS = {
-    'group_news':group_news
+    'group_news':group_news,
+    'check_group_news': check_group_news
 }
 
 #Functions for dynamic ranking prompts
