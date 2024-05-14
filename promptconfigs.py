@@ -138,15 +138,20 @@ SUMMARIZER_PROMPTS = {
     }
 }
 
-#Prompts for collation
-COLLATION_PROMPTS = {
-    'group_headlines_news':{
+#Functions for collation prompts
+def group_news(topic_name):
+    prompt = {
         'system_prompt': 'Your job is to group news posts that refer to the same story. The user will provide posts in JSON format, with post id, title, and a short text excerpt. \
             Respond with JSON that maps a list of posts (pid) to a story (sid). \
             Here is an example response format: [{{"sid": 0, "pid": [53,13]}}, {{"sid": 1, "pid": [92,46,27]}}, {{"sid": 2, "pid": [153]}}]. Do NOT respond with chat or text.',
-        'user_prompt': 'Evaluate the following news posts and group the ones that refer to the same story. Each post can only belong to one story. Do NOT map a pid to more than one sid.\n\n',
+        'user_prompt': f'Compare the titles and excerpts for each of the following {topic_name} news posts. Find the posts that refer to the same news story and group them. Each post can only belong to one story. Do NOT map a pid to more than one sid.\n\n',
         'model_params': DEFAULT_MODEL_PARAMS
     }
+    return prompt
+
+#Prompts for collation
+COLLATION_PROMPTS = {
+    'group_news':group_news
 }
 
 #Functions for dynamic ranking prompts
