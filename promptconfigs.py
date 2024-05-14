@@ -120,7 +120,7 @@ SUMMARIZER_PROMPTS = {
         'model_params': DEFAULT_MODEL_PARAMS
     },
         'story_summary_news_fn': story_summary_news,
-        'topic_summary_news_old': topic_summary_news,
+        'topic_summary_news': topic_summary_news,
         'topic_summary_news_old':{
         'system_prompt': 'You are an email newsletter editor. The user will provide content for you to summarize. Respond ONLY with the summary, do NOT respond with chat.',
         'user_prompt': f'Your task is to combine multiple news stories into a single highlights summary that a reader can quickly skim. \
