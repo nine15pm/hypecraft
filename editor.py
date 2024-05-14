@@ -71,15 +71,16 @@ def generateNewsPostSummary(post, feed, prompt_config='default') -> str:
 ##############################################################################################
 
 #Groups similar/repeat headlines into stories
-def mapNewsPostsToStories(posts: list, prompt_config='default') -> list[dict]:
-    prompt_config = promptconfigs.COLLATION_PROMPTS['group_headlines_news'] if prompt_config == 'default' else prompt_config
+def mapNewsPostsToStories(posts: list, topic_name, prompt_config='default') -> list[dict]:
+    prompt_config = promptconfigs.COLLATION_PROMPTS['group_news'](topic_name) if prompt_config == 'default' else prompt_config
     content = ''
     #construct the string with all the posts
     for post in posts:
         post_text = post['post_text'] + '\n\n' if post['post_text'] is not None else ''
         external_text = post['external_parsed_text'] if post['external_parsed_text'] is not None else ''
-        post_excerpt = utils.firstNWords(post_text + external_text, num_words=NUM_WORDS_POST_EXCERPT, preserve_lines=False)
+        post_excerpt = utils.firstNWords(post_text + external_text, num_words=NUM_WORDS_POST_EXCERPT, preserve_lines=False) + '...'
         content = content + f'{{"pid": {post['post_id']}, "title": "{post['post_title']}", "excerpt": "{post_excerpt}"}}\n'
+    print(content)
     model_response = getResponseLLAMA(content, prompt_config)
     try:
         output = json.loads(model_response)
