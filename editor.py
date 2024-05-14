@@ -129,7 +129,7 @@ def generateStorySummary(storyposts: list, topic_name: str, prompt_config='defau
 
 #write an overall summary for the topic by combining all the top stories
 def generateTopicSummary(stories: list, topic_name: str, prompt_config='default') -> str:
-    prompt_config = promptconfigs.SUMMARIZER_PROMPTS['topic_summary_news']() if prompt_config == 'default' else prompt_config
+    prompt_config = promptconfigs.SUMMARIZER_PROMPTS['topic_summary_news'](topic_name) if prompt_config == 'default' else prompt_config
     #construct string combining all story summaries
     content = ''
     for idx, story in enumerate(stories):
