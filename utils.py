@@ -45,7 +45,7 @@ def JSONtoCSV(data, CSV_path):
             # write data of CSV file
             csv_writer.writerow(post.values())
 
-#CONTENT PARSING
+#TEXT/CONTENT PARSING
 ###############################################################################################
 #Clean up URL, remove query strings
 def standardizeURL(url):
@@ -56,6 +56,31 @@ def standardizeURL(url):
     )
     cleanURL = URLTuple(o.scheme, o.netloc, o.path, '', '', '')
     return urlunparse(cleanURL)
+
+def firstNWords(text, num_words):
+    words = text.split()
+    if len(words) <= num_words:
+        return text
+
+    word_count = 0
+    result_lines = []
+    
+    for line in text.splitlines():
+        line_words = line.split()
+        line_result = []
+        for word in line_words:
+            if word_count < num_words:
+                line_result.append(word)
+                word_count += 1
+            else:
+                break
+        result_lines.append(' '.join(line_result))
+        if word_count >= num_words:
+            break
+
+    #join the lines back together preserving the line breaks
+    result = '\n'.join(result_lines).strip()
+    return result
 
 #COUNT TOKENS
 ##############################################################################################
