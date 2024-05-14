@@ -132,10 +132,11 @@ def rankStories(topic_id, min_datetime):
 
 #load stories, generate topic summary
 def summarizeTopic(topic_id, min_datetime):
+    topic_name = db.getTopics(filters={'topic_id': topic_id})[0]['topic_name']
     stories = db.getStoriesForTopic(topic_id, min_datetime=min_datetime)
     topic_highlights = [{
         'topic_id': topic_id,
-        'summary_ml': editor.generateTopicSummary(stories)
+        'summary_ml': editor.generateTopicSummary(stories, topic_name)
     }]
 
     db.createTopicHighlight(topic_highlights)
@@ -216,7 +217,7 @@ today_start = datetime.combine(datetime.today(), time.min).astimezone(timezone(c
 #summarizeNewsPosts(topic_id, min_datetime=today_start)
 #mapStories(topic_id, min_datetime=today_start)
 #storyMappingToCSV(topic_id, min_datetime=today_start)
-summarizeStories(topic_id, min_datetime=today_start)
+#summarizeStories(topic_id, min_datetime=today_start)
 rankStories(topic_id, min_datetime=today_start)
 summarizeTopic(topic_id, min_datetime=today_start)
 storyQAToCSV(topic_id, min_datetime=today_start)
