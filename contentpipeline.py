@@ -80,7 +80,7 @@ def mapStories(topic_id, min_datetime, max_datetime=MAX_DATETIME_DEFAULT):
     for story in mapping:
         stories.append({
             'topic_id': topic_id,
-            'posts': story['hid']
+            'posts': story['pid']
         })
     db.createStories(stories)
     #fill in story_id column in Post table
