@@ -5,7 +5,13 @@ import editor
 import configs
 import time
 from pytz import timezone
-from datetime import datetime, time
+from datetime import datetime, time, timedelta
+
+#CONFIGS
+##############################################################################################
+DATETIME_TODAY_START = datetime.combine(datetime.today(), time.min).astimezone(timezone(configs.LOCAL_TZ))
+MIN_DATETIME_DEFAULT = datetime.fromtimestamp(0)
+MAX_DATETIME_DEFAULT = datetime.fromtimestamp(datetime.now().timestamp() + 1e9)
 
 #PIPELINE STEPS
 ##############################################################################################
@@ -28,8 +34,8 @@ def pullPosts(topic_id, max_posts_reddit, min_timestamp):
     print("Posts pulled and saved to DB")
 
 #load posts, classify category using model, update in DB
-def categorizePosts(topic_id, min_datetime):
-    posts = db.getPostsForCategorize(topic_id, min_datetime=min_datetime)
+def categorizePosts(topic_id, min_datetime, max_datetime=MAX_DATETIME_DEFAULT):
+    posts = db.getPostsForCategorize(topic_id, min_datetime=min_datetime, max_datetime=max_datetime)
     feed_ids = [post['feed_id'] for post in posts]
     feeds = db.getFeedsForPosts(feed_ids)
     posts_update = []
@@ -47,8 +53,8 @@ def categorizePosts(topic_id, min_datetime):
     print(f'Post categories updated in DB')
 
 #load news posts, generate summary, update in DB
-def summarizeNewsPosts(topic_id, min_datetime):
-    posts = db.getPostsForNewsSummary(topic_id, min_datetime=min_datetime)
+def summarizeNewsPosts(topic_id, min_datetime, max_datetime=MAX_DATETIME_DEFAULT):
+    posts = db.getPostsForNewsSummary(topic_id, min_datetime=min_datetime, max_datetime=max_datetime)
     feed_ids = [post['feed_id'] for post in posts]
     feeds = db.getFeedsForPosts(feed_ids)
     posts_update = []
@@ -66,8 +72,8 @@ def summarizeNewsPosts(topic_id, min_datetime):
     print(f'News post summaries updated in DB')
 
 #load news posts, group into stories, save stories to DB
-def mapStories(topic_id, min_datetime):
-    news_posts = db.getPostsForNewsStoryMapping(topic_id, min_datetime)
+def mapStories(topic_id, min_datetime, max_datetime=MAX_DATETIME_DEFAULT):
+    news_posts = db.getPostsForNewsStoryMapping(topic_id, min_datetime=min_datetime, max_datetime=max_datetime)
     mapping = editor.mapNewsPostsToStories(news_posts)
     stories = []
     #parse and format into story objects for DB
@@ -78,7 +84,7 @@ def mapStories(topic_id, min_datetime):
         })
     db.createStories(stories)
     #fill in story_id column in Post table
-    stories = db.getStoriesForTopic(topic_id, min_datetime=min_datetime)
+    stories = db.getStoriesForTopic(topic_id, min_datetime=min_datetime, max_datetime=max_datetime)
     for story in stories:
         posts = []
         for post_id in story['posts']:
@@ -90,9 +96,9 @@ def mapStories(topic_id, min_datetime):
     print('Stories mapped and saved to DB')
 
 #load stories, generate story summary, update in DB
-def summarizeStories(topic_id, min_datetime):
+def summarizeStories(topic_id, min_datetime, max_datetime=MAX_DATETIME_DEFAULT):
     topic_name = db.getTopics(filters={'topic_id': topic_id})[0]['topic_name']
-    stories = db.getStoriesForTopic(topic_id, min_datetime=min_datetime)
+    stories = db.getStoriesForTopic(topic_id, min_datetime=min_datetime, max_datetime=max_datetime)
     story_updates = []
 
     for idx, story in enumerate(stories):
@@ -115,9 +121,9 @@ def summarizeStories(topic_id, min_datetime):
     db.updateStories(story_updates)
     print(f'Story summaries updated in DB')
 
-def rankStories(topic_id, min_datetime):
+def rankStories(topic_id, min_datetime, max_datetime=MAX_DATETIME_DEFAULT):
     topic_name = db.getTopics(filters={'topic_id': topic_id})[0]['topic_name']
-    stories = db.getStoriesForTopic(topic_id, min_datetime=min_datetime)
+    stories = db.getStoriesForTopic(topic_id, min_datetime=min_datetime, max_datetime=max_datetime)
     stories_scores = editor.scoreNewsStories(stories, topic_name)
     story_updates = []
 
@@ -131,9 +137,9 @@ def rankStories(topic_id, min_datetime):
     print(f'Stories scored and i_scores updated in DB')
 
 #load stories, generate topic summary
-def summarizeTopic(topic_id, max_stories, min_datetime):
+def summarizeTopic(topic_id, max_stories, min_datetime, max_datetime=MAX_DATETIME_DEFAULT):
     topic_name = db.getTopics(filters={'topic_id': topic_id})[0]['topic_name']
-    stories = db.getStoriesForTopic(topic_id, min_datetime=min_datetime)
+    stories = db.getStoriesForTopic(topic_id, min_datetime=min_datetime, max_datetime=max_datetime)
     if len(stories) > max_stories:
         stories_ranked = sorted(stories, key=lambda story: story['daily_i_score_ml'], reverse=True)
         stories = stories_ranked[0:max_stories-1]
@@ -146,10 +152,10 @@ def summarizeTopic(topic_id, max_stories, min_datetime):
     print(f'Topic summary saved to DB')
 
 #CSV dump for checking story mapping
-def storyMappingToCSV(topic_id, min_datetime):
+def storyMappingToCSV(topic_id, min_datetime, max_datetime=MAX_DATETIME_DEFAULT):
     topic_name = db.getTopics(filters={'topic_id': topic_id})[0]['topic_name']
     mapping = []
-    stories = db.getStoriesForTopic(topic_id, min_datetime=min_datetime)
+    stories = db.getStoriesForTopic(topic_id, min_datetime=min_datetime, max_datetime=max_datetime)
     for story in stories:
         posts = db.getPostsForStorySummary(story['posts'])
         headlines_str = ''
@@ -165,14 +171,15 @@ def storyMappingToCSV(topic_id, min_datetime):
             'post_links': post_link_str,
             'post_headlines': headlines_str
         })
-    utils.JSONtoCSV(mapping, 'data/story_mapping_' + topic_name + '_' + datetime.today().strftime('%m-%d') + '.csv')
+    end_daterange = f'to{max_datetime.strftime('%m-%d')}' if max_datetime != MAX_DATETIME_DEFAULT else ''
+    utils.JSONtoCSV(mapping, 'data/story_mapping_' + topic_name + '_' + min_datetime.strftime('%m-%d') + end_daterange + '.csv')
     print('Story mapping output to CSV')
 
 #CSV dump for QA story summary content
-def storyQAToCSV(topic_id, min_datetime):
+def storyQAToCSV(topic_id, min_datetime, max_datetime=MAX_DATETIME_DEFAULT):
     topic_name = db.getTopics(filters={'topic_id': topic_id})[0]['topic_name']
     story_summary_qa = []
-    stories = db.getStoriesForTopic(topic_id, min_datetime=min_datetime)
+    stories = db.getStoriesForTopic(topic_id, min_datetime=min_datetime, max_datetime=max_datetime)
     for story in stories:
         posts = db.getPostsForStoryQA(story['posts_summarized'])
         QA_json = {
@@ -189,19 +196,21 @@ def storyQAToCSV(topic_id, min_datetime):
             [EXTERNAL LINK] {post['external_link']} \n\
             [EXTERNAL TEXT] {post['external_parsed_text']}'
         story_summary_qa.append(QA_json)
-    utils.JSONtoCSV(story_summary_qa, 'data/story_summary_QA_' + topic_name + '_' + datetime.today().strftime('%m-%d') + '.csv')
+    end_daterange = f'to{max_datetime.strftime('%m-%d')}' if max_datetime != MAX_DATETIME_DEFAULT else ''
+    utils.JSONtoCSV(story_summary_qa, 'data/story_summary_QA_' + topic_name + '_' + min_datetime.strftime('%m-%d') + end_daterange + '.csv')
     print('Story QA output to CSV')
 
 #CSV dumps for overall data
-def dailyPipelineToCSV(min_datetime):
+def dailyPipelineToCSV(min_datetime, max_datetime=MAX_DATETIME_DEFAULT):
     topic_name = db.getTopics(filters={'topic_id': topic_id})[0]['topic_name']
     #general data dump
-    posts = db.getPosts(min_datetime=min_datetime)
-    stories = db.getStories(min_datetime=min_datetime)
-    topic_highlights = db.getTopicHighlights(min_datetime=min_datetime)
-    utils.JSONtoCSV(posts, 'data/posts_' + topic_name + datetime.today().strftime('%m-%d') + '.csv')
-    utils.JSONtoCSV(stories, 'data/stories_' + topic_name + datetime.today().strftime('%m-%d') + '.csv')
-    utils.JSONtoCSV(topic_highlights, 'data/topic_highlights_' + topic_name + datetime.today().strftime('%m-%d') + '.csv')
+    posts = db.getPosts(min_datetime=min_datetime, max_datetime=max_datetime)
+    stories = db.getStories(min_datetime=min_datetime, max_datetime=max_datetime)
+    topic_highlights = db.getTopicHighlights(min_datetime=min_datetime, max_datetime=max_datetime)
+    end_daterange = f'to{max_datetime.strftime('%m-%d')}' if max_datetime != MAX_DATETIME_DEFAULT else ''
+    utils.JSONtoCSV(posts, 'data/posts_' + topic_name + '_' + min_datetime.strftime('%m-%d') + end_daterange + '.csv')
+    utils.JSONtoCSV(stories, 'data/stories_' + topic_name + '_' + min_datetime.strftime('%m-%d') + end_daterange + '.csv')
+    utils.JSONtoCSV(topic_highlights, 'data/topic_highlights_' + topic_name + '_' + min_datetime.strftime('%m-%d') + end_daterange + '.csv')
     print('Overall data output to CSV')
 
 #PIPELINE PARAMS
@@ -211,18 +220,22 @@ topic_id = 1
 max_posts_reddit = 100
 max_stories_in_highlights = 5
 last2days = datetime.now().timestamp() - 172800 #get current time minus 2 days
-today_start = datetime.combine(datetime.today(), time.min).astimezone(timezone(configs.LOCAL_TZ))
+custom_min = DATETIME_TODAY_START - timedelta(days = 1)
+custom_max = DATETIME_TODAY_START
 
 #RUN PIPELINE
 ##############################################################################################
 
 #pullPosts(topic_id, max_posts_reddit, min_timestamp=last2days)
-#categorizePosts(topic_id, min_datetime=today_start)
-#summarizeNewsPosts(topic_id, min_datetime=today_start)
-#mapStories(topic_id, min_datetime=today_start)
-#storyMappingToCSV(topic_id, min_datetime=today_start)
-#summarizeStories(topic_id, min_datetime=today_start)
-#rankStories(topic_id, min_datetime=today_start)
-summarizeTopic(topic_id, max_stories=max_stories_in_highlights, min_datetime=today_start)
-#storyQAToCSV(topic_id, min_datetime=today_start)
-#dailyPipelineToCSV(min_datetime=today_start)
+#categorizePosts(topic_id, min_datetime=DATETIME_TODAY_START)
+#summarizeNewsPosts(topic_id, min_datetime=DATETIME_TODAY_START)
+#mapStories(topic_id, min_datetime=DATETIME_TODAY_START)
+#storyMappingToCSV(topic_id, min_datetime=DATETIME_TODAY_START)
+#summarizeStories(topic_id, min_datetime=DATETIME_TODAY_START)
+#rankStories(topic_id, min_datetime=DATETIME_TODAY_START)
+#summarizeTopic(topic_id, max_stories=max_stories_in_highlights, min_datetime=DATETIME_TODAY_START)
+#storyQAToCSV(topic_id, min_datetime=DATETIME_TODAY_START)
+#dailyPipelineToCSV(min_datetime=DATETIME_TODAY_START)
+
+mapStories(topic_id, min_datetime=custom_min, max_datetime=custom_max)
+storyMappingToCSV(topic_id, min_datetime=custom_min, max_datetime=custom_max)

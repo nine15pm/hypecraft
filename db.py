@@ -2,7 +2,6 @@ import psycopg2
 import psycopg2.extras
 import utils
 from datetime import datetime
-import json
 
 #CONFIGS
 ##############################################################################################
@@ -16,6 +15,8 @@ STORY_TABLE = 'story'
 FEED_TABLE = 'feed'
 TOPIC_HIGHLIGHT_TABLE = 'topic_highlight'
 TOPIC_TABLE = 'topic'
+MIN_DATETIME_DEFAULT = datetime.fromtimestamp(0)
+MAX_DATETIME_DEFAULT = datetime.fromtimestamp(datetime.now().timestamp() + 1e9)
 
 #DB FUNCTIONS
 ##############################################################################################
@@ -62,7 +63,7 @@ def updateEntries(table, entries: list[dict]):
     cur.close()
     conn.close()
 
-def readEntries(table, min_datetime = datetime.fromtimestamp(0), max_datetime = datetime.fromtimestamp(datetime.now().timestamp() + 1e9), fields: list = [], filters: dict = {}, sort_field: str = None, sort_order: str = 'DESC'):
+def readEntries(table, min_datetime = MIN_DATETIME_DEFAULT, max_datetime = MAX_DATETIME_DEFAULT, fields: list = [], filters: dict = {}, sort_field: str = None, sort_order: str = 'DESC'):
     #open cursor for DB ops
     conn = psycopg2.connect(database=DATABASE, user=USER, host=HOST, password=PW, port=PORT)
     cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) #use alternative cursor that returns dict instead of tuple
@@ -125,32 +126,32 @@ def createTopicHighlight(topic_highlights: list[dict]):
     table = TOPIC_HIGHLIGHT_TABLE
     writeEntries(table, topic_highlights)
 
-def getPosts(min_datetime=datetime.fromtimestamp(0), filters={}):
+def getPosts(min_datetime=MIN_DATETIME_DEFAULT, max_datetime=MAX_DATETIME_DEFAULT, filters={}):
     table = POST_TABLE
-    return readEntries(table=table, min_datetime=min_datetime, filters=filters)
+    return readEntries(table=table, min_datetime=min_datetime, max_datetime=max_datetime, filters=filters)
 
-def getStories(min_datetime=datetime.fromtimestamp(0), max_datetime=datetime.fromtimestamp(datetime.now().timestamp() + 1e9), filters={}):
+def getStories(min_datetime=MIN_DATETIME_DEFAULT, max_datetime=MAX_DATETIME_DEFAULT, filters={}):
     table = STORY_TABLE
     return readEntries(table=table, min_datetime=min_datetime, max_datetime=max_datetime, filters=filters)
 
-def getTopicHighlights(min_datetime=datetime.fromtimestamp(0), filters={}):
+def getTopicHighlights(min_datetime=MIN_DATETIME_DEFAULT, max_datetime=MAX_DATETIME_DEFAULT, filters={}):
     table = TOPIC_HIGHLIGHT_TABLE
     sort_field = 'updated_at'
     sort_order = 'DESC'
-    return readEntries(table=table, min_datetime=min_datetime, filters=filters, sort_field=sort_field, sort_order=sort_order)
+    return readEntries(table=table, min_datetime=min_datetime, max_datetime=max_datetime, filters=filters, sort_field=sort_field, sort_order=sort_order)
 
 def getTopics(filters={}):
     table = TOPIC_TABLE
     return readEntries(table=table, filters=filters)
 
-def getPostsForDupCheck(min_datetime=datetime.fromtimestamp(0), filters={}):
+def getPostsForDupCheck(min_datetime=MIN_DATETIME_DEFAULT, filters={}):
     table = POST_TABLE
     fields = [
         'post_id'
     ]
     return readEntries(table=table, min_datetime=min_datetime, fields=fields, filters=filters)
 
-def getPostsForCategorize(topic_id, min_datetime=datetime.fromtimestamp(0)):
+def getPostsForCategorize(topic_id, min_datetime=MIN_DATETIME_DEFAULT, max_datetime=MAX_DATETIME_DEFAULT):
     table = POST_TABLE
     fields = [
         'post_id',
@@ -201,7 +202,7 @@ def getFeedsForPosts(feed_ids: list):
     }
     return readEntries(table=table, fields=fields, filters=filters)
 
-def getPostsForNewsSummary(topic_id, min_datetime=datetime.fromtimestamp(0)):
+def getPostsForNewsSummary(topic_id, min_datetime=MIN_DATETIME_DEFAULT, max_datetime=MAX_DATETIME_DEFAULT):
     table = POST_TABLE
     fields = [
         'post_id',
@@ -217,9 +218,9 @@ def getPostsForNewsSummary(topic_id, min_datetime=datetime.fromtimestamp(0)):
         'topic_id': topic_id,
         'category_ml': 'news'
     }
-    return readEntries(table=table, min_datetime=min_datetime, fields=fields, filters=filters)
+    return readEntries(table=table, min_datetime=min_datetime, fields=fields, filters=filters, max_datetime=max_datetime)
 
-def getPostsForNewsStoryMapping(topic_id, min_datetime = datetime.fromtimestamp(0)):
+def getPostsForNewsStoryMapping(topic_id, min_datetime=MIN_DATETIME_DEFAULT, max_datetime=MAX_DATETIME_DEFAULT):
     table = POST_TABLE
     fields = [
         'post_id',
@@ -232,7 +233,7 @@ def getPostsForNewsStoryMapping(topic_id, min_datetime = datetime.fromtimestamp(
         'topic_id': topic_id,
         'category_ml': 'news'
     }
-    return readEntries(table=table, min_datetime=min_datetime, fields=fields, filters=filters)
+    return readEntries(table=table, min_datetime=min_datetime, fields=fields, filters=filters, max_datetime=max_datetime)
 
 def getPostsForStorySummary(post_ids):
     table = POST_TABLE
@@ -287,7 +288,7 @@ def getPostsForStoryQA(post_ids):
     }
     return readEntries(table=table, fields=fields, filters=filters)
 
-def getStoriesForTopic(topic_id, min_datetime = datetime.fromtimestamp(0)):
+def getStoriesForTopic(topic_id, min_datetime=MIN_DATETIME_DEFAULT, max_datetime=MAX_DATETIME_DEFAULT):
     table = STORY_TABLE
     fields = [
         'story_id',
@@ -300,7 +301,7 @@ def getStoriesForTopic(topic_id, min_datetime = datetime.fromtimestamp(0)):
     filters = {
         'topic_id': topic_id,
     }
-    return readEntries(table=table, min_datetime=min_datetime, fields=fields, filters=filters)
+    return readEntries(table=table, min_datetime=min_datetime, fields=fields, filters=filters, max_datetime=max_datetime)
 
 #tests
 def deleteAll(table):
