@@ -6,9 +6,10 @@ import configs
 #Model
 DEFAULT_MODEL = configs.DEFAULT_MODEL
 DEFAULT_MODEL_PARAMS = {
-    'temperature': 1.0,
+    'temperature': 0.6,
     'truncate': 6144,
     'max_new_tokens': 2047,
+    'top_p': 0.9,
     'stop': ['<|eot_id|>'],
     'stop_sequences': ['<|eot_id|>'],
     'return_full_text': False
@@ -142,7 +143,7 @@ COLLATION_PROMPTS = {
     'group_headlines_news':{
         'system_prompt': 'Your job is to group news posts that refer to the same story. The user will provide posts in JSON format, with post id, title, and a short text excerpt. \
             Respond with JSON that maps a list of posts (pid) to a story (sid). \
-            Here is an example response format: [{{"sid": 0, "pid": [539,314,132]}}, {{"sid": 1, "pid": [792,646,927]}}, {{"sid": 2, "pid": [53,36,90]}}]. Do NOT respond with chat or text.',
+            Here is an example response format: [{{"sid": 0, "pid": [53,13]}}, {{"sid": 1, "pid": [92,46,27]}}, {{"sid": 2, "pid": [153]}}]. Do NOT respond with chat or text.',
         'user_prompt': 'Evaluate the following news posts and group the ones that refer to the same story. Each post can only belong to one story. Do NOT map a pid to more than one sid.\n\n',
         'model_params': DEFAULT_MODEL_PARAMS
     }
