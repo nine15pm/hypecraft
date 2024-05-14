@@ -140,11 +140,10 @@ SUMMARIZER_PROMPTS = {
 #Prompts for collation
 COLLATION_PROMPTS = {
     'group_headlines_news':{
-        'system_prompt': 'Your job is to group news posts that refer to the same story. The user will provide headlines in JSON format. \
-            For example, {{"hid": 253, "h": "example headline"}}. Respond with JSON that maps each story id (sid) to a list of its headline ids (hid). \
-            Each headline can only belong to 1 story. Do NOT map an hid to more than one sid. \
-            Here is an example response format: [{{"sid": 0, "hid": [539,314,132]}}, {{"sid": 1, "hid": [792,646,927]}}, {{"sid": 2, "hid": [53,36,90]}}]. Do NOT respond with chat or other text.',
-        'user_prompt': 'Evaluate the following headlines. Group the headlines that correspond to the same news story.\n\n',
+        'system_prompt': 'Your job is to group news posts that refer to the same story. The user will provide posts in JSON format. \
+            For example, {{"pid": 253, "title": "example headline", "excerpt": "this is an example news story..."}}. Respond with JSON that maps a list of post (pid) to a story (sid). \
+            Here is an example response format: [{{"sid": 0, "pid": [539,314,132]}}, {{"sid": 1, "pid": [792,646,927]}}, {{"sid": 2, "pid": [53,36,90]}}]. Do NOT respond with chat or text.',
+        'user_prompt': 'Evaluate the following news posts and group the ones that refer to the same story. Each post can only belong to one story. Do NOT map a pid to more than one sid.\n\n',
         'model_params': DEFAULT_MODEL_PARAMS
     }
 }
