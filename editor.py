@@ -20,10 +20,10 @@ HF_MODEL = promptconfigs.DEFAULT_MODEL
 #CALL MODEL
 ##############################################################################################
 #General function to call model with correctly assembled prompt and get response
-def getResponseLLAMA(content, prompt_config) -> str:
+def getResponseLLAMA(content: str, prompt_config: dict, prior_chat: list[dict] = None, return_user_prompt = False):
     params = prompt_config['model_params']
     user_prompt = prompt_config['user_prompt'] + content
-    inputs = promptconfigs.constructPromptLLAMA(user_prompt=user_prompt, system_prompt=prompt_config['system_prompt'])
+    inputs = promptconfigs.constructPromptLLAMA(user_prompt=user_prompt, prior_chat=prior_chat, system_prompt=prompt_config['system_prompt'])
     utils.countTokensAndSave(inputs)
     payload = {
         'inputs': inputs,
@@ -32,7 +32,7 @@ def getResponseLLAMA(content, prompt_config) -> str:
     response = requests.post(HF_API_URL + HF_MODEL, headers=HF_API_HEADERS, json=payload)
     try:
         output = response.json()[0]['generated_text']
-        return output
+        return (output, user_prompt) if return_user_prompt else output
     except Exception as error:
         print("Error:", type(error).__name__, "-", error)
         print(response.json())
@@ -70,9 +70,10 @@ def generateNewsPostSummary(post, feed, prompt_config='default') -> str:
 #STORY COLLATION
 ##############################################################################################
 
-#Groups similar/repeat headlines into stories
-def mapNewsPostsToStories(posts: list, topic_name, prompt_config='default') -> list[dict]:
-    prompt_config = promptconfigs.COLLATION_PROMPTS['group_news'](topic_name) if prompt_config == 'default' else prompt_config
+#Groups similar/repeat headlines into stories - split into 2 steps, initial and revise
+def mapNewsPostsToStories(posts: list, topic_name, prompt_config_init='default', prompt_config_check='default') -> list[dict]:
+    prompt_config_init = promptconfigs.COLLATION_PROMPTS['group_news'](topic_name) if prompt_config_init == 'default' else prompt_config_init
+    prompt_config_check = promptconfigs.COLLATION_PROMPTS['check_group_news'](topic_name) if prompt_config_check == 'default' else prompt_config_check
     content = ''
     #construct the string with all the posts
     for post in posts:
@@ -80,20 +81,26 @@ def mapNewsPostsToStories(posts: list, topic_name, prompt_config='default') -> l
         external_text = post['external_parsed_text'] if post['external_parsed_text'] is not None else ''
         post_excerpt = utils.firstNWords(post_text + external_text, num_words=NUM_WORDS_POST_EXCERPT, preserve_lines=False) + '...'
         content = content + f'{{"pid": {post['post_id']}, "title": "{post['post_title']}", "excerpt": "{post_excerpt}"}}\n'
-    print(content)
-    model_response = getResponseLLAMA(content, prompt_config)
+    #first get initial mapping from model with base prompt
+    initial_response, user_prompt = getResponseLLAMA(content, prompt_config_init, return_user_prompt=True)
+    #then send model chat history and ask it to check for errors and revise
+    prior_chat = {
+        'user': user_prompt,
+        'assistant': initial_response
+    }
+    revised_response = getResponseLLAMA(content='', prompt_config=prompt_config_check, prior_chat=prior_chat)
     try:
-        output = json.loads(model_response)
+        output = json.loads(revised_response)
         return output
     except:
-        print('Initial story mapping from model not valid JSON, trying fix...')
+        print('Story mapping from model not valid JSON, trying fix...')
     try:
-        model_response = fixJSON(model_response)
-        output = json.loads(model_response)
+        model_response = fixJSON(revised_response)
+        output = json.loads(revised_response)
         return output
     except Exception as error:
         print(f'Story mapping error:', type(error).__name__, "-", error)
-        print(model_response)
+        print(revised_response)
         raise error
 
 #collates posts associated with story into a single summary

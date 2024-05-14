@@ -3,7 +3,8 @@
 changelog_current = 'Changelog \n\
 --------------------------------\n\
 - Trying slightly different prompt for topic highlights to (hopefully) generate bullet points, because YOLO \n\
-- Showing model-output relevance score (0-100) beside each headline for QA purposes, with note to show which stories are cut, assuming max top 5 stories \n\
+- Showing model-output relevance score (0-100) beside each headline for QA purposes \n\
+- Restricting topic highlights to max top 5 posts, based on the model relevance score (showing beside each headline if story would be cut) \n\
 - Fixed bugs with deduping posts based on post title, URL, text \n\
 - Added 2 AI subreddits to stress test, expose issues \n\
 --------------------------------'

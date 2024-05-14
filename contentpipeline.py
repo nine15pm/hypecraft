@@ -72,9 +72,9 @@ def summarizeNewsPosts(topic_id, min_datetime, max_datetime=MAX_DATETIME_DEFAULT
     print(f'News post summaries updated in DB')
 
 #load news posts, group into stories, save stories to DB
-def mapStories(topic_id, min_datetime, max_datetime=MAX_DATETIME_DEFAULT):
+def mapStories(topic_id, min_datetime):
     topic_name = db.getTopics(filters={'topic_id': topic_id})[0]['topic_name']
-    news_posts = db.getPostsForNewsStoryMapping(topic_id, min_datetime=min_datetime, max_datetime=max_datetime)
+    news_posts = db.getPostsForNewsStoryMapping(topic_id, min_datetime=min_datetime)
     mapping = editor.mapNewsPostsToStories(news_posts, topic_name=topic_name)
     stories = []
     #parse and format into story objects for DB
@@ -85,7 +85,7 @@ def mapStories(topic_id, min_datetime, max_datetime=MAX_DATETIME_DEFAULT):
         })
     db.createStories(stories)
     #fill in story_id column in Post table
-    stories = db.getStoriesForTopic(topic_id, min_datetime=min_datetime, max_datetime=max_datetime)
+    stories = db.getStoriesForTopic(topic_id, min_datetime=min_datetime)
     for story in stories:
         posts = []
         for post_id in story['posts']:
@@ -214,6 +214,33 @@ def dailyPipelineToCSV(min_datetime, max_datetime=MAX_DATETIME_DEFAULT):
     utils.JSONtoCSV(topic_highlights, 'data/topic_highlights_' + topic_name + '_' + min_datetime.strftime('%m-%d') + end_daterange + '.csv')
     print('Overall data output to CSV')
 
+#update story mappings - REFACTOR THIS, SOME HACKY LOGIC
+def reMapStories(topic_id, min_datetime, max_datetime=MAX_DATETIME_DEFAULT):
+    topic_name = db.getTopics(filters={'topic_id': topic_id})[0]['topic_name']
+    db.deleteStories(min_datetime=min_datetime, max_datetime=max_datetime)
+    news_posts = db.getPostsForNewsStoryMapping(topic_id, min_datetime=min_datetime, max_datetime=max_datetime)
+    mapping = editor.mapNewsPostsToStories(news_posts, topic_name=topic_name)
+    stories = []
+    #parse and format into story objects for DB
+    for story in mapping:
+        stories.append({
+            'topic_id': topic_id,
+            'posts': story['pid'],
+            'created_at': min_datetime + timedelta(hours=2)
+        })
+    db.createStories(stories)
+    #fill in story_id column in Post table
+    stories = db.getStoriesForTopic(topic_id, min_datetime=min_datetime, max_datetime=max_datetime)
+    for story in stories:
+        posts = []
+        for post_id in story['posts']:
+            posts.append({
+                'post_id': post_id,
+                'story_id': story['story_id']
+            })
+        db.updatePosts(posts)
+    print('Stories mapped and saved to DB')
+
 #PIPELINE PARAMS
 ##############################################################################################
 #Test params
@@ -238,5 +265,5 @@ custom_max = DATETIME_TODAY_START
 #storyQAToCSV(topic_id, min_datetime=DATETIME_TODAY_START)
 #dailyPipelineToCSV(min_datetime=DATETIME_TODAY_START)
 
-mapStories(topic_id, min_datetime=custom_min, max_datetime=custom_max)
+reMapStories(topic_id, min_datetime=custom_min, max_datetime=custom_max)
 storyMappingToCSV(topic_id, min_datetime=custom_min, max_datetime=custom_max)
