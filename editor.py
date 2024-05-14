@@ -76,8 +76,8 @@ def mapNewsPostsToStories(posts: list, prompt_config='default') -> list[dict]:
     content = ''
     #construct the string with all the posts
     for post in posts:
-        combined_post_excerpt = utils.firstNWords(post['post_text'] + '\n\n' + post['external_parsed_text'], num_words=NUM_WORDS_POST_EXCERPT, preserve_lines=False)
-        content = content + f'{{"pid": {post['post_id']}, "title": "{post['post_title']}", "excerpt": "{combined_post_excerpt}"}}\n'
+        post_excerpt = utils.firstNWords(post['post_text'] + '\n\n' + post['external_parsed_text'], num_words=NUM_WORDS_POST_EXCERPT, preserve_lines=False)
+        content = content + f'{{"pid": {post['post_id']}, "title": "{post['post_title']}", "excerpt": "{post_excerpt}"}}\n'
     model_response = getResponseLLAMA(content, prompt_config)
     try:
         output = json.loads(model_response)
