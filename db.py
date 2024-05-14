@@ -86,7 +86,7 @@ def readEntries(table, min_datetime = datetime.fromtimestamp(0), max_datetime = 
                 values_placeholder = '%s'
                 filter_values.append(values)
             filter_fields = filter_fields + f'AND {field} IN ({values_placeholder}) '
-            
+
         #construct sort string, if specified
         sort = f'ORDER BY {sort_field} {sort_order}' if sort_field is not None else ''
 
@@ -135,7 +135,9 @@ def getStories(min_datetime=datetime.fromtimestamp(0), max_datetime=datetime.fro
 
 def getTopicHighlights(min_datetime=datetime.fromtimestamp(0), filters={}):
     table = TOPIC_HIGHLIGHT_TABLE
-    return readEntries(table=table, min_datetime=min_datetime, filters=filters)
+    sort_field = 'updated_at'
+    sort_order = 'DESC'
+    return readEntries(table=table, min_datetime=min_datetime, filters=filters, sort_field=sort_field, sort_order=sort_order)
 
 def getTopics(filters={}):
     table = TOPIC_TABLE
