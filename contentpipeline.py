@@ -74,8 +74,8 @@ def summarizeNewsPosts(topic_id, min_datetime, max_datetime=MAX_DATETIME_DEFAULT
 #load news posts, group into stories, save stories to DB
 def mapStories(topic_id, min_datetime, max_datetime=MAX_DATETIME_DEFAULT):
     topic_name = db.getTopics(filters={'topic_id': topic_id})[0]['topic_name']
-    news_posts = db.getPostsForNewsStoryMapping(topic_id, topic_name=topic_name, min_datetime=min_datetime, max_datetime=max_datetime)
-    mapping = editor.mapNewsPostsToStories(news_posts)
+    news_posts = db.getPostsForNewsStoryMapping(topic_id, min_datetime=min_datetime, max_datetime=max_datetime)
+    mapping = editor.mapNewsPostsToStories(news_posts, topic_name=topic_name)
     stories = []
     #parse and format into story objects for DB
     for story in mapping:
