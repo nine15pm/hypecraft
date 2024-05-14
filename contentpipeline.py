@@ -131,9 +131,12 @@ def rankStories(topic_id, min_datetime):
     print(f'Stories scored and i_scores updated in DB')
 
 #load stories, generate topic summary
-def summarizeTopic(topic_id, min_datetime):
+def summarizeTopic(topic_id, max_stories, min_datetime):
     topic_name = db.getTopics(filters={'topic_id': topic_id})[0]['topic_name']
     stories = db.getStoriesForTopic(topic_id, min_datetime=min_datetime)
+    if len(stories) > max_stories:
+        stories_ranked = sorted(stories, key=lambda story: story['daily_i_score_ml'], reverse=True)
+        stories = stories_ranked[0:max_stories-1]
     topic_highlights = [{
         'topic_id': topic_id,
         'summary_ml': editor.generateTopicSummary(stories, topic_name)
@@ -206,6 +209,7 @@ def dailyPipelineToCSV(min_datetime):
 #Test params
 topic_id = 1
 max_posts_reddit = 100
+max_stories_in_highlights = 5
 last2days = datetime.now().timestamp() - 172800 #get current time minus 2 days
 today_start = datetime.combine(datetime.today(), time.min).astimezone(timezone(configs.LOCAL_TZ))
 
@@ -219,6 +223,6 @@ today_start = datetime.combine(datetime.today(), time.min).astimezone(timezone(c
 #storyMappingToCSV(topic_id, min_datetime=today_start)
 #summarizeStories(topic_id, min_datetime=today_start)
 #rankStories(topic_id, min_datetime=today_start)
-summarizeTopic(topic_id, min_datetime=today_start)
-storyQAToCSV(topic_id, min_datetime=today_start)
-dailyPipelineToCSV(min_datetime=today_start)
+summarizeTopic(topic_id, max_stories=max_stories_in_highlights, min_datetime=today_start)
+#storyQAToCSV(topic_id, min_datetime=today_start)
+#dailyPipelineToCSV(min_datetime=today_start)
