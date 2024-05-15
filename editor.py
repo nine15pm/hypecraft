@@ -71,37 +71,27 @@ def generateNewsPostSummary(post, feed, prompt_config='default') -> str:
 ##############################################################################################
 
 #Groups similar/repeat headlines into stories - split into 2 steps, initial and revise
-def mapNewsPostsToStories(posts: list, topic_name, prompt_config_init='default', prompt_config_check='default') -> list[dict]:
-    prompt_config_init = promptconfigs.COLLATION_PROMPTS['group_news'](topic_name) if prompt_config_init == 'default' else prompt_config_init
-    prompt_config_check = promptconfigs.COLLATION_PROMPTS['check_group_news'] if prompt_config_check == 'default' else prompt_config_check
+def mapNewsPostsToStories(posts: list, topic_name, prompt_config='default') -> list[dict]:
+    prompt_config = promptconfigs.COLLATION_PROMPTS['group_news'](topic_name) if prompt_config == 'default' else prompt_config
     content = ''
     #construct the string with all the posts
     for post in posts:
-        post_text = post['post_text'] + '\n\n' if post['post_text'] is not None else ''
-        external_text = post['external_parsed_text'] if post['external_parsed_text'] is not None else ''
-        post_excerpt = utils.firstNWords(post_text + external_text, num_words=NUM_WORDS_POST_EXCERPT, preserve_lines=False) + '...'
-        content = content + f'{{"pid": {post['post_id']}, "title": "{post['post_title']}", "excerpt": "{post_excerpt}"}}\n'
-    #first get initial mapping from model with base prompt
-    initial_response, user_prompt = getResponseLLAMA(content, prompt_config_init, return_user_prompt=True)
-    #then send model chat history and ask it to check for errors and revise
-    print(initial_response)
-    prior_chat = [{
-        'user': user_prompt,
-        'assistant': initial_response
-    }]
-    revised_response = getResponseLLAMA(content='', prompt_config=prompt_config_check, prior_chat=prior_chat)
+        content = content + f'{{"pid": {post['post_id']}, "title": "{post['post_title']}", "summary": "{post['summary_ml']}"}}\n'
+
+    raw_response = getResponseLLAMA(content=content, prompt_config=prompt_config)
+    json_extracted = utils.parseMappingLLAMA(raw_response)
     try:
-        output = json.loads(revised_response)
+        output = json.loads(json_extracted)
         return output
     except:
         print('Story mapping from model not valid JSON, trying fix...')
     try:
-        revised_response = fixJSON(revised_response)
-        output = json.loads(revised_response)
+        json_extracted = fixJSON(json_extracted)
+        output = json.loads(json_extracted)
         return output
     except Exception as error:
         print(f'Story mapping error:', type(error).__name__, "-", error)
-        print(revised_response)
+        print(raw_response)
         raise error
 
 #collates posts associated with story into a single summary

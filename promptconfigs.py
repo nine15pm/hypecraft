@@ -150,28 +150,39 @@ SUMMARIZER_PROMPTS = {
 #Functions for collation prompts
 def group_news(topic_name):
     prompt = {
-        'system_prompt': 'Your job is to group news posts that refer to the same story. The user will provide posts in JSON format, with post id, title, and a short text excerpt. \
-            Respond with JSON that maps a list of posts (pid) to a story (sid). \
-            Here is an example response format: [{{"sid": 0, "pid": [53,13]}}, {{"sid": 1, "pid": [92,46,27]}}, {{"sid": 2, "pid": [153]}}]. Do NOT respond with chat or text.',
-        'user_prompt': f'Compare the titles and excerpts for each of the following {topic_name} news posts. Find the posts that discuss the same event or news story and group them. Each post can only belong to one story. Do NOT map a pid to more than one sid.\n\n',
+        'system_prompt': 'Your job is to group news posts that refer to the same story. The user will provide posts in JSON format. Do the task step by step.',
+        'user_prompt': f'Your task is to map {topic_name} news posts into stories according to the following steps:\n\
+            1. Read through the content of each posts \n\
+            2. Identify and list out each distinct news story and its related post ids. Make sure to list EVERY distinct story separately. Each post can only be assigned to 1 story. \n\
+            3. Format the list of stories into a JSON list. Here is an example: [{{"sid": 0, "pid": [31,63]}}, {{"sid": 1, "pid": [53,46,24]}}, {{"sid": 2, "pid": [97]}}]. \n\n\
+            Go step by step and group the posts below: \n\n',
         'model_params': DEFAULT_MODEL_PARAMS
     }
     return prompt
 
-def check_group_news(topic_name):
+def OLD_group_news(topic_name):
     prompt = {
-        'system_prompt': 'Your job is to group news posts that refer to the same story. The user will provide posts in JSON format, with post id, title, and a short text excerpt. \
+        'system_prompt': 'Your job is to group news posts that refer to the same story. The user will provide posts in JSON format. \
             Respond with JSON that maps a list of posts (pid) to a story (sid). \
             Here is an example response format: [{{"sid": 0, "pid": [53,13]}}, {{"sid": 1, "pid": [92,46,27]}}, {{"sid": 2, "pid": [153]}}]. Do NOT respond with chat or text.',
-        'user_prompt': f'Check each post grouping. Are you sure the posts grouped together refer to the same {topic_name} news story? Looks like there may be errors. Fix any errors. Respond with ONLY the updated JSON list.',
+        'user_prompt': f'Compare each of the following {topic_name} news posts. Find the posts that discuss the same event or news story and group them. Each post can only belong to one story. Do NOT map a pid to more than one sid.\n\n',
+        'model_params': DEFAULT_MODEL_PARAMS
+    }
+    return prompt
+
+def OLD_check_group_news(topic_name):
+    prompt = {
+        'system_prompt': 'Your job is to group news posts that refer to the same story. The user will provide posts in JSON format. \
+            Respond with JSON that maps a list of posts (pid) to a story (sid). \
+            Here is an example response format: [{{"sid": 0, "pid": [53,13]}}, {{"sid": 1, "pid": [92,46,27]}}, {{"sid": 2, "pid": [153]}}]. Do NOT respond with chat or text.',
+        'user_prompt': f'There are some mistakes, some posts grouped together refer to different news stories. Review the post summaries in each group as a {topic_name} enthusiast and fix the grouping errors. Respond with ONLY the updated JSON list.',
         'model_params': DEFAULT_MODEL_PARAMS
     }
     return prompt
 
 #Prompts for collation
 COLLATION_PROMPTS = {
-    'group_news':group_news,
-    'check_group_news': 
+    'group_news':group_news
 }
 
 #Functions for dynamic ranking prompts

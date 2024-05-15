@@ -85,6 +85,15 @@ def firstNWords(text, num_words, preserve_lines=False):
         result = ' '.join(words[:num_words])
     return result
 
+def parseMappingLLAMA(model_raw_text):
+    model_raw_text = model_raw_text.replace('\n', '')
+    model_raw_text = model_raw_text.replace(' ', '')
+    start = '[{'
+    end = ']}]'
+    start_idx = model_raw_text.index(start)
+    end_idx = model_raw_text.index(end)
+    return model_raw_text[start_idx:end_idx+len(end)]
+
 #COUNT TOKENS
 ##############################################################################################
 #Count tokens using Lllama3 tokenizer

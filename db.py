@@ -272,7 +272,7 @@ def getPostsForNewsStoryMapping(topic_id, min_datetime=MIN_DATETIME_DEFAULT, max
         'post_title',
         'post_tags',
         'post_text',
-        'external_parsed_text'
+        'summary_ml'
     ]
     filters = {
         'topic_id': topic_id,
