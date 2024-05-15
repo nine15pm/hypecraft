@@ -73,7 +73,7 @@ def generateNewsPostSummary(post, feed, prompt_config='default') -> str:
 #Groups similar/repeat headlines into stories - split into 2 steps, initial and revise
 def mapNewsPostsToStories(posts: list, topic_name, prompt_config_init='default', prompt_config_check='default') -> list[dict]:
     prompt_config_init = promptconfigs.COLLATION_PROMPTS['group_news'](topic_name) if prompt_config_init == 'default' else prompt_config_init
-    prompt_config_check = promptconfigs.COLLATION_PROMPTS['check_group_news'](topic_name) if prompt_config_check == 'default' else prompt_config_check
+    prompt_config_check = promptconfigs.COLLATION_PROMPTS['check_group_news'] if prompt_config_check == 'default' else prompt_config_check
     content = ''
     #construct the string with all the posts
     for post in posts:
@@ -84,6 +84,7 @@ def mapNewsPostsToStories(posts: list, topic_name, prompt_config_init='default',
     #first get initial mapping from model with base prompt
     initial_response, user_prompt = getResponseLLAMA(content, prompt_config_init, return_user_prompt=True)
     #then send model chat history and ask it to check for errors and revise
+    print(initial_response)
     prior_chat = [{
         'user': user_prompt,
         'assistant': initial_response
@@ -95,7 +96,7 @@ def mapNewsPostsToStories(posts: list, topic_name, prompt_config_init='default',
     except:
         print('Story mapping from model not valid JSON, trying fix...')
     try:
-        model_response = fixJSON(revised_response)
+        revised_response = fixJSON(revised_response)
         output = json.loads(revised_response)
         return output
     except Exception as error:

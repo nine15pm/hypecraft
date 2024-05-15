@@ -34,6 +34,7 @@ def constructPromptLLAMA(user_prompt, prior_chat: list[dict] = None, system_prom
         prompt = prompt + USER_PROMPT_PREPEND_LLAMA + user_prompt + ROLE_APPEND_LLAMA + PROMPT_APPEND_LLAMA
     else:
         prompt = SYSTEM_PROMPT_PREPEND_LLAMA + system_prompt + ROLE_APPEND_LLAMA + USER_PROMPT_PREPEND_LLAMA + user_prompt + ROLE_APPEND_LLAMA + PROMPT_APPEND_LLAMA
+    #print(prompt)
     return prompt
 
 #PROMPTS
@@ -162,7 +163,7 @@ def check_group_news(topic_name):
         'system_prompt': 'Your job is to group news posts that refer to the same story. The user will provide posts in JSON format, with post id, title, and a short text excerpt. \
             Respond with JSON that maps a list of posts (pid) to a story (sid). \
             Here is an example response format: [{{"sid": 0, "pid": [53,13]}}, {{"sid": 1, "pid": [92,46,27]}}, {{"sid": 2, "pid": [153]}}]. Do NOT respond with chat or text.',
-        'user_prompt': f'Compare the titles and excerpts for each of the following {topic_name} news posts. Find the posts that discuss the same event or news story and group them. Each post can only belong to one story. Do NOT map a pid to more than one sid.\n\n',
+        'user_prompt': f'Check each post grouping. Are you sure the posts grouped together refer to the same {topic_name} news story? Looks like there may be errors. Fix any errors. Respond with ONLY the updated JSON list.',
         'model_params': DEFAULT_MODEL_PARAMS
     }
     return prompt
@@ -170,7 +171,7 @@ def check_group_news(topic_name):
 #Prompts for collation
 COLLATION_PROMPTS = {
     'group_news':group_news,
-    'check_group_news': check_group_news
+    'check_group_news': 
 }
 
 #Functions for dynamic ranking prompts
