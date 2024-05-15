@@ -158,8 +158,8 @@ def scoreNewsStories(stories: list, topic_name: str, prompt_config='default') ->
     prompt_config = promptconfigs.RANKING_PROMPTS['score_headlines_news'](topic_name) if prompt_config == 'default' else prompt_config
     content = ''
     for story in stories:
-        content = content + '{"hid": ' + str(story['story_id']) + ', "h": "' + story['headline_ml'] + '"}\n'
-    model_response = getResponseLLAMA(content, prompt_config)
+        content = content + f'{{"sid": {story['story_id']}, "summary": "{story['summary_ml']}", }}\n'
+    model_response = utils.parseMappingLLAMA(getResponseLLAMA(content, prompt_config))
     try:
         output = json.loads(model_response)
         return output

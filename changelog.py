@@ -2,6 +2,15 @@
 ####################
 changelog_current = 'Changelog \n\
 --------------------------------\n\
+- Reworked story grouping to avoid grouping unrelated posts into a story \n\
+- Tweaked topic highlights prompt to prioritize more important bullets and 1 bullet per story (hopefully)\n\
+- Fixed some bugs with newsletter assembly \n\
+--------------------------------'
+
+#ARCHIVE
+####################
+changelog_current = 'Changelog \n\
+--------------------------------\n\
 - Trying slightly different prompt for topic highlights to (hopefully) generate bullet points, because YOLO \n\
 - Showing model-output relevance score (0-100) beside each headline for QA purposes \n\
 - Restricting topic highlights to max top 5 posts, based on the model relevance score (showing beside each headline if story would be cut) \n\
@@ -9,8 +18,6 @@ changelog_current = 'Changelog \n\
 - Added 2 AI subreddits to stress test, expose issues \n\
 --------------------------------'
 
-#ARCHIVE
-####################
 changelog_05_12 = 'Changelog \n\
 --------------------------------\n\
 - Updated story summary logic to use up to 3 posts for the summary. If story has more than 3 posts, choose 1 newest, 1 most text, 1 most likes. \n\
