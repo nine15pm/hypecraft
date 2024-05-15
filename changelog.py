@@ -3,7 +3,8 @@
 changelog_current = 'Changelog \n\
 --------------------------------\n\
 - Reworked story grouping to avoid grouping unrelated posts into a story \n\
-- Tweaked topic highlights prompt to prioritize more important bullets and 1 bullet per story (hopefully)\n\
+- Updated story scoring/ranking prompt based on learnings from improving grouping prompt \n\
+- Tweaked topic highlights prompt to prioritize more important bullets and 1 bullet per story (hopefully) \n\
 - Fixed some bugs with newsletter assembly \n\
 --------------------------------'
 

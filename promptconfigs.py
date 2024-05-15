@@ -176,13 +176,14 @@ COLLATION_PROMPTS = {
 #Functions for dynamic ranking prompts
 def score_headlines_news(topic_name):
     prompt = {
-        'system_prompt': f'Your job is to score news stories to determine which ones should be prioritized in a newsletter. The user will provide stories in JSON format.',
-        'user_prompt': f'Your task is to score {topic_name} news stories according to the following steps:\n\ 
+        'system_prompt': 'Your job is to score news stories to determine how they should be prioritized in a newsletter. The user will provide stories in JSON format. Do the task step by step.',
+        'user_prompt': f'Your task is to score {topic_name} news stories according to the following steps: \n\
             1. Read each story \n\
-            2. Evaluate the importance of each story to a {topic_name} enthusiast. \n\
-            3. List out each story, score it from 1-100, and write out your justification. Higher score means more important. Do not assign the same score to multiple stories. \n\
+            2. Evaluate how interesting the story is to a {topic_name} enthusiast. Prioritize exclusive, breaking news with big potential impact. \n\
+            3. List out a brief summary assessment for each story. \n\
+            3. Assign a score from 1-100 to each story based on your assessment. Higher score means more important. Do not assign the same score to multiple stories. \n\
             4. Format the scores as a JSON list. Here is an example: [{{"sid": 157, "i_score": 71}}, {{"sid": 942, "i_score": 42}}, {{"sid": 418, "i_score": 16}}]. \n\
-        Go step by step and score the stories below: \n\n',
+            Go step by step and evaluate the stories below: \n\n',
         'model_params': DEFAULT_MODEL_PARAMS
     }
     return prompt

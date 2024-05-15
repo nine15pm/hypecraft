@@ -254,12 +254,12 @@ custom_max = DATETIME_TODAY_START
 #RUN PIPELINE
 ##############################################################################################
 
-pullPosts(topic_id, max_posts_reddit, min_timestamp=last2days)
-categorizePosts(topic_id, min_datetime=DATETIME_TODAY_START)
-summarizeNewsPosts(topic_id, min_datetime=DATETIME_TODAY_START)
-mapStories(topic_id, min_datetime=DATETIME_TODAY_START)
-storyMappingToCSV(topic_id, min_datetime=DATETIME_TODAY_START)
-summarizeStories(topic_id, min_datetime=DATETIME_TODAY_START)
+#pullPosts(topic_id, max_posts_reddit, min_timestamp=last2days)
+#categorizePosts(topic_id, min_datetime=DATETIME_TODAY_START)
+#summarizeNewsPosts(topic_id, min_datetime=DATETIME_TODAY_START)
+#mapStories(topic_id, min_datetime=DATETIME_TODAY_START)
+#storyMappingToCSV(topic_id, min_datetime=DATETIME_TODAY_START)
+#summarizeStories(topic_id, min_datetime=DATETIME_TODAY_START)
 rankStories(topic_id, min_datetime=DATETIME_TODAY_START)
 summarizeTopic(topic_id, max_stories=max_stories_in_highlights, min_datetime=DATETIME_TODAY_START)
 storyQAToCSV(topic_id, min_datetime=DATETIME_TODAY_START)
