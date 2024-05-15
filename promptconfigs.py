@@ -82,15 +82,13 @@ def story_summary_news(topic_name):
 
 def topic_summary_news(topic_name):
     prompt = {
-        'system_prompt': 'You are an email newsletter editor. The user will provide content for you to summarize. Respond ONLY with the summary, do NOT respond with chat.',
-        'user_prompt': f'Your task is to combine multiple news stories into a single highlights summary that a reader can quickly skim. \
-            I will provide the content for each news story.\n\n\
+        'system_prompt': 'You are an email newsletter editor. The user will provide content for you to summarize. Respond ONLY with the summary bullets, do NOT respond with chat.',
+        'user_prompt': f'Your task is to summarize top {topic_name} news stories into a bulleted list of highlights that a reader can quickly skim. \n\n\
             \
             Your steps are as follows:\n\
             1. Read the content of all the stories.\n\
-            2. Prioritize exclusive or breaking news, particularly the info a {topic_name} enthusiast cares about most.\n\
-            3. Summarize the most important news from all posts into 3-5 bullet points. Do not exceed {SUMMARY_LEN_NEWS} words.\n\
-            4. Make the language engaging and entertaining.\n\n\
+            2. Select 3-5 of the most important stories. Prioritize exclusive or breaking news, the info a {topic_name} enthusiast cares about most.\n\
+            3. Write a list of bulleted highlights, 1 for each selected story. Order the highest i_score stories first. Make the language engaging and entertaining.\n\n\
             \
             Summarize the following stories:\n\n',
         'model_params': DEFAULT_MODEL_PARAMS
@@ -156,16 +154,6 @@ def group_news(topic_name):
             2. Identify and list out each distinct news story and its related post ids. Make sure to list EVERY distinct story separately. Each post can only be assigned to 1 story. \n\
             3. Format the list of stories into a JSON list. Here is an example: [{{"sid": 0, "pid": [31,63]}}, {{"sid": 1, "pid": [53,46,24]}}, {{"sid": 2, "pid": [97]}}]. \n\n\
             Go step by step and group the posts below: \n\n',
-        'model_params': DEFAULT_MODEL_PARAMS
-    }
-    return prompt
-
-def OLD_group_news(topic_name):
-    prompt = {
-        'system_prompt': 'Your job is to group news posts that refer to the same story. The user will provide posts in JSON format. \
-            Respond with JSON that maps a list of posts (pid) to a story (sid). \
-            Here is an example response format: [{{"sid": 0, "pid": [53,13]}}, {{"sid": 1, "pid": [92,46,27]}}, {{"sid": 2, "pid": [153]}}]. Do NOT respond with chat or text.',
-        'user_prompt': f'Compare each of the following {topic_name} news posts. Find the posts that discuss the same event or news story and group them. Each post can only belong to one story. Do NOT map a pid to more than one sid.\n\n',
         'model_params': DEFAULT_MODEL_PARAMS
     }
     return prompt

@@ -140,8 +140,8 @@ def generateTopicSummary(stories: list, topic_name: str, prompt_config='default'
     #construct string combining all story summaries
     content = ''
     for idx, story in enumerate(stories):
-        story_summary = 'Story ' + str(idx) + ": \n" + story['summary_ml'] + '\n\n'
-        content = content + story_summary
+        story_str = f'Story {idx} (i_score: {story['daily_i_score_ml']}) - {story['summary_ml']} \n\n'
+        content = content + story_str
     return getResponseLLAMA(content, prompt_config)
 
 #HEADLINE GENERATION
