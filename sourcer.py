@@ -50,17 +50,6 @@ def isDuplicateText(title=None, post_text=None, external_text=None):
 #TEXT EXTRACTION FROM LINKS
 ###################################################################
 
-#Custom class to fix error with undetected_chromedriver library (used for backup browser automation scrape method)
-class Chrome(uc.Chrome):
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-
-    def quit(self):
-        try:
-            super().quit()
-        except OSError:
-            pass
-
 def generateHeaders():
     #generate request headers for simple http request to mimic browser
     ua = ua_generator.generate(device='desktop', platform = ('windows'), browser=('chrome', 'edge'))
@@ -94,44 +83,48 @@ def getWebText(url, min_text_length, unsupported_hosts=[]):
 
     if isUnsupported:
         return extracted_text
-    else:
-        #first try getting html using basic request
-        try:
-            source_html = requests.get(url, headers=headers).text
-            extracted_text = trafilatura.extract(source_html, url=url, deduplicate=True, include_comments=False)
-        except Exception as error:
-            print("Error:", type(error).__name__, "-", error)
-        finally:
-            #check output is valid text and long enough
-            if extracted_text is not None and len(extracted_text) > min_text_length:
-                return extracted_text
-            else:
-                #if can't extract text or extracted text is too short, try google webcache
-                try:
-                    print('Trying webcache')
-                    source_html = requests.get(configs.WEBCACHE_URL + url, headers=headers).text
-                    extracted_text = trafilatura.extract(source_html, url=url, deduplicate=True, include_comments=False)
-                except Exception as error:
-                    print("Error:", type(error).__name__, "-", error)
-                finally:
-                    #check output is valid text and long enough
-                    if extracted_text is not None and len(extracted_text) > min_text_length:
-                        return extracted_text
-                    else:
-                        #if that doesn't work, try selenium webdriver browser automation
-                        try:
-                            print('Trying browser automation')
-                            driver = Chrome(headless=True, use_subprocess=True)
-                            driver.get(url)
-                            source_html = driver.page_source
-                            driver.close()
-                            extracted_text = trafilatura.extract(source_html, url=url, deduplicate=True, include_comments=False)
-                            extracted_text = extracted_text if extracted_text is not None and len(extracted_text) > min_text_length else ''
-                            return extracted_text
-                        except Exception as error:
-                            print("Error:", type(error).__name__, "-", error)
-                        finally:
-                            return extracted_text
+
+    #first try getting html using basic request
+    try:
+        source_html = requests.get(url, headers=headers).text
+        extracted_text = trafilatura.extract(source_html, url=url, deduplicate=True, include_comments=False)
+    except Exception as error:
+        print("Error:", type(error).__name__, "-", error)
+        
+    #check output is valid text and long enough
+    if extracted_text is not None and len(extracted_text) > min_text_length:
+        return extracted_text
+
+    #if can't extract text or extracted text is too short, try google webcache
+    try:
+        print('Trying webcache')
+        source_html = requests.get(configs.WEBCACHE_URL + url, headers=headers).text
+        extracted_text = trafilatura.extract(source_html, url=url, deduplicate=True, include_comments=False)
+    except Exception as error:
+        print("Error:", type(error).__name__, "-", error)
+            
+    #check output is valid text and long enough
+    if extracted_text is not None and len(extracted_text) > min_text_length:
+        return extracted_text
+    
+    #if that doesn't work, try selenium webdriver browser automation
+    driver = None
+    try:
+        print('Trying browser automation')
+        driver = uc.Chrome(headless=True, use_subprocess=False)
+        driver.get(url)
+        source_html = driver.page_source
+        extracted_text = trafilatura.extract(source_html, url=url, deduplicate=True, include_comments=False)
+        driver.close()
+    except Exception as error:
+        print("Error:", type(error).__name__, "-", error)
+    finally:
+        if driver:
+            driver.quit()
+            print('debug2')
+    
+    #do final check and return text
+    return extracted_text if extracted_text and len(extracted_text) > min_text_length else ''
 
 def getLinkedTweetContent(url):
     #generate request headers
