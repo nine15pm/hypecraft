@@ -130,7 +130,7 @@ def rankStories(topic_id, min_datetime, max_datetime=MAX_DATETIME_DEFAULT):
 
     for story in stories_scores:
         story_updates.append({
-            'story_id': story['hid'],
+            'story_id': story['sid'],
             'daily_i_score_ml': story['i_score']
         })
 
@@ -244,7 +244,7 @@ def reMapStories(topic_id, min_datetime, max_datetime=MAX_DATETIME_DEFAULT):
 #PIPELINE PARAMS
 ##############################################################################################
 #Test params
-topic_id = 1
+topic_id = 3
 max_posts_reddit = 100
 max_stories_in_highlights = 5
 last2days = datetime.now().timestamp() - 172800 #get current time minus 2 days
@@ -254,12 +254,12 @@ custom_max = DATETIME_TODAY_START
 #RUN PIPELINE
 ##############################################################################################
 
-#pullPosts(topic_id, max_posts_reddit, min_timestamp=last2days)
-#categorizePosts(topic_id, min_datetime=DATETIME_TODAY_START)
-#summarizeNewsPosts(topic_id, min_datetime=DATETIME_TODAY_START)
-#mapStories(topic_id, min_datetime=DATETIME_TODAY_START)
-#storyMappingToCSV(topic_id, min_datetime=DATETIME_TODAY_START)
-#summarizeStories(topic_id, min_datetime=DATETIME_TODAY_START)
+pullPosts(topic_id, max_posts_reddit, min_timestamp=last2days)
+categorizePosts(topic_id, min_datetime=DATETIME_TODAY_START)
+summarizeNewsPosts(topic_id, min_datetime=DATETIME_TODAY_START)
+mapStories(topic_id, min_datetime=DATETIME_TODAY_START)
+storyMappingToCSV(topic_id, min_datetime=DATETIME_TODAY_START)
+summarizeStories(topic_id, min_datetime=DATETIME_TODAY_START)
 rankStories(topic_id, min_datetime=DATETIME_TODAY_START)
 summarizeTopic(topic_id, max_stories=max_stories_in_highlights, min_datetime=DATETIME_TODAY_START)
 storyQAToCSV(topic_id, min_datetime=DATETIME_TODAY_START)

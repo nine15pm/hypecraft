@@ -10,7 +10,7 @@ changelog_current = 'Changelog \n\
 
 #ARCHIVE
 ####################
-changelog_current = 'Changelog \n\
+changelog_05_13 = 'Changelog \n\
 --------------------------------\n\
 - Trying slightly different prompt for topic highlights to (hopefully) generate bullet points, because YOLO \n\
 - Showing model-output relevance score (0-100) beside each headline for QA purposes \n\

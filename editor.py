@@ -159,20 +159,20 @@ def scoreNewsStories(stories: list, topic_name: str, prompt_config='default') ->
     content = ''
     for story in stories:
         content = content + f'{{"sid": {story['story_id']}, "summary": "{story['summary_ml']}"}}\n'
-    print(content)
-    model_response = utils.parseMappingLLAMA(getResponseLLAMA(content, prompt_config))
+    raw_response = getResponseLLAMA(content, prompt_config)
+    parsed_response = utils.parseMappingLLAMA(raw_response)
     try:
-        output = json.loads(model_response)
+        output = json.loads(parsed_response)
         return output
     except:
         print('Initial story scoring output not valid JSON, trying fix...')
     try:
-        model_response = fixJSON(model_response)
-        output = json.loads(model_response)
+        parsed_response = fixJSON(parsed_response)
+        output = json.loads(parsed_response)
         return output
     except Exception as error:
         print(f'Story scoring error:', type(error).__name__, "-", error)
-        print(model_response)
+        print(raw_response)
         raise
 
 #ERROR FIXING

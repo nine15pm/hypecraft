@@ -48,16 +48,14 @@ SUMMARY_LEN_INSIGHTS = 250
 #REFACTOR this later to make categories reference separate variable
 CLASSIFIER_PROMPTS = {
     'categorize':{
-        'system_prompt': 'Your job is to categorize web content based on the source and a short text sample. \
-            For example, the text can be a Reddit post headline or a tweet. Categories will be provided by the user. \
-            Respond only with the label of the category and format your response as "#category#"',
+        'system_prompt': 'Your job is to categorize web content based on the source and a short text sample. For example, the text can be a Reddit post headline or a tweet. Categories will be provided by the user. Respond only with the label of the category and format your response as "#category#"',
         'user_prompt': 'Here are the possible categories:\n\
             - news: sharing or reporting current events\n\
             - insights: analysis, research, or educational article\n\
             - discussions: community conversations like asking questions or gathering opinions\n\
             - memes: jokes and other content meant to be funny\n\n\
             - other: does not fit in the above 4 categories\n\n\
-            Choose the most likely category based on the following info. If you do not have enough info or are very uncertain, return "#other#".\n\n',
+        Choose the most likely category based on the following info. If you do not have enough info or are very uncertain, return "#other#".\n\n',
         'model_params': DEFAULT_MODEL_PARAMS
     },
 }
@@ -67,15 +65,13 @@ def story_summary_news(topic_name):
     prompt = {
         'system_prompt': 'You are an email newsletter editor. The user will provide content for you to summarize. Respond ONLY with the summary, do NOT respond with chat.',
         'user_prompt': f'Your task is to combine multiple posts about the same news story into a single summary. \
-            The post content may include headlines, text from social media posts, and text from news articles.\n\n\
-            \
-            Your steps are as follows:\n\
+        The post content may include headlines, text from social media posts, and text from news articles.\n\n\
+        Your steps are as follows:\n\
             1. Read the content of all the posts.\n\
             2. Identify the most important facts and takeaways. Prioritize the info a {topic_name} enthusiast cares about most.\n\
             3. Summarize the key facts into 1 single summary paragraph. Include relevant quotes if they are important. Do not exceed {SUMMARY_LEN_NEWS} words.\n\
             4. Make the language engaging and entertaining so the reader will want to see more detailed content about the story.\n\n\
-            \
-            Combine the following posts:\n\n',
+        Combine the following posts:\n\n',
         'model_params': DEFAULT_MODEL_PARAMS
     }
     return prompt
@@ -84,13 +80,11 @@ def topic_summary_news(topic_name):
     prompt = {
         'system_prompt': 'You are an email newsletter editor. The user will provide content for you to summarize. Respond ONLY with the summary bullets, do NOT respond with chat.',
         'user_prompt': f'Your task is to summarize top {topic_name} news stories into a bulleted list of highlights that a reader can quickly skim. \n\n\
-            \
-            Your steps are as follows:\n\
+        Your steps are as follows:\n\
             1. Read the content of all the stories.\n\
             2. Select 3-5 of the most important stories. Prioritize exclusive or breaking news, the info a {topic_name} enthusiast cares about most.\n\
             3. Write a list of bulleted highlights, 1 for each selected story. Order the highest i_score stories first. Make the language engaging and entertaining.\n\n\
-            \
-            Summarize the following stories:\n\n',
+        Summarize the following stories:\n\n',
         'model_params': DEFAULT_MODEL_PARAMS
     }
     return prompt
@@ -100,49 +94,29 @@ SUMMARIZER_PROMPTS = {
     'news':{
         'system_prompt': 'You are an email newsletter writer. The user will provide content for you to summarize. Respond ONLY with the summary, do NOT respond with chat.',
         'user_prompt': f'Your task is to summarize news content for a reader that just wants the high-level important takeaways. \
-            The content may include headlines, text from social media posts, and text from news articles.\n\n\
-            \
-            Your steps are as follows:\n\
+        The content may include headlines, text from social media posts, and text from news articles.\n\n\
+        Your steps are as follows:\n\
             1. Ingest the provided information.\n\
             2. Understand the key facts of the news story and identify any important quotes.\n\
             3. Summarize the key facts into 1 paragraph and incorporate any important quotes. Do not exceed {SUMMARY_LEN_NEWS} words.\n\
             4. Make the language engaging and entertaining so the reader will want to see more detailed content about the story.\n\n\
-            \
-            Write a summary for the following content:\n\n',
+        Write a summary for the following content:\n\n',
         'model_params': DEFAULT_MODEL_PARAMS
     }, 
     'insights':{
         'system_prompt': 'You are an email newsletter writer. The user will provide content for you to summarize. Respond ONLY with the summary, do NOT respond with chat.',
         'user_prompt': f'Your task is to write a short summary of a new blog post or article for someone who does not have time to read the full thing.\n\n\
-            \
-            Follow this general structure for the summary:\n\
+        Follow this general structure for the summary:\n\
             1. Start by acknowledging the new blog post or article, in a few words.\n\
             2. Then, briefly explain the key insights from the article. This part should be the majority of the summary.\n\
             3. Then, in one highlighted sentence starting with "Why this matters:" explain the main implication and why the reader should care about it.\n\
             4. Finally, if necessary, invite the reader to read the full article for details.\n\n\
-            \
-            The writing style of the summary should be conversational and engaging. Use direct language and do not be verbose so it is easy to understand. \
-            Write in third person only, do NOT write in first person.\n\n\
-            \
-            Write a summary for the following content, in {SUMMARY_LEN_INSIGHTS} words or less:\n\n',
+        The writing style of the summary should be conversational and engaging. Use direct language and do not be verbose so it is easy to understand. Write in third person only, do NOT write in first person.\n\n\
+        Write a summary for the following content, in {SUMMARY_LEN_INSIGHTS} words or less:\n\n',
         'model_params': DEFAULT_MODEL_PARAMS
     },
         'story_summary_news_fn': story_summary_news,
         'topic_summary_news': topic_summary_news,
-        'topic_summary_news_old':{
-        'system_prompt': 'You are an email newsletter editor. The user will provide content for you to summarize. Respond ONLY with the summary, do NOT respond with chat.',
-        'user_prompt': f'Your task is to combine multiple news stories into a single highlights summary that a reader can quickly skim. \
-            I will provide the content for each news story.\n\n\
-            \
-            Your steps are as follows:\n\
-            1. Read the content of all the stories.\n\
-            2. Prioritize the most important and impactful news. For example, exclusive or breaking news.\n\
-            3. Summarize the most important news from all posts into 1 single summary paragraph. Do not exceed {SUMMARY_LEN_NEWS} words.\n\
-            4. Make the language engaging and entertaining.\n\n\
-            \
-            Summarize the following stories:\n\n',
-        'model_params': DEFAULT_MODEL_PARAMS
-    }
 }
 
 #Functions for collation prompts
@@ -153,17 +127,7 @@ def group_news(topic_name):
             1. Read through the content of each posts \n\
             2. Identify and list out each distinct news story and its related post ids. Make sure to list EVERY distinct story separately. Each post can only be assigned to 1 story. \n\
             3. Format the list of stories into a JSON list. Here is an example: [{{"sid": 0, "pid": [31,63]}}, {{"sid": 1, "pid": [53,46,24]}}, {{"sid": 2, "pid": [97]}}]. \n\n\
-            Go step by step and group the posts below: \n\n',
-        'model_params': DEFAULT_MODEL_PARAMS
-    }
-    return prompt
-
-def OLD_check_group_news(topic_name):
-    prompt = {
-        'system_prompt': 'Your job is to group news posts that refer to the same story. The user will provide posts in JSON format. \
-            Respond with JSON that maps a list of posts (pid) to a story (sid). \
-            Here is an example response format: [{{"sid": 0, "pid": [53,13]}}, {{"sid": 1, "pid": [92,46,27]}}, {{"sid": 2, "pid": [153]}}]. Do NOT respond with chat or text.',
-        'user_prompt': f'There are some mistakes, some posts grouped together refer to different news stories. Review the post summaries in each group as a {topic_name} enthusiast and fix the grouping errors. Respond with ONLY the updated JSON list.',
+        Go step by step and group the posts below: \n\n',
         'model_params': DEFAULT_MODEL_PARAMS
     }
     return prompt
@@ -181,9 +145,9 @@ def score_headlines_news(topic_name):
             1. Read each story \n\
             2. Evaluate how interesting the story is to a {topic_name} enthusiast. Prioritize exclusive, breaking news with big potential impact. \n\
             3. List out a brief summary assessment for each story. \n\
-            3. Assign a score from 1-100 to each story based on your assessment. Higher score means more important. Do not assign the same score to multiple stories. \n\
-            4. Format the scores as a JSON list. Here is an example: [{{"sid": 157, "i_score": 71}}, {{"sid": 942, "i_score": 42}}, {{"sid": 418, "i_score": 16}}]. \n\
-            Go step by step and evaluate the stories below: \n\n',
+            4. Assign a score from 1-100 to each story based on your assessment. Higher score means more important. Do not assign the same score to multiple stories. \n\
+            5. Format the scores as a JSON list. Here is an example: [{{"sid": 157, "i_score": 71}}, {{"sid": 942, "i_score": 42}}, {{"sid": 418, "i_score": 16}}]. \n\
+        Go step by step and evaluate the stories below: \n\n',
         'model_params': DEFAULT_MODEL_PARAMS
     }
     return prompt
@@ -197,9 +161,7 @@ RANKING_PROMPTS = {
 HEADLINE_PROMPTS = {
     'news_headline':{
         'system_prompt': 'You are an email newsletter writer. The user will provide news content and ask you to write a headline. Respond ONLY with the headline, do NOT respond with chat.',
-        'user_prompt': 'Your task is to write a short, descriptive headline for a piece of trending news to attract the attention of readers. \
-            Do not include quotes in the headline. \
-            Write an engaging headline for the following news, in 15 words or less:\n\n',
+        'user_prompt': 'Your task is to write a short, descriptive headline for a piece of trending news to attract the attention of readers. Do not include quotes in the headline. Write an engaging headline for the following news, in 15 words or less:\n\n',
         'model_params': DEFAULT_MODEL_PARAMS
     }
 }
@@ -214,10 +176,6 @@ ERROR_FIXING_PROMPTS = {
 }
 
 ###OLD ARCHIVED###
-#Prompts for insight headline
-HEADLINE_INSIGHTS_SYSTEM_PROMPT = '''Your task is to write a short headline telling readers about a new blog post, article, or opinion piece'''
-HEADLINE_INSIGHTS_PREPEND = '''Confidently write an engaging headline based on the following article summary, in 15 words or less.\n\n'''
-HEADLINE_INSIGHTS_MODEL_PARAMS = DEFAULT_MODEL_PARAMS
 
 #old test editor prompt
 old_editor_news_prompt = {
@@ -237,3 +195,25 @@ old_editor_news_prompt = {
         'model_params': DEFAULT_MODEL_PARAMS
     }
 }
+
+old_topic_summary_prompt = {
+        'system_prompt': 'You are an email newsletter editor. The user will provide content for you to summarize. Respond ONLY with the summary, do NOT respond with chat.',
+        'user_prompt': f'Your task is to combine multiple news stories into a single highlights summary that a reader can quickly skim. \
+        I will provide the content for each news story.\n\n\
+        Your steps are as follows:\n\
+            1. Read the content of all the stories.\n\
+            2. Prioritize the most important and impactful news. For example, exclusive or breaking news.\n\
+            3. Summarize the most important news from all posts into 1 single summary paragraph. Do not exceed {SUMMARY_LEN_NEWS} words.\n\
+            4. Make the language engaging and entertaining.\n\n\
+        Summarize the following stories:\n\n',
+        'model_params': DEFAULT_MODEL_PARAMS
+    }
+
+def OLD_check_group_news(topic_name):
+    prompt = {
+        'system_prompt': 'Your job is to group news posts that refer to the same story. The user will provide posts in JSON format. Respond with JSON that maps a list of posts (pid) to a story (sid). \
+        Here is an example response format: [{{"sid": 0, "pid": [53,13]}}, {{"sid": 1, "pid": [92,46,27]}}, {{"sid": 2, "pid": [153]}}]. Do NOT respond with chat or text.',
+        'user_prompt': f'There are some mistakes, some posts grouped together refer to different news stories. Review the post summaries in each group as a {topic_name} enthusiast and fix the grouping errors. Respond with ONLY the updated JSON list.',
+        'model_params': DEFAULT_MODEL_PARAMS
+    }
+    return prompt

@@ -1,7 +1,6 @@
 import db
 import configs
 import emailer
-import editor
 import changelog
 from pytz import timezone
 from datetime import datetime, time
