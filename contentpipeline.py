@@ -215,33 +215,28 @@ def dailyPipelineToCSV(min_datetime, max_datetime=MAX_DATETIME_DEFAULT):
     utils.JSONtoCSV(topic_highlights, 'data/topic_highlights_' + topic_name + '_' + min_datetime.strftime('%m-%d') + end_daterange + '.csv')
     print('Overall data output to CSV')
 
-#PIPELINE PARAMS
-##############################################################################################
-#Test params
-topic_id = 1
-max_posts_reddit = 100
-max_stories_in_highlights = 5
-last2days = datetime.now().timestamp() - 172800 #get current time minus 2 days
-custom_min = DATETIME_TODAY_START - timedelta(days = 2)
-custom_max = DATETIME_TODAY_START - timedelta(days = 1)
-
 #RUN PIPELINE
 ##############################################################################################
-if __name__ == '__main__':
+def main():
+    #Pipeline params
+    topic_id = 1
+    max_posts_reddit = 100
+    max_stories_in_highlights = 5
+    last2days = datetime.now().timestamp() - 172800 #get current time minus 2 days
+
     pullPosts(topic_id, max_posts_reddit, min_timestamp=last2days)
-categorizePosts(topic_id, min_datetime=DATETIME_TODAY_START)
-summarizeNewsPosts(topic_id, min_datetime=DATETIME_TODAY_START)
-mapStories(topic_id, min_datetime=DATETIME_TODAY_START)
-storyMappingToCSV(topic_id, min_datetime=DATETIME_TODAY_START)
-summarizeStories(topic_id, min_datetime=DATETIME_TODAY_START)
-rankStories(topic_id, min_datetime=DATETIME_TODAY_START)
-summarizeTopic(topic_id, max_stories=max_stories_in_highlights, min_datetime=DATETIME_TODAY_START)
-storyQAToCSV(topic_id, min_datetime=DATETIME_TODAY_START)
-dailyPipelineToCSV(min_datetime=DATETIME_TODAY_START)
+    categorizePosts(topic_id, min_datetime=DATETIME_TODAY_START)
+    summarizeNewsPosts(topic_id, min_datetime=DATETIME_TODAY_START)
+    mapStories(topic_id, min_datetime=DATETIME_TODAY_START)
+    storyMappingToCSV(topic_id, min_datetime=DATETIME_TODAY_START)
+    summarizeStories(topic_id, min_datetime=DATETIME_TODAY_START)
+    rankStories(topic_id, min_datetime=DATETIME_TODAY_START)
+    summarizeTopic(topic_id, max_stories=max_stories_in_highlights, min_datetime=DATETIME_TODAY_START)
+    storyQAToCSV(topic_id, min_datetime=DATETIME_TODAY_START)
+    dailyPipelineToCSV(min_datetime=DATETIME_TODAY_START)
 
-
-
-
+if __name__ == '__main__':
+    main()
 
 #TEMP REMAPPING TESTS
 ##############################################################################################
@@ -272,6 +267,8 @@ def reMapStories(topic_id, min_datetime, max_datetime=MAX_DATETIME_DEFAULT):
         db.updatePosts(posts)
     print('Stories mapped and saved to DB')
 
+custom_min = DATETIME_TODAY_START - timedelta(days = 2)
+custom_max = DATETIME_TODAY_START - timedelta(days = 1)
 #reMapStories(topic_id, min_datetime=custom_min, max_datetime=custom_max)
 #storyMappingToCSV(topic_id, min_datetime=custom_min, max_datetime=custom_max)
 #summarizeNewsPosts(topic_id, min_datetime=custom_min, max_datetime=custom_max)
