@@ -9,17 +9,17 @@ DEFAULT_MODEL_PARAMS = {
     'temperature': 0.7,
     'truncate': 6144,
     'max_new_tokens': 2047,
-    'top_p': 0.7,
+    'top_p': 0.9,
     'stop': ['<|eot_id|>'],
     'stop_sequences': ['<|eot_id|>'],
     'return_full_text': False
 }
 
 TASK_MODEL_PARAMS = {
-    'temperature': 0.4,
+    'temperature': 0.6,
     'truncate': 6144,
     'max_new_tokens': 2047,
-    'top_p': 0.3,
+    'top_p': 0.9,
     'stop': ['<|eot_id|>'],
     'stop_sequences': ['<|eot_id|>'],
     'return_full_text': False
