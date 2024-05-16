@@ -355,3 +355,8 @@ def deleteStories(min_datetime=MIN_DATETIME_DEFAULT, max_datetime=MAX_DATETIME_D
     table = STORY_TABLE
     deleteEntries(table=table, min_datetime=min_datetime, filters=filters, max_datetime=max_datetime)
     print(f'Stories from {min_datetime} to {max_datetime} deleted')
+
+def deletePosts(min_datetime=MIN_DATETIME_DEFAULT, max_datetime=MAX_DATETIME_DEFAULT, filters={}):
+    table = POST_TABLE
+    deleteEntries(table=table, min_datetime=min_datetime, filters=filters, max_datetime=max_datetime)
+    print(f'Posts from {min_datetime} to {max_datetime} deleted')
