@@ -74,10 +74,15 @@ def generateNewsPostSummary(post, feed, prompt_config='default') -> str:
 def mapNewsPostsToStories(posts: list, topic_name, prompt_config_init='default', prompt_config_revise='default') -> list[dict]:
     prompt_config_init = promptconfigs.COLLATION_PROMPTS['group_news'](topic_name) if prompt_config_init == 'default' else prompt_config_init
     prompt_config_revise = promptconfigs.COLLATION_PROMPTS['group_news_revise'] if prompt_config_revise == 'default' else prompt_config_revise
-    content = ''
+    content_long = ''
+    content_short = ''
     #construct the string with all the posts
     for post in posts:
-        content = content + f'{{"pid": {post['post_id']}, "title": "{post['retitle_ml']}", "summary": "{post['summary_ml']}"}}\n'
+        content_long = content_long + f'{{"pid": {post['post_id']}, "title": "{post['retitle_ml']}", "summary": "{post['summary_ml']}"}}\n'
+        content_short = content_short + f'{{"pid": {post['post_id']}, "title": "{post['retitle_ml']}"}}\n'
+
+    #check if tokens exceeds max input, if so, just use titles no summary text
+    content = content_long if utils.tokenCountLlama3(content_long) <= prompt_config_init['model_params']['truncate'] else content_short
 
     #first get initial mapping from model with base prompt
     initial_response, user_prompt = getResponseLLAMA(content, prompt_config_init, return_user_prompt=True)
@@ -174,6 +179,7 @@ def scoreNewsStories(stories: list, topic_name: str, prompt_config='default') ->
     content = ''
     for story in stories:
         content = content + f'{{"sid": {story['story_id']}, "summary": "{story['summary_ml']}"}}\n'
+    
     raw_response = getResponseLLAMA(content, prompt_config)
     parsed_response = utils.parseMappingLLAMA(raw_response)
     try:
