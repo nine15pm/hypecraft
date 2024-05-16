@@ -77,7 +77,7 @@ def mapNewsPostsToStories(posts: list, topic_name, prompt_config_init='default',
     content = ''
     #construct the string with all the posts
     for post in posts:
-        content = content + f'{{"pid": {post['post_id']}, "title": "{post['post_title']}", "summary": "{post['summary_ml']}"}}\n'
+        content = content + f'{{"pid": {post['post_id']}, "title": "{post['retitle_ml']}", "summary": "{post['summary_ml']}"}}\n'
 
     #first get initial mapping from model with base prompt
     initial_response, user_prompt = getResponseLLAMA(content, prompt_config_init, return_user_prompt=True)
@@ -136,7 +136,7 @@ def generateStorySummary(storyposts: list, topic_name: str, prompt_config='defau
 
         #construct content string for model
         for i, post in enumerate(selected_posts):
-            post_string = f'Post {i} headline: {post['post_title']}\n\
+            post_string = f'Post {i} headline: {post['retitle_ml']}\n\
                 Post {i} text: {post['summary_ml']}\n\n'
             content = content + post_string
         #generate summary
@@ -156,6 +156,11 @@ def generateTopicSummary(stories: list, topic_name: str, prompt_config='default'
 
 #HEADLINE GENERATION
 ##############################################################################################
+#factually retitle a post for higher quality post title
+def retitleNewsPost(post_summary, prompt_config='default') -> str:
+    prompt_config = promptconfigs.HEADLINE_PROMPTS['news_post_retitle'] if prompt_config == 'default' else prompt_config
+    return getResponseLLAMA(post_summary, prompt_config)
+
 #write the headline for a story
 def generateHeadlineFromSummary(summary, prompt_config='default') -> str:
     prompt_config = promptconfigs.HEADLINE_PROMPTS['news_headline'] if prompt_config == 'default' else prompt_config

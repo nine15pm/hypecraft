@@ -272,7 +272,8 @@ def getPostsForNewsStoryMapping(topic_id, min_datetime=MIN_DATETIME_DEFAULT, max
         'post_title',
         'post_tags',
         'post_text',
-        'summary_ml'
+        'summary_ml',
+        'retitle_ml'
     ]
     filters = {
         'topic_id': topic_id,
@@ -291,9 +292,10 @@ def getPostsForStorySummary(post_ids):
         'post_tags',
         'post_link',
         'summary_ml',
+        'retitle_ml',
         'views_score',
         'likes_score',
-        'comments_score',
+        'comments_score'
     ]
     filters = {
         'post_id': post_ids
