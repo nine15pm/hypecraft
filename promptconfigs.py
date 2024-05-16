@@ -6,7 +6,27 @@ import configs
 #Model
 DEFAULT_MODEL = configs.DEFAULT_MODEL
 DEFAULT_MODEL_PARAMS = {
-    'temperature': 0.6,
+    'temperature': 0.7,
+    'truncate': 6144,
+    'max_new_tokens': 2047,
+    'top_p': 0.7,
+    'stop': ['<|eot_id|>'],
+    'stop_sequences': ['<|eot_id|>'],
+    'return_full_text': False
+}
+
+TASK_MODEL_PARAMS = {
+    'temperature': 0.4,
+    'truncate': 6144,
+    'max_new_tokens': 2047,
+    'top_p': 0.3,
+    'stop': ['<|eot_id|>'],
+    'stop_sequences': ['<|eot_id|>'],
+    'return_full_text': False
+}
+
+WRITING_MODEL_PARAMS = {
+    'temperature': 0.9,
     'truncate': 6144,
     'max_new_tokens': 2047,
     'top_p': 0.9,
@@ -14,6 +34,7 @@ DEFAULT_MODEL_PARAMS = {
     'stop_sequences': ['<|eot_id|>'],
     'return_full_text': False
 }
+
 
 #LLAMA prompt structure
 SYSTEM_PROMPT_PREPEND_LLAMA = '<|begin_of_text|><|start_header_id|>system<|end_header_id|>\n\n'
@@ -56,7 +77,7 @@ CLASSIFIER_PROMPTS = {
             - memes: jokes and other content meant to be funny\n\n\
             - other: does not fit in the above 4 categories\n\n\
         Choose the most likely category based on the following info. If you do not have enough info or are very uncertain, return "#other#".\n\n',
-        'model_params': DEFAULT_MODEL_PARAMS
+        'model_params': TASK_MODEL_PARAMS
     },
 }
 
@@ -72,7 +93,7 @@ def story_summary_news(topic_name):
             3. Summarize the key facts into 1 single summary paragraph. Include relevant quotes if they are important. Do not exceed {SUMMARY_LEN_NEWS} words.\n\
             4. Make the language engaging and entertaining so the reader will want to see more detailed content about the story.\n\n\
         Combine the following posts:\n\n',
-        'model_params': DEFAULT_MODEL_PARAMS
+        'model_params': WRITING_MODEL_PARAMS
     }
     return prompt
 
@@ -85,7 +106,7 @@ def topic_summary_news(topic_name):
             2. Select 3-5 of the most important stories. Prioritize exclusive or breaking news, the info a {topic_name} enthusiast cares about most.\n\
             3. Write a list of bulleted highlights, 1 for each selected story. Order the highest i_score stories first. Make the language engaging and entertaining.\n\n\
         Summarize the following stories:\n\n',
-        'model_params': DEFAULT_MODEL_PARAMS
+        'model_params': WRITING_MODEL_PARAMS
     }
     return prompt
 
@@ -99,9 +120,8 @@ SUMMARIZER_PROMPTS = {
             1. Ingest the provided information.\n\
             2. Understand the key facts of the news story and identify any important quotes.\n\
             3. Summarize the key facts into 1 paragraph and incorporate any important quotes. Do not exceed {SUMMARY_LEN_NEWS} words.\n\
-            4. Make the language engaging and entertaining so the reader will want to see more detailed content about the story.\n\n\
         Write a summary for the following content:\n\n',
-        'model_params': DEFAULT_MODEL_PARAMS
+        'model_params': TASK_MODEL_PARAMS
     }, 
     'insights':{
         'system_prompt': 'You are an email newsletter writer. The user will provide content for you to summarize. Respond ONLY with the summary, do NOT respond with chat.',
@@ -113,7 +133,7 @@ SUMMARIZER_PROMPTS = {
             4. Finally, if necessary, invite the reader to read the full article for details.\n\n\
         The writing style of the summary should be conversational and engaging. Use direct language and do not be verbose so it is easy to understand. Write in third person only, do NOT write in first person.\n\n\
         Write a summary for the following content, in {SUMMARY_LEN_INSIGHTS} words or less:\n\n',
-        'model_params': DEFAULT_MODEL_PARAMS
+        'model_params': WRITING_MODEL_PARAMS
     },
         'story_summary_news_fn': story_summary_news,
         'topic_summary_news': topic_summary_news,
@@ -128,13 +148,21 @@ def group_news(topic_name):
             2. Identify and list out each distinct news story and its related post ids. Make sure to list EVERY distinct story separately. Each post can only be assigned to 1 story. \n\
             3. Format the list of stories into a JSON list. Here is an example: [{{"sid": 0, "pid": [31,63]}}, {{"sid": 1, "pid": [53,46,24]}}, {{"sid": 2, "pid": [97]}}]. \n\n\
         Go step by step and group the posts below: \n\n',
-        'model_params': DEFAULT_MODEL_PARAMS
+        'model_params': TASK_MODEL_PARAMS
     }
     return prompt
 
 #Prompts for collation
 COLLATION_PROMPTS = {
-    'group_news':group_news
+    'group_news': group_news,
+    'group_news_revise': {
+        'system_prompt': 'Your job is to group news posts that refer to the same story. The user will provide posts in JSON format. Do the task step by step.',
+        'user_prompt': f'Are you sure this is correct? There may be some mistakes. Review each story you listed:\n\
+            1. Make sure the posts you identified are actually related to the same story. If there is a mistake, fix it. \n\
+            2. Make sure there are no other duplicate stories listed that discuss the same news. If there is a mistake, fix it. \n\
+            3. Format the revised list of stories into a JSON list.',
+        'model_params': TASK_MODEL_PARAMS
+    }
 }
 
 #Functions for dynamic ranking prompts
@@ -148,7 +176,7 @@ def score_headlines_news(topic_name):
             4. Assign a score from 1-100 to each story based on your assessment. Higher score means more important. Do not assign the same score to multiple stories. \n\
             5. Format the scores as a JSON list. Here is an example: [{{"sid": 157, "i_score": 71}}, {{"sid": 942, "i_score": 42}}, {{"sid": 418, "i_score": 16}}]. \n\
         Go step by step and evaluate the stories below: \n\n',
-        'model_params': DEFAULT_MODEL_PARAMS
+        'model_params': TASK_MODEL_PARAMS
     }
     return prompt
 
@@ -162,7 +190,7 @@ HEADLINE_PROMPTS = {
     'news_headline':{
         'system_prompt': 'You are an email newsletter writer. The user will provide news content and ask you to write a headline. Respond ONLY with the headline, do NOT respond with chat.',
         'user_prompt': 'Your task is to write a short, descriptive headline for a piece of trending news to attract the attention of readers. Do not include quotes in the headline. Write an engaging headline for the following news, in 15 words or less:\n\n',
-        'model_params': DEFAULT_MODEL_PARAMS
+        'model_params': WRITING_MODEL_PARAMS
     }
 }
 
@@ -171,7 +199,7 @@ ERROR_FIXING_PROMPTS = {
     'fix_JSON':{
         'system_prompt': 'Your job is to check JSON lists for syntax errors and fix them. The user will provide you with a JSON list. Respond with ONLY the updated JSON list. Do NOT respond with text.',
         'user_prompt': 'Check this JSON list for syntax errors and fix them. Do NOT modify the data.',
-        'model_params': DEFAULT_MODEL_PARAMS
+        'model_params': TASK_MODEL_PARAMS
     }
 }
 
@@ -208,12 +236,3 @@ old_topic_summary_prompt = {
         Summarize the following stories:\n\n',
         'model_params': DEFAULT_MODEL_PARAMS
     }
-
-def OLD_check_group_news(topic_name):
-    prompt = {
-        'system_prompt': 'Your job is to group news posts that refer to the same story. The user will provide posts in JSON format. Respond with JSON that maps a list of posts (pid) to a story (sid). \
-        Here is an example response format: [{{"sid": 0, "pid": [53,13]}}, {{"sid": 1, "pid": [92,46,27]}}, {{"sid": 2, "pid": [153]}}]. Do NOT respond with chat or text.',
-        'user_prompt': f'There are some mistakes, some posts grouped together refer to different news stories. Review the post summaries in each group as a {topic_name} enthusiast and fix the grouping errors. Respond with ONLY the updated JSON list.',
-        'model_params': DEFAULT_MODEL_PARAMS
-    }
-    return prompt

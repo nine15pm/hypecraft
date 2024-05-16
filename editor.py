@@ -71,15 +71,25 @@ def generateNewsPostSummary(post, feed, prompt_config='default') -> str:
 ##############################################################################################
 
 #Groups similar/repeat headlines into stories - split into 2 steps, initial and revise
-def mapNewsPostsToStories(posts: list, topic_name, prompt_config='default') -> list[dict]:
-    prompt_config = promptconfigs.COLLATION_PROMPTS['group_news'](topic_name) if prompt_config == 'default' else prompt_config
+def mapNewsPostsToStories(posts: list, topic_name, prompt_config_init='default', prompt_config_revise='default') -> list[dict]:
+    prompt_config_init = promptconfigs.COLLATION_PROMPTS['group_news'](topic_name) if prompt_config_init == 'default' else prompt_config_init
+    prompt_config_revise = promptconfigs.COLLATION_PROMPTS['group_news_revise'] if prompt_config_revise == 'default' else prompt_config_revise
     content = ''
     #construct the string with all the posts
     for post in posts:
         content = content + f'{{"pid": {post['post_id']}, "title": "{post['post_title']}", "summary": "{post['summary_ml']}"}}\n'
 
-    raw_response = getResponseLLAMA(content=content, prompt_config=prompt_config)
-    json_extracted = utils.parseMappingLLAMA(raw_response)
+    #first get initial mapping from model with base prompt
+    initial_response, user_prompt = getResponseLLAMA(content, prompt_config_init, return_user_prompt=True)
+
+    #then send model chat history and ask it to check for errors and revise
+    prior_chat = [{
+        'user': user_prompt,
+        'assistant': initial_response
+    }]
+    revised_response = getResponseLLAMA(content='', prompt_config=prompt_config_revise, prior_chat=prior_chat)
+
+    json_extracted = utils.parseMappingLLAMA(revised_response)
     try:
         output = json.loads(json_extracted)
         return output
@@ -91,7 +101,7 @@ def mapNewsPostsToStories(posts: list, topic_name, prompt_config='default') -> l
         return output
     except Exception as error:
         print(f'Story mapping error:', type(error).__name__, "-", error)
-        print(raw_response)
+        print(revised_response)
         raise error
 
 #collates posts associated with story into a single summary
