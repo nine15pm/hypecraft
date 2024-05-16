@@ -114,10 +114,9 @@ def topic_summary_news(topic_name):
 SUMMARIZER_PROMPTS = {
     'news':{
         'system_prompt': 'You are an email newsletter writer. The user will provide content for you to summarize. Respond ONLY with the summary, do NOT respond with chat.',
-        'user_prompt': f'Your task is to summarize news content for a reader that just wants the high-level important takeaways. \
-        The content may include headlines, text from social media posts, and text from news articles.\n\n\
+        'user_prompt': f'Your task is to summarize news content. The content may include headlines, text from social media posts, and text from news articles.\n\n\
         Your steps are as follows:\n\
-            1. Ingest the provided information.\n\
+            1. Ingest the provided content.\n\
             2. Understand the key facts of the news story and identify any important quotes.\n\
             3. Summarize the key facts into 1 paragraph and incorporate any important quotes. Do not exceed {SUMMARY_LEN_NEWS} words.\n\
         Write a summary for the following content:\n\n',
@@ -191,6 +190,11 @@ HEADLINE_PROMPTS = {
         'system_prompt': 'You are an email newsletter writer. The user will provide news content and ask you to write a headline. Respond ONLY with the headline, do NOT respond with chat.',
         'user_prompt': 'Your task is to write a short, descriptive headline for a piece of trending news to attract the attention of readers. Do not include quotes in the headline. Write an engaging headline for the following news, in 15 words or less:\n\n',
         'model_params': WRITING_MODEL_PARAMS
+    },
+    'news_post_retitle':{
+        'system_prompt': 'The user will provide news content for you to describe. Respond ONLY with the 1-line summary, do NOT respond with chat.',
+        'user_prompt': 'Your task is to write a 1-line summary of the main news story discussed in the post below. Do NOT exceed 15 words. \n\n',
+        'model_params': TASK_MODEL_PARAMS
     }
 }
 
