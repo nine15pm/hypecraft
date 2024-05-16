@@ -235,7 +235,8 @@ def parseFeedReddit(topic_id, feed_id, min_timestamp=0, max_posts=10, endpoint='
 
                 #scrape the text
                 #scrape using general web scraper
-                external_scraped_text = getWebText(listing['data']['url'], min_text_length=MIN_TEXT_LEN_EXTERNAL_REDDIT, unsupported_hosts=configs.WEB_SCRAPE_UNSUPPORTED_HOSTS)
+                if __name__ == '__main__':
+                    external_scraped_text = getWebText(listing['data']['url'], min_text_length=MIN_TEXT_LEN_EXTERNAL_REDDIT, unsupported_hosts=configs.WEB_SCRAPE_UNSUPPORTED_HOSTS)
                 #skip if external scraped text shorter than min characters
                 if len(external_scraped_text) < MIN_TEXT_LEN_EXTERNAL_REDDIT:
                     continue
@@ -345,7 +346,8 @@ def parseFeedRSS(topic_id, feed_id, min_timestamp=0) -> list[dict]:
         #if self text is less than minimum or no self text, scrape external link
         if len(post_text if post_text is not None else '') < MIN_TEXT_LEN_SELF_RSS:
             unsupported_hosts = configs.WEB_SCRAPE_UNSUPPORTED_HOSTS
-            external_parsed_text = getWebText(entry.link, min_text_length=MIN_TEXT_LEN_EXTERNAL_RSS, unsupported_hosts=unsupported_hosts)
+            if __name__ == '__main__':
+                external_parsed_text = getWebText(entry.link, min_text_length=MIN_TEXT_LEN_EXTERNAL_RSS, unsupported_hosts=unsupported_hosts)
             #skip if scraped text also does not have extractable content
             if external_parsed_text == '':
                 continue
