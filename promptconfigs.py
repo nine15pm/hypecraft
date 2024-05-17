@@ -82,14 +82,14 @@ CLASSIFIER_PROMPTS = {
 }
 
 #Functions for dynamic summarization prompts
-def story_summary_news(topic_name):
+def story_summary_news(topic_prompt_params:dict):
     prompt = {
         'system_prompt': 'You are an email newsletter editor. The user will provide content for you to summarize. Respond ONLY with the summary, do NOT respond with chat.',
         'user_prompt': f'Your task is to combine multiple posts about the same news story into a single summary. \
         The post content may include headlines, text from social media posts, and text from news articles.\n\n\
         Your steps are as follows:\n\
             1. Read the content of all the posts.\n\
-            2. Identify the most important facts and takeaways. Prioritize the info a {topic_name} enthusiast cares about most.\n\
+            2. Identify the most important facts and takeaways. Prioritize the info a {topic_prompt_params['topic_name']} enthusiast cares about most.\n\
             3. Summarize the key facts into 1 single summary paragraph. Include relevant quotes if they are important. Do not exceed {SUMMARY_LEN_NEWS} words.\n\
             4. Make the language engaging and entertaining so the reader will want to see more detailed content about the story.\n\n\
         Combine the following posts:\n\n',
@@ -97,13 +97,13 @@ def story_summary_news(topic_name):
     }
     return prompt
 
-def topic_summary_news(topic_name):
+def topic_summary_news(topic_prompt_params:dict):
     prompt = {
         'system_prompt': 'You are an email newsletter editor. The user will provide content for you to summarize. Respond ONLY with the summary bullets, do NOT respond with chat.',
-        'user_prompt': f'Your task is to summarize top {topic_name} news stories into a bulleted list of highlights that a reader can quickly skim. \n\n\
+        'user_prompt': f'Your task is to summarize top {topic_prompt_params['topic_name']} news stories into a bulleted list of highlights that a reader can quickly skim. \n\n\
         Your steps are as follows:\n\
             1. Read the content of all the stories.\n\
-            2. Select 3-5 of the most important stories. Prioritize exclusive or breaking news, the info a {topic_name} enthusiast cares about most.\n\
+            2. Select 3-5 of the most important stories. Prioritize exclusive or breaking news, the info a {topic_prompt_params['topic_name']} enthusiast cares about most.\n\
             3. Write a list of bulleted highlights, 1 for each selected story. Order the highest i_score stories first. Make the language engaging and entertaining.\n\n\
         Summarize the following stories:\n\n',
         'model_params': WRITING_MODEL_PARAMS
@@ -134,18 +134,31 @@ SUMMARIZER_PROMPTS = {
         Write a summary for the following content, in {SUMMARY_LEN_INSIGHTS} words or less:\n\n',
         'model_params': WRITING_MODEL_PARAMS
     },
-        'story_summary_news_fn': story_summary_news,
-        'topic_summary_news': topic_summary_news,
+    'story_summary_news_fn': story_summary_news,
+    'topic_summary_news_fn': topic_summary_news
 }
 
 #Functions for collation prompts
-def group_news(topic_name):
+def group_story_news(topic_prompt_params:dict):
     prompt = {
         'system_prompt': 'Your job is to group news posts that refer to the same story. The user will provide posts in JSON format. Do the task step by step.',
-        'user_prompt': f'Your task is to map {topic_name} news posts into stories according to the following steps:\n\
-            1. Read through the content of each posts \n\
-            2. Identify and list out each distinct news story and its related post ids. Make sure to list EVERY distinct story separately. Each post can only be assigned to 1 story. \n\
-            3. Format the list of stories into a JSON list. Here is an example: [{{"sid": 0, "pid": [31,63]}}, {{"sid": 1, "pid": [53,46,24]}}, {{"sid": 2, "pid": [97]}}]. \n\n\
+        'user_prompt': f'Your task is to map {topic_prompt_params['topic_name']} news posts into stories according to the following steps:\n\
+            1. Read through the posts \n\
+            2. Identify and list out each unique news story discussed. \n\
+            3. Map each post to its news story. Do NOT map a post to more than 1 story. Format the mapping as a JSON list. Here is an example: [{{"sid": 0, "pid": [31,63]}}, {{"sid": 1, "pid": [53,46,24]}}, {{"sid": 2, "pid": [97]}}]. \n\n\
+        Go step by step and group the posts below: \n\n',
+        'model_params': DEFAULT_MODEL_PARAMS
+    }
+    return prompt
+
+def group_theme_news(topic_prompt_params:dict):
+    prompt = {
+        'system_prompt': 'Your job is to group related news posts. The user will provide posts in JSON format. Do the task step by step.',
+        'user_prompt': f'Your task is to group {topic_prompt_params['topic_name']} news posts into themes according to the following steps:\n\
+            1. Read through the posts \n\
+            2. Identify and list up to 5 SPECIFIC and UNIQUE themes that best covers all of the news stories discussed. For example {topic_prompt_params['theme_examples']}. 1 theme can be "Other" ONLY IF there are posts that do not fit. Do NOT have more than 5 themes. \n\
+            3. Review the themes for too much overlap. For example, {topic_prompt_params['theme_overlap_examples']} would be too much overlap. Edit themes if needed, and list the revised themes. \n\
+            4. Provide a formatted JSON list of posts grouped by theme. Do NOT group a post into more than 1 theme. Here is an example: [{{"theme": theme1, "pid": [31,63]}}, {{"theme": theme2, "pid": [53,46,24]}}, {{"theme": theme3, "pid": [97,15]}}]. \n\n\
         Go step by step and group the posts below: \n\n',
         'model_params': TASK_MODEL_PARAMS
     }
@@ -153,24 +166,33 @@ def group_news(topic_name):
 
 #Prompts for collation
 COLLATION_PROMPTS = {
-    'group_news': group_news,
-    'group_news_revise': {
+    'group_story_news_fn': group_story_news,
+    'group_theme_news_fn': group_theme_news,
+    'group_story_news_revise': {
         'system_prompt': 'Your job is to group news posts that refer to the same story. The user will provide posts in JSON format. Do the task step by step.',
-        'user_prompt': f'Are you sure this is correct? There may be some mistakes. Review each story you listed:\n\
+        'user_prompt': f'Are you sure this is correct? Check your work and make sure you are confident you are correct. Review each story you listed:\n\
             1. Make sure the posts you identified are actually related to the same story. If there is a mistake, fix it. \n\
             2. Make sure there are no other duplicate stories listed that discuss the same news. If there is a mistake, fix it. \n\
             3. Format the revised list of stories into a JSON list.',
+        'model_params': TASK_MODEL_PARAMS
+    },
+    'group_theme_news_revise': {
+        'system_prompt': 'Your job is to group related news posts. The user will provide posts in JSON format. Do the task step by step.',
+        'user_prompt': f'Are you sure this is correct? Check your work and make sure you are confident you are correct. Review each post: \n\
+            1. List out any any cases where posts about the SAME NEWS STORY are assigned to different themes. If there are errors, fix them. \n\
+            2. List out any cases where the post does not fit the assigned theme. If there are errors, fix them. \n\
+            3. Format the revised list of themes into a JSON list.',
         'model_params': TASK_MODEL_PARAMS
     }
 }
 
 #Functions for dynamic ranking prompts
-def score_headlines_news(topic_name):
+def score_headlines_news(topic_prompt_params:dict):
     prompt = {
         'system_prompt': 'Your job is to score news stories to determine how they should be prioritized in a newsletter. The user will provide stories in JSON format. Do the task step by step.',
-        'user_prompt': f'Your task is to score {topic_name} news stories according to the following steps: \n\
+        'user_prompt': f'Your task is to score {topic_prompt_params['topic_name']} news stories according to the following steps: \n\
             1. Read each story \n\
-            2. Evaluate how interesting the story is to a {topic_name} enthusiast. Prioritize exclusive, breaking news with big potential impact. \n\
+            2. Evaluate how interesting the story is to a {topic_prompt_params['topic_name']} enthusiast. Prioritize exclusive, breaking news with big potential impact. \n\
             3. List out a brief summary assessment for each story. \n\
             4. Assign a score from 1-100 to each story based on your assessment. Higher score means more important. Do not assign the same score to multiple stories. \n\
             5. Format the scores as a JSON list. Here is an example: [{{"sid": 157, "i_score": 71}}, {{"sid": 942, "i_score": 42}}, {{"sid": 418, "i_score": 16}}]. \n\
