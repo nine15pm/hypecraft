@@ -70,10 +70,49 @@ def generateNewsPostSummary(post, feed, prompt_config='default') -> str:
 #STORY COLLATION
 ##############################################################################################
 
+#Groups news posts into up to N buckets
+def mapNewsPostsToThemes(posts: list, topic_prompt_params: dict, prompt_config_init='default', prompt_config_revise='default') -> list[dict]:
+    prompt_config_init = promptconfigs.COLLATION_PROMPTS['group_theme_news_fn'](topic_prompt_params) if prompt_config_init == 'default' else prompt_config_init
+    prompt_config_revise = promptconfigs.COLLATION_PROMPTS['group_theme_news_revise'] if prompt_config_revise == 'default' else prompt_config_revise
+    content_long = ''
+    content_short = ''
+    #construct the string with all the posts
+    for post in posts:
+        content_long = content_long + f'{{"pid": {post['post_id']}, "title": "{post['retitle_ml']}", "summary": "{post['summary_ml']}"}}\n'
+        content_short = content_short + f'{{"pid": {post['post_id']}, "title": "{post['retitle_ml']}"}}\n'
+
+    #check if tokens exceeds max input, if so, just use titles no summary text
+    content = content_long if utils.tokenCountLlama3(content_long) <= prompt_config_init['model_params']['truncate'] else content_short
+
+    #first get initial mapping from model with base prompt
+    initial_response, user_prompt = getResponseLLAMA(content, prompt_config_init, return_user_prompt=True)
+
+    #then send model chat history and ask it to check for errors and revise
+    prior_chat = [{
+        'user': user_prompt,
+        'assistant': initial_response
+    }]
+    revised_response = getResponseLLAMA(content='', prompt_config=prompt_config_revise, prior_chat=prior_chat)
+
+    json_extracted = utils.parseMappingLLAMA(revised_response)
+    try:
+        output = json.loads(json_extracted)
+        return output
+    except:
+        print('Theme mapping from model not valid JSON, trying fix...')
+    try:
+        json_extracted = fixJSON(json_extracted)
+        output = json.loads(json_extracted)
+        return output
+    except Exception as error:
+        print(f'Theme mapping error:', type(error).__name__, "-", error)
+        print(revised_response)
+        raise error
+
 #Groups similar/repeat headlines into stories - split into 2 steps, initial and revise
-def mapNewsPostsToStories(posts: list, topic_name, prompt_config_init='default', prompt_config_revise='default') -> list[dict]:
-    prompt_config_init = promptconfigs.COLLATION_PROMPTS['group_news'](topic_name) if prompt_config_init == 'default' else prompt_config_init
-    prompt_config_revise = promptconfigs.COLLATION_PROMPTS['group_news_revise'] if prompt_config_revise == 'default' else prompt_config_revise
+def mapNewsPostsToStories(posts: list, topic_prompt_params: dict, prompt_config_init='default', prompt_config_revise='default') -> list[dict]:
+    prompt_config_init = promptconfigs.COLLATION_PROMPTS['group_story_news_fn'](topic_prompt_params) if prompt_config_init == 'default' else prompt_config_init
+    prompt_config_revise = promptconfigs.COLLATION_PROMPTS['group_story_news_revise'] if prompt_config_revise == 'default' else prompt_config_revise
     content_long = ''
     content_short = ''
     #construct the string with all the posts
@@ -110,8 +149,8 @@ def mapNewsPostsToStories(posts: list, topic_name, prompt_config_init='default',
         raise error
 
 #collates posts associated with story into a single summary
-def generateStorySummary(storyposts: list, topic_name: str, prompt_config='default') -> tuple[str, list]:
-    prompt_config = promptconfigs.SUMMARIZER_PROMPTS['story_summary_news_fn'](topic_name) if prompt_config == 'default' else prompt_config
+def generateStorySummary(storyposts: list, topic_prompt_params: dict, prompt_config='default') -> tuple[str, list]:
+    prompt_config = promptconfigs.SUMMARIZER_PROMPTS['story_summary_news_fn'](topic_prompt_params) if prompt_config == 'default' else prompt_config
     content = ''
     #check if there is only 1 post
     if len(storyposts) == 1:
@@ -150,8 +189,8 @@ def generateStorySummary(storyposts: list, topic_name: str, prompt_config='defau
     return summary, posts_summarized
 
 #write an overall summary for the topic by combining all the top stories
-def generateTopicSummary(stories: list, topic_name: str, prompt_config='default') -> str:
-    prompt_config = promptconfigs.SUMMARIZER_PROMPTS['topic_summary_news'](topic_name) if prompt_config == 'default' else prompt_config
+def generateTopicSummary(stories: list, topic_prompt_params: dict, prompt_config='default') -> str:
+    prompt_config = promptconfigs.SUMMARIZER_PROMPTS['topic_summary_news_fn'](topic_prompt_params) if prompt_config == 'default' else prompt_config
     #construct string combining all story summaries
     content = ''
     for idx, story in enumerate(stories):
@@ -174,8 +213,8 @@ def generateHeadlineFromSummary(summary, prompt_config='default') -> str:
 #RANKING AND SELECTION
 ##############################################################################################
 #For a given set of stories, return scores reflecting the importance
-def scoreNewsStories(stories: list, topic_name: str, prompt_config='default') -> list:
-    prompt_config = promptconfigs.RANKING_PROMPTS['score_headlines_news'](topic_name) if prompt_config == 'default' else prompt_config
+def scoreNewsStories(stories: list, topic_prompt_params: dict, prompt_config='default') -> list:
+    prompt_config = promptconfigs.RANKING_PROMPTS['score_headlines_news'](topic_prompt_params) if prompt_config == 'default' else prompt_config
     content = ''
     for story in stories:
         content = content + f'{{"sid": {story['story_id']}, "summary": "{story['summary_ml']}"}}\n'

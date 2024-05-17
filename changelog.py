@@ -2,14 +2,22 @@
 ####################
 changelog_current = 'Changelog \n\
 --------------------------------\n\
+- Added pip \n\
+- Added new step in pipeline where model re-writes scraped post headlines to avoid confusing noisy garbage headlines in later steps (grouping, ranking, etc.) \n\
+- Updated story grouping to full chain of thought output + 2 step prompt (draft, revise), added logic to prevent exceeding token window \n\
+- Fixed some bugs with web scrape \n\
+--------------------------------'
+
+#ARCHIVE
+####################
+changelog_05_14 = 'Changelog \n\
+--------------------------------\n\
 - Reworked story grouping to avoid grouping unrelated posts into a story \n\
 - Updated story scoring/ranking prompt based on learnings from improving grouping prompt \n\
 - Tweaked topic highlights prompt to prioritize more important bullets and 1 bullet per story (hopefully) \n\
 - Fixed some bugs with newsletter assembly \n\
 --------------------------------'
 
-#ARCHIVE
-####################
 changelog_05_13 = 'Changelog \n\
 --------------------------------\n\
 - Trying slightly different prompt for topic highlights to (hopefully) generate bullet points, because YOLO \n\

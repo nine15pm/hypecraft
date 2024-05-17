@@ -85,9 +85,16 @@ def firstNWords(text, num_words, preserve_lines=False):
         result = ' '.join(words[:num_words])
     return result
 
+#clean whitespace from text while preserving if between quotes
+def cleanWhitespace(text):
+    segments = text.split('"')
+    for i in range(len(segments)):
+        if i % 2 == 0:
+            segments[i] = ''.join(segments[i].split())
+    return '"'.join(segments)
+
 def parseMappingLLAMA(model_raw_text):
-    model_raw_text = model_raw_text.replace('\n', '')
-    model_raw_text = model_raw_text.replace(' ', '')
+    model_raw_text = cleanWhitespace(model_raw_text)
     start = '[{'
     end = '}]'
     start_idx = model_raw_text.index(start)
