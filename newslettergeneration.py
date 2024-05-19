@@ -5,112 +5,209 @@ import changelog
 from pytz import timezone
 from datetime import datetime, time
 
-#TEMP HELPER FUNCS
+#HTML UNIT CONSTRUCTORS
 ##############################################################################################
-def htmlLink(text, url):
-    return f'<a href="{url}">{text}</a>'
+def ampLink(text, url):
+    return f'<a href="{url}" class="link">{text}</a>'
 
+def storyUnit(headline:str, body:str, links:list):
+    links_html = ''
+    for i, link in enumerate(links):
+        links_html = links_html + ampLink(text=f'Link {i}', url=link)
+    output_html = f'''
+        <div class="story">
+            <h4 class="heading-unit"><b>{headline}</b></h4>
+            <p class="paragraph">{body}/p>
+            {links_html}
+        </div>
+        '''
+    return output_html
+
+def themeUnit(tag:str, body:str):
+    output_html = f'''
+    <h4 class="theme-unit">
+        <span class="tag">{tag}</span>
+        <p class="paragraph">{body}</p>
+    </h4>
+    '''
+    return output_html
+
+def ampAccordion(units:list[tuple]):
+    sections_html = ''
+    for pair in units:
+        parent = pair[0]
+        child = pair[1]
+        section = f'''
+        <section>
+        {parent}
+        {child}
+        </section>
+        '''
+        sections_html = sections_html + section
+    output_html = f'''
+    <amp-accordion animate>
+        {sections_html}
+    </amp-accordion>
+    '''
+    return output_html
+    
 #BLOCK CONSTRUCTORS
 ##############################################################################################
-#Prep a news stories block within a topic section
-def constructNewsBlock(topic_id, min_datetime):
-    stories_unsorted = db.getStoriesForTopic(topic_id, min_datetime=min_datetime)
+#Prep a news themes/stories block within a topic section
+def constructNewsBlock(topic_id, top_k_stories, min_datetime):
+    themes = db.getThemesForTopic(topic_id, min_datetime=min_datetime)
+    units = []
+    unused_stories = []
+    #construct accordion section for each theme
+    for theme in themes:
+        stories = db.getStoriesForTheme(theme['theme_id'], min_datetime=min_datetime)
+        
+        #filter out Other
+        if theme['theme_name_ml'] == 'Other':
+            unused_stories = unused_stories + stories
+            continue
+        
+        #sort stories based on i_score from model, take top 3, then construct units
+        stories = sorted(stories, key=lambda story: story['daily_i_score_ml'], reverse=True)
+        if len(stories) > top_k_stories:
+            unused_stories = stories[top_k_stories:]
+            stories = stories[:top_k_stories]
+        child = ''
+        for story in stories:
+            #get links of summarized posts
+            posts = db.getPostLinksForStory(story['posts_summarized'])
+            links = []
+            for post in posts:
+                if post['external_link'] == None or post['external_link'] == '':
+                    link = post['post_link']
+                else:
+                    link = post['external_link']
+                links.append(link)
+            ml_score = f' (ML score: {story['daily_i_score_ml']})'
+            child = child + storyUnit(headline=story['headline_ml'] + ml_score, body=story['summary_ml'], links=links)
+        parent = themeUnit(tag=theme['theme_name_ml'], body=theme['summary_ml'])
+        units.append((parent, child))
 
-    #sort stories based on i_score from model
-    stories = sorted(stories_unsorted, key=lambda story: story['daily_i_score_ml'], reverse=True)
-
-    #sort stories by # of posts (proxy for importance) - REFACTOR AND DETERMINE IF THIS IS STILL NEEDED WITH MODEL SCORING
-    #stories = sorted(stories_unsorted, key=lambda story: len(story['posts']), reverse=True)
-
-    news_block = '<h3><b>Top Stories</b></h3>'
-    for k, story in enumerate(stories):
-        #get links of summarized posts
-        posts = db.getPostLinksForStory(story['posts_summarized'])
-        link_html = ''
-        for i, post in enumerate(posts):
-            if post['external_link'] == None or post['external_link'] == '':
-                link = post['post_link']
-            else:
-                link = post['external_link']
-            link_html = link_html + htmlLink(f'Link {i+1}', link) + '    '
-
-        #story debug text
-        ml_score = f'(ML score: {story['daily_i_score_ml']})'
-        cut = '' if k < 5 else ' (cut from newsletter)' #check if story is top 5 ranked
-        debug_text = ml_score + cut
-
-        #construct story unit
-        story_unit = f'''<h4><b><pre>{story['headline_ml']} {debug_text}</pre></b></h4>
-        <p><pre>{story['summary_ml']}</pre></p>
-        <p><small>{link_html}</small><br></p>
+    #add unused stories accordion section if applicable
+    if unused_stories != []:
+        parent = f'''
+        <h4 class="theme-unit">
+            <b>[Stories cut from newsletter]</b>
+        </h4>
         '''
-        news_block = news_block + story_unit
-    return news_block
+        child = ''
+        for story in unused_stories:
+            #get links of summarized posts
+            posts = db.getPostLinksForStory(story['posts_summarized'])
+            links = []
+            for post in posts:
+                if post['external_link'] == None or post['external_link'] == '':
+                    link = post['post_link']
+                else:
+                    link = post['external_link']
+                links.append(link)
+            ml_score = f' (ML score: {story['daily_i_score_ml']})'
+            child = child + storyUnit(headline=story['headline_ml'] + ml_score, body=story['summary_ml'], links=links)
+        units.append((parent, child))
+    
+    #construct accordion and output
+    accordion_html = ampAccordion(units)
+    output_html = f'''
+    <div class="block-stories">
+      <h3 class="heading-block"><b>Top Stories</b></h3>
+      {accordion_html}
+    </div>
+    '''
+    return output_html
 
 #Prep a topic highlight block within a topic section
 def constructHighlightBlock(topic_id, min_datetime):
     highlight = db.getTopicHighlights(min_datetime=min_datetime, filters={'topic_id':topic_id})[0]
-    highlight_block = f'''<h3><b>Highlights</b></h3>
-    <p><pre>{highlight['summary_ml']}</pre><br></p>
+    output_html = f'''
+    <div class="block-spotlight">
+      <h3 class="heading-block"><b>Highlights</b></h3>
+      <p class="paragraph">{highlight['summary_ml']}<br></p>
+    </div>
     '''
-    return highlight_block
+    return output_html
 
 #SECTION CONSTRUCTORS
 ##############################################################################################
 #Prep the newsletter main title
-def constructHeaderSection(newsletter_title):
-    n_time = datetime.strftime(datetime.now(), "%Y-%m-%d %I:%M")
-    header_section = f'''<h1><b>{newsletter_title}</b></h1>
-    <p><i><pre>{n_time}</pre></i></p>
-    <p><pre>{changelog.changelog_current}</pre></p>'''
-    return header_section
+def constructTopHeaderSection(newsletter_title):
+    n_date = datetime.strftime(datetime.now(), "%Y-%m-%d %I:%M")
+    output_html = f'''
+    <div class="section-topheader">
+        <h1><b>{newsletter_title}</b></h1>
+        <div class="date-div">
+            <p class="paragraph"><i>{n_date}</i></p>
+        </div>
+    </div>
+    '''
+    return output_html
 
-def constructFooterSection():
-    n_date = datetime.strftime(datetime.now(), "%A, %B %m")
-    footer_section = f'''<br><br><p><small>🫶 Written for you with love by Hypecraft on {n_date}. Powered by Lllama 3.</small></p>'''
-    return footer_section
+def constructChangelogSection(changelog):
+    output_html = f'''
+    <div class="section-changelog">
+        <h2 class="heading-section">Changelog</h2>
+        <p class="paragraph">{changelog}</p>
+    </div>
+    '''
+    return output_html
+
+def constructFooterSection(footer_text):
+    output_html = f'''
+    <div class="section-footer">
+        <p class="paragraph small-text">{footer_text}</p>
+    </div>
+    '''
+    return output_html
 
 #Combine several blocks (e.g. topic highlights, news stories) into an overall topic section
 def constructTopicSection(topic_id, min_datetime, has_highlight=True, has_news=True):
-    topic_section = ''
-
-    #add heading
+    #get topic heading
     topic = db.getTopics(filters={'topic_id': topic_id})[0]
     topic_heading = f'''<h2>{topic['topic_email_name']}</h2>'''
-    topic_section = topic_section + topic_heading
-    
-    #add topic highlights block
-    if has_highlight:
-        highlight_block = constructHighlightBlock(topic_id, min_datetime)
-        topic_section = topic_section + highlight_block
 
-    #add news block
-    if has_news:
-        news_block = constructNewsBlock(topic_id, min_datetime)
-        topic_section = topic_section + news_block
+    #construct topic highlights block
+    highlight_block = constructHighlightBlock(topic_id, min_datetime) if has_highlight else ''
     
-    return topic_section
+    #construct news block
+    news_block = constructNewsBlock(topic_id, min_datetime) if has_news else ''
+
+    output_html = f'''
+    <div class="section-topic">
+        <h2 class="heading-section">{topic_heading}</h2>
+        {highlight_block}
+        {news_block}
+    </div>
+    '''
+    return output_html
 
 #wrap constructed newsletter with html and body tags
-def wrapNewsletterHTML(newsletter_html):
-    return '<html><body>' + newsletter_html + '</body></html>'
+def wrapBodyHTML(body_html, template_path):
+    with open(template_path, 'r') as file: 
+        template_html = file.read()
+    body_end_idx = template_html.index('</body>')
+    output_html = template_html[:body_end_idx] + body_html + template_html[body_end_idx:]
+    return output_html
 
 #GENERATE NEWSLETTER AND SEND
 ##############################################################################################
 
 today_start = datetime.combine(datetime.today(), time.min).astimezone(timezone(configs.LOCAL_TZ))
 topics = [{'topic_id': 1}]
-title = 'HYPECRAFT V0.0.3 TEST'
+title = 'HYPECRAFT V0.0.4 TEST'
+footer_text = f'''<br><br><p><small>🫶 Written for you with love by Hypecraft on {datetime.strftime(datetime.now(), "%A, %B %m")}. Powered by Lllama 3.</small></p>'''
 recipients1 = ['maintainer@example.com']
 recipients2 = ['maintainer@example.com', 'contributor@example.com']
 
-header = constructHeaderSection(title)
+header = constructTopHeaderSection(title)
+log = constructChangelogSection(changelog.changelog_current)
 main_content = ''
 for topic in topics:
     main_content = main_content + constructTopicSection(topic_id=topic['topic_id'], min_datetime=today_start)
 footer = constructFooterSection()
-newsletter_html = wrapNewsletterHTML(header + main_content + footer)
+newsletter_html = wrapBodyHTML(header + log + main_content + footer)
 
-print(newsletter_html)
-
-#emailer.sendNewsletter(subject=title, recipients=recipients1, content_html=newsletter_html)
+emailer.sendNewsletter(subject=title, recipients=recipients1, content_html=newsletter_html)
