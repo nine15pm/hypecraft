@@ -97,14 +97,25 @@ def story_summary_news(topic_prompt_params:dict):
     }
     return prompt
 
+def theme_summary_news(topic_prompt_params:dict):
+    prompt = {
+        'system_prompt': 'You are an email newsletter editor. The user will provide content for you to summarize. Respond ONLY with the summary, do NOT respond with chat.',
+        'user_prompt': f'Your task is to summarize top {topic_prompt_params['topic_name']} news stories into a short paragraph of highlights that a reader can quickly skim. \n\n\
+        Your steps are as follows:\n\
+            1. Identify the stories that a {topic_prompt_params['topic_name']} enthusiast would care most about.
+            2. Write 1 short paragraph of highlights. Mention the highest i_score stories first and prioritize exclusive or breaking news. Make the language engaging and entertaining. Do not exceed {SUMMARY_LEN_NEWS} words.\n\n\
+        Summarize the following stories:\n\n',
+        'model_params': WRITING_MODEL_PARAMS
+    }
+    return prompt
+
 def topic_summary_news(topic_prompt_params:dict):
     prompt = {
         'system_prompt': 'You are an email newsletter editor. The user will provide content for you to summarize. Respond ONLY with the summary bullets, do NOT respond with chat.',
         'user_prompt': f'Your task is to summarize top {topic_prompt_params['topic_name']} news stories into a bulleted list of highlights that a reader can quickly skim. \n\n\
         Your steps are as follows:\n\
-            1. Read the content of all the stories.\n\
-            2. Select 3-5 of the most important stories. Prioritize exclusive or breaking news, the info a {topic_prompt_params['topic_name']} enthusiast cares about most.\n\
-            3. Write a list of bulleted highlights, 1 for each selected story. Order the highest i_score stories first. Make the language engaging and entertaining.\n\n\
+            1. Read the content of all the stories. Prioritize exclusive or breaking news, the info a {topic_prompt_params['topic_name']} enthusiast cares about most.\n\
+            3. Write a list of bulleted highlights, 1 for each story. Order the highest i_score stories first. Make the language engaging and entertaining.\n\n\
         Summarize the following stories:\n\n',
         'model_params': WRITING_MODEL_PARAMS
     }
@@ -135,6 +146,7 @@ SUMMARIZER_PROMPTS = {
         'model_params': WRITING_MODEL_PARAMS
     },
     'story_summary_news_fn': story_summary_news,
+    'theme_summary_news_fn': theme_summary_news,
     'topic_summary_news_fn': topic_summary_news
 }
 
@@ -147,7 +159,7 @@ def group_story_news(topic_prompt_params:dict):
             2. Identify and list out each unique news story discussed. \n\
             3. Map each post to its news story. Do NOT map a post to more than 1 story. Format the mapping as a JSON list. Here is an example: [{{"sid": 0, "pid": [31,63]}}, {{"sid": 1, "pid": [53,46,24]}}, {{"sid": 2, "pid": [97]}}]. \n\n\
         Go step by step and group the posts below: \n\n',
-        'model_params': DEFAULT_MODEL_PARAMS
+        'model_params': TASK_MODEL_PARAMS
     }
     return prompt
 
@@ -171,8 +183,8 @@ COLLATION_PROMPTS = {
     'group_story_news_revise': {
         'system_prompt': 'Your job is to group news posts that refer to the same story. The user will provide posts in JSON format. Do the task step by step.',
         'user_prompt': f'Are you sure this is correct? Check your work and make sure you are confident you are correct. Review each story you listed:\n\
-            1. Make sure the posts you identified are actually related to the same story. If there is a mistake, fix it. \n\
-            2. Make sure there are no other duplicate stories listed that discuss the same news. If there is a mistake, fix it. \n\
+            1. List out any cases where posts about the SAME NEWS are mapped to different stories. If there is a mistake, fix it by updating the post mapping and removing any duplicate stories. \n\
+            3. List out any cases where posts in a story are not related. If there is a mistake, fix it by updating the post mapping. \n\
             3. Format the revised list of stories into a JSON list.',
         'model_params': TASK_MODEL_PARAMS
     },

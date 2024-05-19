@@ -188,7 +188,17 @@ def generateStorySummary(storyposts: list, topic_prompt_params: dict, prompt_con
         posts_summarized = [post['post_id'] for post in selected_posts]
     return summary, posts_summarized
 
-#write an overall summary for the topic by combining all the top stories
+#write a short summary of the news within the theme
+def generateThemeSummary(stories: list, topic_prompt_params: dict, prompt_config='default') -> str:
+    prompt_config = promptconfigs.SUMMARIZER_PROMPTS['theme_summary_news_fn'](topic_prompt_params) if prompt_config == 'default' else prompt_config
+    #construct string combining all story summaries
+    content = ''
+    for idx, story in enumerate(stories):
+        story_str = f'Story {idx} (i_score: {story['daily_i_score_ml']}) - {story['summary_ml']} \n\n'
+        content = content + story_str
+    return getResponseLLAMA(content, prompt_config)
+
+#write a set of highlight bullets for the topic
 def generateTopicSummary(stories: list, topic_prompt_params: dict, prompt_config='default') -> str:
     prompt_config = promptconfigs.SUMMARIZER_PROMPTS['topic_summary_news_fn'](topic_prompt_params) if prompt_config == 'default' else prompt_config
     #construct string combining all story summaries

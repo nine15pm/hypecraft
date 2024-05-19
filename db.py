@@ -11,6 +11,7 @@ HOST = 'localhost'
 PW = utils.read_secrets()['DB_PW']
 PORT = 5432
 POST_TABLE = 'post'
+THEME_TABLE = 'theme'
 STORY_TABLE = 'story'
 FEED_TABLE = 'feed'
 TOPIC_HIGHLIGHT_TABLE = 'topic_highlight'
@@ -157,6 +158,14 @@ def updatePosts(posts: list[dict]):
     table = POST_TABLE
     updateEntries(table, posts)
 
+def createThemes(themes: list[dict]):
+    table = THEME_TABLE
+    writeEntries(table, themes)
+
+def updateThemes(themes: list[dict]):
+    table = THEME_TABLE
+    updateEntries(table, themes)
+
 def createStories(stories: list[dict]):
     table = STORY_TABLE
     writeEntries(table, stories)
@@ -171,6 +180,10 @@ def createTopicHighlight(topic_highlights: list[dict]):
 
 def getPosts(min_datetime=MIN_DATETIME_DEFAULT, max_datetime=MAX_DATETIME_DEFAULT, filters={}):
     table = POST_TABLE
+    return readEntries(table=table, min_datetime=min_datetime, max_datetime=max_datetime, filters=filters)
+
+def getThemes(min_datetime=MIN_DATETIME_DEFAULT, max_datetime=MAX_DATETIME_DEFAULT, filters={}):
+    table = THEME_TABLE
     return readEntries(table=table, min_datetime=min_datetime, max_datetime=max_datetime, filters=filters)
 
 def getStories(min_datetime=MIN_DATETIME_DEFAULT, max_datetime=MAX_DATETIME_DEFAULT, filters={}):
@@ -263,7 +276,7 @@ def getPostsForNewsSummary(topic_id, min_datetime=MIN_DATETIME_DEFAULT, max_date
     }
     return readEntries(table=table, min_datetime=min_datetime, fields=fields, filters=filters, max_datetime=max_datetime)
 
-def getPostsForNewsStoryMapping(topic_id, min_datetime=MIN_DATETIME_DEFAULT, max_datetime=MAX_DATETIME_DEFAULT):
+def getNewsPostsForMapping(topic_id, min_datetime=MIN_DATETIME_DEFAULT, max_datetime=MAX_DATETIME_DEFAULT):
     table = POST_TABLE
     fields = [
         'post_id',
@@ -271,9 +284,9 @@ def getPostsForNewsStoryMapping(topic_id, min_datetime=MIN_DATETIME_DEFAULT, max
         'post_link',
         'post_title',
         'post_tags',
-        'post_text',
         'summary_ml',
-        'retitle_ml'
+        'retitle_ml',
+        'category_ml'
     ]
     filters = {
         'topic_id': topic_id,
@@ -335,6 +348,19 @@ def getPostsForStoryQA(post_ids):
     }
     return readEntries(table=table, fields=fields, filters=filters)
 
+def getNewsThemes(topic_id, min_datetime=MIN_DATETIME_DEFAULT, max_datetime=MAX_DATETIME_DEFAULT):
+    table = THEME_TABLE
+    fields = [
+        'theme_id',
+        'theme_name_ml',
+        'posts'
+    ]
+    filters = {
+        'topic_id': topic_id,
+        'category_ml': 'news'
+    }
+    return readEntries(table=table, min_datetime=min_datetime, fields=fields, filters=filters, max_datetime=max_datetime)
+
 def getStoriesForTopic(topic_id, min_datetime=MIN_DATETIME_DEFAULT, max_datetime=MAX_DATETIME_DEFAULT):
     table = STORY_TABLE
     fields = [
@@ -344,6 +370,33 @@ def getStoriesForTopic(topic_id, min_datetime=MIN_DATETIME_DEFAULT, max_datetime
         'headline_ml',
         'posts_summarized',
         'daily_i_score_ml'
+    ]
+    filters = {
+        'topic_id': topic_id,
+    }
+    return readEntries(table=table, min_datetime=min_datetime, fields=fields, filters=filters, max_datetime=max_datetime)
+
+def getStoriesForTheme(theme_id, min_datetime=MIN_DATETIME_DEFAULT, max_datetime=MAX_DATETIME_DEFAULT):
+    table = STORY_TABLE
+    fields = [
+        'story_id',
+        'posts',
+        'summary_ml',
+        'headline_ml',
+        'posts_summarized',
+        'daily_i_score_ml'
+    ]
+    filters = {
+        'theme_id': theme_id,
+    }
+    return readEntries(table=table, min_datetime=min_datetime, fields=fields, filters=filters, max_datetime=max_datetime)
+
+def getThemesForTopic(topic_id, min_datetime=MIN_DATETIME_DEFAULT, max_datetime=MAX_DATETIME_DEFAULT):
+    table = THEME_TABLE
+    fields = [
+        'theme_id',
+        'posts',
+        'theme_name_ml',
     ]
     filters = {
         'topic_id': topic_id,

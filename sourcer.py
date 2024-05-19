@@ -121,7 +121,6 @@ def getWebText(url, min_text_length, unsupported_hosts=[]):
     finally:
         if driver:
             driver.quit()
-            print('debug2')
     
     #do final check and return text
     return extracted_text if extracted_text and len(extracted_text) > min_text_length else ''
