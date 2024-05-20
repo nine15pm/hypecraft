@@ -3,7 +3,7 @@ import configs
 import emailer
 import changelog
 from pytz import timezone
-from datetime import datetime, time
+from datetime import datetime, time, timedelta
 
 #HTML UNIT CONSTRUCTORS
 ##############################################################################################
@@ -17,7 +17,7 @@ def storyUnit(headline:str, body:str, links:list):
     output_html = f'''
         <div class="story">
             <h4 class="heading-unit"><b>{headline}</b></h4>
-            <p class="paragraph">{body}/p>
+            <p class="paragraph">{body}</p>
             {links_html}
         </div>
         '''
@@ -69,6 +69,7 @@ def constructNewsBlock(topic_id, top_k_stories, min_datetime):
         
         #sort stories based on i_score from model, take top 3, then construct units
         stories = sorted(stories, key=lambda story: story['daily_i_score_ml'], reverse=True)
+        theme_score = stories[0]['daily_i_score_ml']
         if len(stories) > top_k_stories:
             unused_stories = stories[top_k_stories:]
             stories = stories[:top_k_stories]
@@ -85,9 +86,13 @@ def constructNewsBlock(topic_id, top_k_stories, min_datetime):
                 links.append(link)
             ml_score = f' (ML score: {story['daily_i_score_ml']})'
             child = child + storyUnit(headline=story['headline_ml'] + ml_score, body=story['summary_ml'], links=links)
+            child = f'<div>{child}</div>'
         parent = themeUnit(tag=theme['theme_name_ml'], body=theme['summary_ml'])
-        units.append((parent, child))
+        units.append((parent, child, theme_score))
 
+    #sort units by theme with highest i score story
+    units = sorted(units, key=lambda tup: tup[2])
+    
     #add unused stories accordion section if applicable
     if unused_stories != []:
         parent = f'''
@@ -108,6 +113,7 @@ def constructNewsBlock(topic_id, top_k_stories, min_datetime):
                 links.append(link)
             ml_score = f' (ML score: {story['daily_i_score_ml']})'
             child = child + storyUnit(headline=story['headline_ml'] + ml_score, body=story['summary_ml'], links=links)
+            child = f'<div>{child}</div>'
         units.append((parent, child))
     
     #construct accordion and output
@@ -164,7 +170,7 @@ def constructFooterSection(footer_text):
     return output_html
 
 #Combine several blocks (e.g. topic highlights, news stories) into an overall topic section
-def constructTopicSection(topic_id, min_datetime, has_highlight=True, has_news=True):
+def constructTopicSection(topic_id, min_datetime, top_k_stories, has_highlight=True, has_news=True):
     #get topic heading
     topic = db.getTopics(filters={'topic_id': topic_id})[0]
     topic_heading = f'''<h2>{topic['topic_email_name']}</h2>'''
@@ -173,7 +179,7 @@ def constructTopicSection(topic_id, min_datetime, has_highlight=True, has_news=T
     highlight_block = constructHighlightBlock(topic_id, min_datetime) if has_highlight else ''
     
     #construct news block
-    news_block = constructNewsBlock(topic_id, min_datetime) if has_news else ''
+    news_block = constructNewsBlock(topic_id, top_k_stories, min_datetime) if has_news else ''
 
     output_html = f'''
     <div class="section-topic">
@@ -185,19 +191,21 @@ def constructTopicSection(topic_id, min_datetime, has_highlight=True, has_news=T
     return output_html
 
 #wrap constructed newsletter with html and body tags
-def wrapBodyHTML(body_html, template_path):
-    with open(template_path, 'r') as file: 
+def wrapEncodeHTML(body_html, template_path):
+    with open(template_path, 'rb') as file: 
         template_html = file.read()
+    template_html = template_html.decode("utf-8")
     body_end_idx = template_html.index('</body>')
     output_html = template_html[:body_end_idx] + body_html + template_html[body_end_idx:]
     return output_html
 
 #GENERATE NEWSLETTER AND SEND
 ##############################################################################################
-
-today_start = datetime.combine(datetime.today(), time.min).astimezone(timezone(configs.LOCAL_TZ))
-topics = [{'topic_id': 1}]
+PATH_EMAIL_TEMPLATE = 'emailtemplates/amptemplate_v004.html'
+today_start = datetime.combine(datetime.today(), time.min).astimezone(timezone(configs.LOCAL_TZ)) - timedelta(days=1)
+topics = [{'topic_id': 1}, {'topic_id': 2}]
 title = 'HYPECRAFT V0.0.4 TEST'
+top_k_stories = 3
 footer_text = f'''<br><br><p><small>🫶 Written for you with love by Hypecraft on {datetime.strftime(datetime.now(), "%A, %B %m")}. Powered by Lllama 3.</small></p>'''
 recipients1 = ['maintainer@example.com']
 recipients2 = ['maintainer@example.com', 'contributor@example.com']
@@ -206,8 +214,8 @@ header = constructTopHeaderSection(title)
 log = constructChangelogSection(changelog.changelog_current)
 main_content = ''
 for topic in topics:
-    main_content = main_content + constructTopicSection(topic_id=topic['topic_id'], min_datetime=today_start)
-footer = constructFooterSection()
-newsletter_html = wrapBodyHTML(header + log + main_content + footer)
-
+    main_content = main_content + constructTopicSection(topic_id=topic['topic_id'], top_k_stories=top_k_stories, min_datetime=today_start)
+footer = constructFooterSection(footer_text=footer_text)
+newsletter_html = wrapEncodeHTML(body_html=header + log + main_content + footer, template_path=PATH_EMAIL_TEMPLATE)
+#print(newsletter_html)
 emailer.sendNewsletter(subject=title, recipients=recipients1, content_html=newsletter_html)
