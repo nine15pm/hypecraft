@@ -70,12 +70,64 @@ def generateNewsPostSummary(post, feed, prompt_config='default') -> str:
 #STORY COLLATION
 ##############################################################################################
 
-#Groups news posts into up to N buckets
-def mapNewsPostsToThemes(posts: list, topic_prompt_params: dict, prompt_config_init='default', prompt_config_revise='default') -> list[dict]:
-    prompt_config_init = promptconfigs.COLLATION_PROMPTS['group_theme_news_fn'](topic_prompt_params) if prompt_config_init == 'default' else prompt_config_init
-    prompt_config_revise = promptconfigs.COLLATION_PROMPTS['group_theme_news_revise'] if prompt_config_revise == 'default' else prompt_config_revise
+#Come up with themes to bucket news posts
+def draftNewsThemes(posts: list, topic_prompt_params: dict, prompt_config_init='default', prompt_config_revise='default') -> list[dict]:
+    prompt_config_init = promptconfigs.COLLATION_PROMPTS['draft_theme_news_fn'](topic_prompt_params) if prompt_config_init == 'default' else prompt_config_init
+    prompt_config_revise = promptconfigs.COLLATION_PROMPTS['draft_theme_news_revise_fn'](topic_prompt_params) if prompt_config_revise == 'default' else prompt_config_revise
     content_long = ''
     content_short = ''
+
+    #construct the string with all the posts
+    for post in posts:
+        content_long = content_long + f'{{"pid": {post['post_id']}, "title": "{post['retitle_ml']}", "summary": "{post['summary_ml']}"}}\n'
+        content_short = content_short + f'{{"pid": {post['post_id']}, "title": "{post['retitle_ml']}"}}\n'
+    
+    #check if tokens exceeds max input, if so, just use titles no summary text
+    content = content_short
+    #content = content_long if utils.tokenCountLlama3(content_long) <= prompt_config_init['model_params']['truncate'] else content_short
+
+    #first get initial themes from model with base prompt
+    initial_response, user_prompt = getResponseLLAMA(content, prompt_config_init, return_user_prompt=True)
+
+    print(initial_response)
+
+    #then send model chat history and ask it to revise
+    prior_chat = [{
+        'user': user_prompt,
+        'assistant': initial_response
+    }]
+    revised_response = getResponseLLAMA(content='', prompt_config=prompt_config_revise, prior_chat=prior_chat)
+
+    print(revised_response)
+
+    try:
+        json_extracted = utils.parseMappingLLAMA(revised_response)
+    except:
+        print('Cannot extract out JSON from model drafted themes...')
+        print(revised_response)
+        raise
+    try:
+        output = json.loads(json_extracted)
+        return output
+    except:
+        print('Extracted JSON is not valid, trying fix...')
+    try:
+        json_extracted = fixJSON(json_extracted)
+        output = json.loads(json_extracted)
+        return output
+    except Exception as error:
+        print(f'Theme drafting error:', type(error).__name__, "-", error)
+        print(revised_response)
+        raise error
+
+#Groups news posts into up to N buckets
+def assignNewsPostsToThemes(posts: list, themes: list, topic_prompt_params: dict, prompt_config_init='default', prompt_config_revise='default') -> list[dict]:
+    themes_str = json.dumps(themes)
+    prompt_config_init = promptconfigs.COLLATION_PROMPTS['assign_theme_news_fn'](themes_str, topic_prompt_params) if prompt_config_init == 'default' else prompt_config_init
+    prompt_config_revise = promptconfigs.COLLATION_PROMPTS['assign_theme_news_revise'] if prompt_config_revise == 'default' else prompt_config_revise
+    content_long = ''
+    content_short = ''
+
     #construct the string with all the posts
     for post in posts:
         content_long = content_long + f'{{"pid": {post['post_id']}, "title": "{post['retitle_ml']}", "summary": "{post['summary_ml']}"}}\n'
@@ -94,7 +146,14 @@ def mapNewsPostsToThemes(posts: list, topic_prompt_params: dict, prompt_config_i
     }]
     revised_response = getResponseLLAMA(content='', prompt_config=prompt_config_revise, prior_chat=prior_chat)
 
-    json_extracted = utils.parseMappingLLAMA(revised_response)
+    print(revised_response)
+
+    try:
+        json_extracted = utils.parseMappingLLAMA(revised_response)
+    except:
+        print('Cannot extract out JSON from model theme mapping...')
+        print(revised_response)
+        raise
     try:
         output = json.loads(json_extracted)
         return output
@@ -110,7 +169,7 @@ def mapNewsPostsToThemes(posts: list, topic_prompt_params: dict, prompt_config_i
         raise error
 
 #Groups similar/repeat headlines into stories - split into 2 steps, initial and revise
-def mapNewsPostsToStories(posts: list, topic_prompt_params: dict, prompt_config_init='default', prompt_config_revise='default') -> list[dict]:
+def groupNewsPostsToStories(posts: list, topic_prompt_params: dict, prompt_config_init='default', prompt_config_revise='default') -> list[dict]:
     prompt_config_init = promptconfigs.COLLATION_PROMPTS['group_story_news_fn'](topic_prompt_params) if prompt_config_init == 'default' else prompt_config_init
     prompt_config_revise = promptconfigs.COLLATION_PROMPTS['group_story_news_revise'] if prompt_config_revise == 'default' else prompt_config_revise
     content_long = ''
@@ -132,8 +191,13 @@ def mapNewsPostsToStories(posts: list, topic_prompt_params: dict, prompt_config_
         'assistant': initial_response
     }]
     revised_response = getResponseLLAMA(content='', prompt_config=prompt_config_revise, prior_chat=prior_chat)
-
-    json_extracted = utils.parseMappingLLAMA(revised_response)
+    
+    try:
+        json_extracted = utils.parseMappingLLAMA(revised_response)
+    except:
+        print('Cannot extract JSON from model story mapping response')
+        print(revised_response)
+        raise
     try:
         output = json.loads(json_extracted)
         return output
@@ -230,7 +294,11 @@ def scoreNewsStories(stories: list, topic_prompt_params: dict, prompt_config='de
         content = content + f'{{"sid": {story['story_id']}, "summary": "{story['summary_ml']}"}}\n'
     
     raw_response = getResponseLLAMA(content, prompt_config)
-    parsed_response = utils.parseMappingLLAMA(raw_response)
+    try:
+        parsed_response = utils.parseMappingLLAMA(raw_response)
+    except:
+        print(raw_response)
+        raise
     try:
         output = json.loads(parsed_response)
         return output

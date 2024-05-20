@@ -16,7 +16,7 @@ DEFAULT_MODEL_PARAMS = {
 }
 
 TASK_MODEL_PARAMS = {
-    'temperature': 0.6,
+    'temperature': 0.5,
     'truncate': 6144,
     'max_new_tokens': 2047,
     'top_p': 0.9,
@@ -100,10 +100,10 @@ def story_summary_news(topic_prompt_params:dict):
 def theme_summary_news(topic_prompt_params:dict):
     prompt = {
         'system_prompt': 'You are an email newsletter editor. The user will provide content for you to summarize. Respond ONLY with the summary, do NOT respond with chat.',
-        'user_prompt': f'Your task is to summarize top {topic_prompt_params['topic_name']} news stories into a short paragraph of highlights that a reader can quickly skim. \n\n\
+        'user_prompt': f'Your task is to summarize top {topic_prompt_params['topic_name']} news stories into a 1 line highlight that a reader can quickly skim. \n\n\
         Your steps are as follows:\n\
-            1. Identify the stories that a {topic_prompt_params['topic_name']} enthusiast would care most about.
-            2. Write 1 short paragraph of highlights. Mention the highest i_score stories first and prioritize exclusive or breaking news. Make the language engaging and entertaining. Do not exceed {SUMMARY_LEN_NEWS} words.\n\n\
+            1. Identify the news that a {topic_prompt_params['topic_name']} enthusiast would care most about. \n\
+            2. Write a concise 1 line highlight previewing this news. Mention the highest i_score stories first and prioritize exclusive or breaking news. Make the language engaging and entertaining.\n\n\
         Summarize the following stories:\n\n',
         'model_params': WRITING_MODEL_PARAMS
     }
@@ -153,25 +153,54 @@ SUMMARIZER_PROMPTS = {
 #Functions for collation prompts
 def group_story_news(topic_prompt_params:dict):
     prompt = {
-        'system_prompt': 'Your job is to group news posts that refer to the same story. The user will provide posts in JSON format. Do the task step by step.',
-        'user_prompt': f'Your task is to map {topic_prompt_params['topic_name']} news posts into stories according to the following steps:\n\
+        'system_prompt': 'Your job is to group news posts that refer to the same story. The user will provide posts in JSON format. Make sure to do the task step by step and write out every step.',
+        'user_prompt': f'Your task is to map {topic_prompt_params['topic_name']} news posts according to the following steps:\n\
             1. Read through the posts \n\
-            2. Identify and list out each unique news story discussed. \n\
-            3. Map each post to its news story. Do NOT map a post to more than 1 story. Format the mapping as a JSON list. Here is an example: [{{"sid": 0, "pid": [31,63]}}, {{"sid": 1, "pid": [53,46,24]}}, {{"sid": 2, "pid": [97]}}]. \n\n\
+            2. Find and list every case where there are multiple posts discussing the same news story. Cite the posts and write out the rationale. \n\
+            3. Provide a formatted JSON list of these cases. Here is an example: [{{"sid": 0, "pid": [31,63]}}, {{"sid": 1, "pid": [53,46,24]}}, {{"sid": 2, "pid": [97]}}]. \n\
+            4. If there are no cases, return an empty JSON list [{{}}] \n\n\
         Go step by step and group the posts below: \n\n',
         'model_params': TASK_MODEL_PARAMS
     }
     return prompt
 
-def group_theme_news(topic_prompt_params:dict):
+def draft_theme_news(topic_prompt_params:dict):
     prompt = {
-        'system_prompt': 'Your job is to group related news posts. The user will provide posts in JSON format. Do the task step by step.',
-        'user_prompt': f'Your task is to group {topic_prompt_params['topic_name']} news posts into themes according to the following steps:\n\
+        'system_prompt': 'Your job is to group related news posts. The user will provide posts in JSON format. Make sure to do the task step by step and write out every step.',
+        'user_prompt': f'Your task is to group {topic_prompt_params['topic_name']} news posts into newsletter sections according to the following steps:\n\
             1. Read through the posts \n\
-            2. Identify and list up to 5 SPECIFIC and UNIQUE themes that best covers all of the news stories discussed. For example {topic_prompt_params['theme_examples']}. 1 theme can be "Other" ONLY IF there are posts that do not fit. Do NOT have more than 5 themes. \n\
-            3. Review the themes for too much overlap. For example, {topic_prompt_params['theme_overlap_examples']} would be too much overlap. Edit themes if needed, and list the revised themes. \n\
-            4. Provide a formatted JSON list of posts grouped by theme. Do NOT group a post into more than 1 theme. Here is an example: [{{"theme": theme1, "pid": [31,63]}}, {{"theme": theme2, "pid": [53,46,24]}}, {{"theme": theme3, "pid": [97,15]}}]. \n\n\
-        Go step by step and group the posts below: \n\n',
+            2. Draft a list of up to 5 WELL-DEFINED DISTINCT sections that best covers all of the news stories discussed. Make sure section names are short and catchy, e.g. {topic_prompt_params['theme_examples']}. 1 section can be "Other" if there are posts that do not fit. Do NOT have more than 5 sections. \n\
+            3. Review each section and evaluate: Does the section make sense for a newsletter? Is it too vague or broad? Does it overlap with another section? Make improvements and provide an updated list of sections. \n\
+            4. Format the list of sections as a JSON list. For example: [{{"id": 1, "name": "Section A"}}, {{"id": 2, "name": "Section B"}}, {{"id": 3, "name": "Section C"}}] \n\n\
+        Go step by step and come up with sections for the posts below: \n\n',
+        'model_params': WRITING_MODEL_PARAMS
+    }
+    return prompt
+
+def draft_theme_news_revise(topic_prompt_params:dict):
+    prompt = {
+        'system_prompt': 'Your job is to group related news posts. The user will provide posts in JSON format. Make sure to do the task step by step and write out every step.',
+        'user_prompt': f'1. Review each section (except for "Other") and write out a detailed evaluation:\n\
+            - Does the section make sense for a {topic_prompt_params['topic_name']} newsletter? \n\
+            - Does it overlap with another section? Is it mutually exclusive, collectively exhaustive? \n\
+            - Is it too vague or broad? \n\
+            - Is the naming short, catchy, and not awkward? \n\
+            - Is it too niche or infrequent a topic? \n\
+        2. Make improvements if needed and provide an updated JSON list of sections. \n\n',
+        'model_params': TASK_MODEL_PARAMS
+    }
+    return prompt
+
+def assign_theme_news(themes:str, topic_prompt_params:dict):
+    prompt = {
+        'system_prompt': 'Your job is to group related news posts. The user will provide posts in JSON format. Make sure to do the task step by step and write out every step.',
+        'user_prompt': f'Your task is to assign each {topic_prompt_params['topic_name']} news post to the appropriate section of a newsletter according to the following steps:\n\
+            1. Read through the posts \n\
+            2. For each post, evaluate which of the following sections it might best fit into and explain your rationale. \n\
+                {themes} \
+            3. Based on your evaluations, list the best section for each post. If a post does not fit any sections and there is an "Other" section, you can assign it to "Other". \n\
+            4. Provide a formatted JSON list of posts with sections. Make sure every post is assigned a section. Do NOT assign a post more than 1 section. For example: [{{"pid": 63, "section": 1}}, {{"pid": 19, "section": 3]}}, {{"pid": 812, "section": 2}}] \n\n\
+        Go step by step and assign the posts below: \n\n',
         'model_params': TASK_MODEL_PARAMS
     }
     return prompt
@@ -179,21 +208,23 @@ def group_theme_news(topic_prompt_params:dict):
 #Prompts for collation
 COLLATION_PROMPTS = {
     'group_story_news_fn': group_story_news,
-    'group_theme_news_fn': group_theme_news,
+    'draft_theme_news_fn': draft_theme_news,
+    'draft_theme_news_revise_fn': draft_theme_news_revise,
+    'assign_theme_news_fn': assign_theme_news,
     'group_story_news_revise': {
-        'system_prompt': 'Your job is to group news posts that refer to the same story. The user will provide posts in JSON format. Do the task step by step.',
-        'user_prompt': f'Are you sure this is correct? Check your work and make sure you are confident you are correct. Review each story you listed:\n\
-            1. List out any cases where posts about the SAME NEWS are mapped to different stories. If there is a mistake, fix it by updating the post mapping and removing any duplicate stories. \n\
-            3. List out any cases where posts in a story are not related. If there is a mistake, fix it by updating the post mapping. \n\
-            3. Format the revised list of stories into a JSON list.',
+        'system_prompt': 'Your job is to group news posts that refer to the same story. The user will provide posts in JSON format. Make sure to do the task step by step and write out every step.',
+        'user_prompt': f'1. Review the posts in each grouping and check whether there are posts that do not fit. Write out your assessment. \n\
+            2. Check whether there are any other posts that belong in each grouping. Write out your assessment. \n\
+            3. If needed, update any groupings. \n\
+            4. Provide an updated JSON list. If there are no groupings, return an empty JSON list [{{}}]',
         'model_params': TASK_MODEL_PARAMS
     },
-    'group_theme_news_revise': {
-        'system_prompt': 'Your job is to group related news posts. The user will provide posts in JSON format. Do the task step by step.',
-        'user_prompt': f'Are you sure this is correct? Check your work and make sure you are confident you are correct. Review each post: \n\
-            1. List out any any cases where posts about the SAME NEWS STORY are assigned to different themes. If there are errors, fix them. \n\
-            2. List out any cases where the post does not fit the assigned theme. If there are errors, fix them. \n\
-            3. Format the revised list of themes into a JSON list.',
+    'assign_theme_news_revise': {
+        'system_prompt': 'Your job is to group related news posts. The user will provide posts in JSON format. Make sure to do the task step by step and write out every step.',
+        'user_prompt': f'1. Review each post and its section, evaluate whether the section is a good fit (use common sense), write out your rationale. \n\
+            2. MAKE SURE posts about the same broad story are ALWAYS assigned to the same section. \n\
+            2. If needed, update post assignments. \n\
+            3. Provide an updated JSON list.',
         'model_params': TASK_MODEL_PARAMS
     }
 }

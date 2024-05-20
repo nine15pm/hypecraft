@@ -72,20 +72,38 @@ def summarizeNewsPosts(topic, min_datetime, max_datetime=MAX_DATETIME_DEFAULT):
     db.updatePosts(posts_update)
     print(f'News post summaries + retitles updated in DB')
 
-#load news posts, group into themes, save themes to DB
-def mapThemes(topic, min_datetime):
+#load news posts, draft themes, assign posts to themes, save themes to DB
+def draftAndMapThemes(topic, min_datetime, batch_size=5):
     news_posts = db.getNewsPostsForMapping(topic['topic_id'], min_datetime=min_datetime)
-    mapping = editor.mapNewsPostsToThemes(news_posts, topic_prompt_params=topic['topic_prompt_params'])
-    themes = []
+    drafted_themes = editor.draftNewsThemes(news_posts, topic_prompt_params=topic['topic_prompt_params'])
+    
+    #sort drafted themes so they match id order, add a blank list of posts
+    drafted_themes = sorted(drafted_themes, key=lambda x: x['id'], reverse=False)
+    for i in range(len(drafted_themes)):
+        drafted_themes[i]['posts'] = []
+    
+    print(drafted_themes)
+
+    #do post assignment to themes in batches
+    batched_news_posts = []
+    for i in range(0, len(news_posts), batch_size): 
+        batched_news_posts.append(news_posts[i:i+batch_size])
+    for batch in batched_news_posts:
+        mapping = editor.assignNewsPostsToThemes(batch, themes=drafted_themes, topic_prompt_params=topic['topic_prompt_params'])
+        for post in mapping:
+            drafted_themes[post['section']-1]['posts'].append(post['pid'])
+
     #parse and format into theme objects for DB
-    for theme in mapping:
-        themes.append({
+    theme_updates = []
+    for theme in drafted_themes:
+        theme_updates.append({
             'topic_id': topic['topic_id'],
-            'posts': theme['pid'],
-            'theme_name_ml': theme['theme'],
+            'posts': theme['posts'],
+            'theme_name_ml': theme['name'],
             'category_ml': 'news'
         })
-    db.createThemes(themes)
+    db.createThemes(theme_updates)
+
     #fill in theme_id column in Post table
     themes = db.getThemesForTopic(topic['topic_id'], min_datetime=min_datetime)
     for theme in themes:
@@ -98,26 +116,41 @@ def mapThemes(topic, min_datetime):
         db.updatePosts(posts)
     print('Themes mapped and saved to DB')
 
-#load each theme, dedup and map posts for each theme to unique stories
-def mapStories(topic, min_datetime, max_datetime=MAX_DATETIME_DEFAULT):
+#load each theme, dedup and group posts for each theme to unique stories
+def groupStories(topic, min_datetime, max_datetime=MAX_DATETIME_DEFAULT):
     news_themes = db.getNewsThemes(topic['topic_id'], min_datetime=min_datetime, max_datetime=max_datetime)
     for theme in news_themes:
         posts = db.getPosts(min_datetime=min_datetime, max_datetime=max_datetime, filters={'post_id':theme['posts']})
-        mapping = editor.mapNewsPostsToStories(posts, topic_prompt_params=topic['topic_prompt_params'])
+        grouped_stories = editor.groupNewsPostsToStories(posts, topic_prompt_params=topic['topic_prompt_params'])
+
+        grouped_post_ids = []
         stories = []
-        #parse and format into story objects for DB
-        for story in mapping:
-            stories.append({
-                'topic_id': topic['topic_id'],
-                'theme_id': theme['theme_id'],
-                'posts': story['pid']
-            })
+
+        #check if empty
+        if grouped_stories[0] != {}:
+            #parse and format model returned grouped stories
+            for story in grouped_stories:
+                for pid in story['pid']:
+                    grouped_post_ids.append(pid)
+                stories.append({
+                    'topic_id': topic['topic_id'],
+                    'theme_id': theme['theme_id'],
+                    'posts': story['pid']
+                })
+        #parse and format remaining single-post stories
+        for post in posts:
+            if post['post_id'] not in grouped_post_ids:
+                stories.append({
+                    'topic_id': topic['topic_id'],
+                    'theme_id': theme['theme_id'],
+                    'posts': [post['post_id']]
+                })
         db.createStories(stories)
         #add newly created story ids to Theme table
         story_id_list = [story['story_id'] for story in db.getStoriesForTheme(theme['theme_id'], min_datetime=min_datetime, max_datetime=max_datetime)]
         theme_updates = [{
-                'theme_id': theme['theme_id'],
-                'stories': story_id_list
+            'theme_id': theme['theme_id'],
+            'stories': story_id_list
         }]
         db.updateThemes(theme_updates)
         #fill in story_id column in Post table
@@ -266,24 +299,26 @@ def storyQAToCSV(topic, min_datetime, max_datetime=MAX_DATETIME_DEFAULT):
 ##############################################################################################
 def main():
     #Pipeline params
-    topic_id = 1
+    topic_id = 2
     max_posts_reddit = 100
-    last2days = datetime.now().timestamp() - 172800 #get current time minus 2 days
+    last2days = datetime.now().timestamp() - 1e5 #get current time minus ~1 day
     top_k_stories = 3
     topic = db.getTopics(filters={'topic_id': topic_id})[0]
     topic['topic_prompt_params']['topic_name'] = topic['topic_name']
 
-    #pullPosts(topic, max_posts_reddit, min_timestamp=last2days)
-    #categorizePosts(topic, min_datetime=DATETIME_TODAY_START)
-    #summarizeNewsPosts(topic, min_datetime=DATETIME_TODAY_START)
-    #mapThemes(topic, min_datetime=DATETIME_TODAY_START)
-    #mapStories(topic, min_datetime=DATETIME_TODAY_START)
-    #mappingToCSV(topic, min_datetime=DATETIME_TODAY_START)
-    #summarizeStories(topic, min_datetime=DATETIME_TODAY_START)
-    #rankStories(topic, min_datetime=DATETIME_TODAY_START)
-    #summarizeThemes(topic, top_k_stories=top_k_stories, min_datetime=DATETIME_TODAY_START)
-    #summarizeTopic(topic, min_datetime=DATETIME_TODAY_START)
-    #storyQAToCSV(topic, min_datetime=DATETIME_TODAY_START)
+    #db.deleteStories(min_datetime=DATETIME_TODAY_START)
+
+    pullPosts(topic, max_posts_reddit, min_timestamp=last2days)
+    categorizePosts(topic, min_datetime=DATETIME_TODAY_START)
+    summarizeNewsPosts(topic, min_datetime=DATETIME_TODAY_START)
+    draftAndMapThemes(topic, min_datetime=DATETIME_TODAY_START)
+    groupStories(topic, min_datetime=DATETIME_TODAY_START)
+    mappingToCSV(topic, min_datetime=DATETIME_TODAY_START)
+    summarizeStories(topic, min_datetime=DATETIME_TODAY_START)
+    rankStories(topic, min_datetime=DATETIME_TODAY_START)
+    summarizeThemes(topic, top_k_stories=top_k_stories, min_datetime=DATETIME_TODAY_START)
+    summarizeTopic(topic, min_datetime=DATETIME_TODAY_START)
+    storyQAToCSV(topic, min_datetime=DATETIME_TODAY_START)
 
 if __name__ == '__main__':
     main()
@@ -304,11 +339,11 @@ def dailyPipelineToCSV(topic, min_datetime, max_datetime=MAX_DATETIME_DEFAULT):
     utils.JSONtoCSV(topic_highlights, 'data/topic_highlights_' + topic_name + '_' + min_datetime.strftime('%m-%d') + end_daterange + '.csv')
     print('Overall data output to CSV')
 
-topic_id = 1
-topic = db.getTopics(filters={'topic_id': topic_id})[0]
-topic['topic_prompt_params']['topic_name'] = topic['topic_name']
-custom_min = DATETIME_TODAY_START - timedelta(days = 1)
-custom_max = DATETIME_TODAY_START
+#topic_id = 1
+#topic = db.getTopics(filters={'topic_id': topic_id})[0]
+#topic['topic_prompt_params']['topic_name'] = topic['topic_name']
+#custom_min = DATETIME_TODAY_START - timedelta(days = 1)
+#custom_max = DATETIME_TODAY_START
 #reMapStories(topic, min_datetime=custom_min, max_datetime=custom_max)
 #storyMappingToCSV(topic, min_datetime=custom_min, max_datetime=custom_max)
 #summarizeNewsPosts(topic, min_datetime=custom_min, max_datetime=custom_max)

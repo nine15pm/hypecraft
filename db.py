@@ -397,6 +397,7 @@ def getThemesForTopic(topic_id, min_datetime=MIN_DATETIME_DEFAULT, max_datetime=
         'theme_id',
         'posts',
         'theme_name_ml',
+        'summary_ml'
     ]
     filters = {
         'topic_id': topic_id,
