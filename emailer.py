@@ -17,8 +17,10 @@ def sendNewsletter(subject, recipients, content_html):
     message['Subject'] = subject
     message['From'] = sender
     message['To'] = ",".join(recipients)
-    message_content = MIMEText(content_html, 'html')
-    message.attach(message_content)
+    message_content_AMP = MIMEText(content_html, 'x-amp-html')
+    message_content_html = MIMEText(content_html, 'html')
+    message.attach(message_content_AMP)
+    message.attach(message_content_html)
 
     sendGmail(sender, pw, recipients, message)
     print("Newsletter sent!")
