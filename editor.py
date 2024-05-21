@@ -1,7 +1,9 @@
 import promptconfigs
+import configs
 import requests
 import json
 import utils
+from openai import OpenAI
 
 #CONFIGS
 ##############################################################################################
@@ -11,20 +13,24 @@ NUM_WORDS_POST_EXCERPT = 100
 
 #Huggingface API
 HF_API_URL = 'https://api-inference.huggingface.co/models/'
-HF_API_KEY = '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'
+HF_API_KEY = utils.read_secrets('HF_API_KEY')
 HF_API_HEADERS = {
     'Authorization': f'Bearer {HF_API_KEY}'
     }
-HF_MODEL = promptconfigs.DEFAULT_MODEL
+HF_MODEL = 'meta-llama/Meta-Llama-3-70B-Instruct'
 
-#CALL MODEL
+#OpenAI API
+OPENAI_API_KEY = utils.read_secrets('OPENAI_API_KEY')
+OPENAI_MODEL = 'gpt-4o'
+
+#CALL MODELS
 ##############################################################################################
-#General function to call model with correctly assembled prompt and get response
+#General function to call LLAMA3 with correctly assembled prompt and get response
 def getResponseLLAMA(content: str, prompt_config: dict, prior_chat: list[dict] = None, return_user_prompt = False):
     params = prompt_config['model_params']
     user_prompt = prompt_config['user_prompt'] + content
     inputs = promptconfigs.constructPromptLLAMA(user_prompt=user_prompt, prior_chat=prior_chat, system_prompt=prompt_config['system_prompt'])
-    utils.countTokensAndSave(inputs)
+    utils.countTokensAndSaveLlama3(inputs)
     payload = {
         'inputs': inputs,
         'parameters': params
@@ -38,6 +44,22 @@ def getResponseLLAMA(content: str, prompt_config: dict, prior_chat: list[dict] =
         print(response.json())
         raise
 
+def getResponseOPENAI(content: str, prompt_config: dict, prior_chat: list[dict] = None, return_user_prompt = False):
+    client = OpenAI(api_key=OPENAI_API_KEY)
+    params = prompt_config['model_params']
+    user_prompt = prompt_config['user_prompt'] + content
+    messages = promptconfigs.constructPromptOPENAI(user_prompt=user_prompt, prior_chat=prior_chat, system_prompt=prompt_config['system_prompt'])
+    response = client.chat.completions.create(
+        model = OPENAI_MODEL,
+        messages=messages,
+        max_tokens = params['max_new_tokens'],
+        temperature = params['temperature'],
+        top_p = params['top_p']
+    )
+    output = response.choices[0].message.content
+    utils.countTokensAndSaveOAI(response.usage.prompt_tokens, response.usage.completion_tokens)
+    return (output, user_prompt) if return_user_prompt else output
+
 #CLASSIFICATION
 ##############################################################################################
 #construct the prompt for Reddit post and get category
@@ -45,10 +67,12 @@ def classifyPost(post, feed, prompt_config='default') -> str:
     prompt_config = promptconfigs.CLASSIFIER_PROMPTS['categorize'] if prompt_config == 'default' else prompt_config
     feed_source = 'Source type: ' + feed['feed_source']
     feed_name = 'Source name: ' + feed['feed_name'] + '\n'
-    headline = 'Post headline: ' + post['post_title'] + '\n'
+    headline = 'Post title: ' + post['post_title'] + '\n'
     post_tags = ('Post tags: ' + post['post_tags'][0] + '\n') if post['post_tags'] is not None else ''
+    post_text = ('Post text: ' + post['post_text'] + '\n') if post['post_text'] is not None else ''
     external_link = ('Linked site: ' + post['external_link'] + '\n') if post['external_link'] is not None else ''
-    content = feed_source + feed_name + headline + post_tags + external_link
+    external_link_text = ('Linked site text: ' + post['external_parsed_text'] + '\n') if post['external_parsed_text'] is not None else ''
+    content = feed_source + feed_name + headline + post_tags + post_text + external_link + external_link_text
     return getResponseLLAMA(content, prompt_config).strip('#')
 
 #SUMMARIZATION
@@ -67,27 +91,54 @@ def generateNewsPostSummary(post, feed, prompt_config='default') -> str:
     content = feed_source + feed_name + headline + post_text + external_link + external_text
     return getResponseLLAMA(content, prompt_config)
 
-#STORY COLLATION
+#NEWS FILTERING AND COLLATION
 ##############################################################################################
+#Filter out outdated news stories
+def filterOutdatedNews(posts: list, topic_prompt_params: dict, prompt_config='default') -> list[dict]:
+    prompt_config = promptconfigs.COLLATION_PROMPTS['filter_outdated_news_fn'](topic_prompt_params) if prompt_config == 'default' else prompt_config
+    content = ''
+    for post in posts:
+        content = content + f'{{"pid": {post['post_id']}, "title": "{post['retitle_ml']}", "summary": "{post['summary_ml']}"}}\n'
+    
+    response = getResponseOPENAI(content, prompt_config)
+    
+    print(response)
+
+    try:
+        json_extracted = utils.parseMapping(response)
+    except:
+        print('Cannot extract out JSON from model drafted themes...')
+        print(response)
+        raise
+    try:
+        output = json.loads(json_extracted)
+        return output
+    except:
+        print('Extracted JSON is not valid, trying fix...')
+    try:
+        json_extracted = fixJSON(json_extracted)
+        output = json.loads(json_extracted)
+        return output
+    except Exception as error:
+        print(f'Theme drafting error:', type(error).__name__, "-", error)
+        print(response)
+        raise error
 
 #Come up with themes to bucket news posts
 def draftNewsThemes(posts: list, topic_prompt_params: dict, prompt_config_init='default', prompt_config_revise='default') -> list[dict]:
     prompt_config_init = promptconfigs.COLLATION_PROMPTS['draft_theme_news_fn'](topic_prompt_params) if prompt_config_init == 'default' else prompt_config_init
     prompt_config_revise = promptconfigs.COLLATION_PROMPTS['draft_theme_news_revise_fn'](topic_prompt_params) if prompt_config_revise == 'default' else prompt_config_revise
-    content_long = ''
-    content_short = ''
+    content = ''
 
     #construct the string with all the posts
     for post in posts:
-        content_long = content_long + f'{{"pid": {post['post_id']}, "title": "{post['retitle_ml']}", "summary": "{post['summary_ml']}"}}\n'
-        content_short = content_short + f'{{"pid": {post['post_id']}, "title": "{post['retitle_ml']}"}}\n'
-    
+        content = content + f'{{"pid": {post['post_id']}, "title": "{post['retitle_ml']}", "summary": "{post['summary_ml']}"}}\n'
+
     #check if tokens exceeds max input, if so, just use titles no summary text
-    content = content_short
     #content = content_long if utils.tokenCountLlama3(content_long) <= prompt_config_init['model_params']['truncate'] else content_short
 
     #first get initial themes from model with base prompt
-    initial_response, user_prompt = getResponseLLAMA(content, prompt_config_init, return_user_prompt=True)
+    initial_response, user_prompt = getResponseOPENAI(content, prompt_config_init, return_user_prompt=True)
 
     print(initial_response)
 
@@ -96,12 +147,12 @@ def draftNewsThemes(posts: list, topic_prompt_params: dict, prompt_config_init='
         'user': user_prompt,
         'assistant': initial_response
     }]
-    revised_response = getResponseLLAMA(content='', prompt_config=prompt_config_revise, prior_chat=prior_chat)
+    revised_response = getResponseOPENAI(content='', prompt_config=prompt_config_revise, prior_chat=prior_chat)
 
     print(revised_response)
 
     try:
-        json_extracted = utils.parseMappingLLAMA(revised_response)
+        json_extracted = utils.parseMapping(revised_response)
     except:
         print('Cannot extract out JSON from model drafted themes...')
         print(revised_response)
@@ -121,38 +172,27 @@ def draftNewsThemes(posts: list, topic_prompt_params: dict, prompt_config_init='
         raise error
 
 #Groups news posts into up to N buckets
-def assignNewsPostsToThemes(posts: list, themes: list, topic_prompt_params: dict, prompt_config_init='default', prompt_config_revise='default') -> list[dict]:
+def assignNewsPostsToThemes(posts: list, themes: list, topic_prompt_params: dict, prompt_config='default') -> list[dict]:
     themes_str = json.dumps(themes)
-    prompt_config_init = promptconfigs.COLLATION_PROMPTS['assign_theme_news_fn'](themes_str, topic_prompt_params) if prompt_config_init == 'default' else prompt_config_init
-    prompt_config_revise = promptconfigs.COLLATION_PROMPTS['assign_theme_news_revise'] if prompt_config_revise == 'default' else prompt_config_revise
-    content_long = ''
-    content_short = ''
-
+    print(themes_str)
+    prompt_config = promptconfigs.COLLATION_PROMPTS['assign_theme_news_fn'](themes_str, topic_prompt_params) if prompt_config == 'default' else prompt_config
+    content = ''
     #construct the string with all the posts
     for post in posts:
-        content_long = content_long + f'{{"pid": {post['post_id']}, "title": "{post['retitle_ml']}", "summary": "{post['summary_ml']}"}}\n'
-        content_short = content_short + f'{{"pid": {post['post_id']}, "title": "{post['retitle_ml']}"}}\n'
+        content = content+ f'{{"pid": {post['post_id']}, "title": "{post['retitle_ml']}", "summary": "{post['summary_ml']}"}}\n'
 
     #check if tokens exceeds max input, if so, just use titles no summary text
-    content = content_long if utils.tokenCountLlama3(content_long) <= prompt_config_init['model_params']['truncate'] else content_short
+    #content = content_long if utils.tokenCountLlama3(content_long) <= prompt_config_init['model_params']['truncate'] else content_short
 
-    #first get initial mapping from model with base prompt
-    initial_response, user_prompt = getResponseLLAMA(content, prompt_config_init, return_user_prompt=True)
+    response = getResponseOPENAI(content, prompt_config)
 
-    #then send model chat history and ask it to check for errors and revise
-    prior_chat = [{
-        'user': user_prompt,
-        'assistant': initial_response
-    }]
-    revised_response = getResponseLLAMA(content='', prompt_config=prompt_config_revise, prior_chat=prior_chat)
-
-    print(revised_response)
+    print(response)
 
     try:
-        json_extracted = utils.parseMappingLLAMA(revised_response)
+        json_extracted = utils.parseMapping(response)
     except:
         print('Cannot extract out JSON from model theme mapping...')
-        print(revised_response)
+        print(response)
         raise
     try:
         output = json.loads(json_extracted)
@@ -165,38 +205,30 @@ def assignNewsPostsToThemes(posts: list, themes: list, topic_prompt_params: dict
         return output
     except Exception as error:
         print(f'Theme mapping error:', type(error).__name__, "-", error)
-        print(revised_response)
+        print(response)
         raise error
 
 #Groups similar/repeat headlines into stories - split into 2 steps, initial and revise
-def groupNewsPostsToStories(posts: list, topic_prompt_params: dict, prompt_config_init='default', prompt_config_revise='default') -> list[dict]:
-    prompt_config_init = promptconfigs.COLLATION_PROMPTS['group_story_news_fn'](topic_prompt_params) if prompt_config_init == 'default' else prompt_config_init
-    prompt_config_revise = promptconfigs.COLLATION_PROMPTS['group_story_news_revise'] if prompt_config_revise == 'default' else prompt_config_revise
-    content_long = ''
-    content_short = ''
+def groupNewsPostsToStories(posts: list, topic_prompt_params: dict, prompt_config='default') -> list[dict]:
+    prompt_config = promptconfigs.COLLATION_PROMPTS['group_story_news_fn'](topic_prompt_params) if prompt_config == 'default' else prompt_config
+    content = ''
+
     #construct the string with all the posts
     for post in posts:
-        content_long = content_long + f'{{"pid": {post['post_id']}, "title": "{post['retitle_ml']}", "summary": "{post['summary_ml']}"}}\n'
-        content_short = content_short + f'{{"pid": {post['post_id']}, "title": "{post['retitle_ml']}"}}\n'
+        content = content + f'{{"pid": {post['post_id']}, "title": "{post['retitle_ml']}", "summary": "{post['summary_ml']}"}}\n'
 
     #check if tokens exceeds max input, if so, just use titles no summary text
-    content = content_long if utils.tokenCountLlama3(content_long) <= prompt_config_init['model_params']['truncate'] else content_short
+    #content = content_long if utils.tokenCountLlama3(content_long) <= prompt_config_init['model_params']['truncate'] else content_short
 
-    #first get initial mapping from model with base prompt
-    initial_response, user_prompt = getResponseLLAMA(content, prompt_config_init, return_user_prompt=True)
+    response = getResponseOPENAI(content, prompt_config)
 
-    #then send model chat history and ask it to check for errors and revise
-    prior_chat = [{
-        'user': user_prompt,
-        'assistant': initial_response
-    }]
-    revised_response = getResponseLLAMA(content='', prompt_config=prompt_config_revise, prior_chat=prior_chat)
+    print(response)
     
     try:
-        json_extracted = utils.parseMappingLLAMA(revised_response)
+        json_extracted = utils.parseMapping(response)
     except:
         print('Cannot extract JSON from model story mapping response')
-        print(revised_response)
+        print(response)
         raise
     try:
         output = json.loads(json_extracted)
@@ -209,7 +241,7 @@ def groupNewsPostsToStories(posts: list, topic_prompt_params: dict, prompt_confi
         return output
     except Exception as error:
         print(f'Story mapping error:', type(error).__name__, "-", error)
-        print(revised_response)
+        print(response)
         raise error
 
 #collates posts associated with story into a single summary
@@ -295,7 +327,7 @@ def scoreNewsStories(stories: list, topic_prompt_params: dict, prompt_config='de
     
     raw_response = getResponseLLAMA(content, prompt_config)
     try:
-        parsed_response = utils.parseMappingLLAMA(raw_response)
+        parsed_response = utils.parseMapping(raw_response)
     except:
         print(raw_response)
         raise

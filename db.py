@@ -8,7 +8,7 @@ from datetime import datetime
 DATABASE = 'mlnewsletter'
 USER = 'newsletterbackend'
 HOST = 'localhost'
-PW = utils.read_secrets()['DB_PW']
+PW = utils.read_secrets('DB_PW')
 PORT = 5432
 POST_TABLE = 'post'
 THEME_TABLE = 'theme'
@@ -214,8 +214,10 @@ def getPostsForCategorize(topic_id, min_datetime=MIN_DATETIME_DEFAULT, max_datet
         'feed_id',
         'post_link',
         'post_title',
+        'post_text',
         'post_tags',
-        'external_link'
+        'external_link',
+        'external_parsed_text'
     ]
     filters = {
         'topic_id': topic_id
@@ -268,7 +270,9 @@ def getPostsForNewsSummary(topic_id, min_datetime=MIN_DATETIME_DEFAULT, max_date
         'post_text',
         'post_tags',
         'external_link',
-        'external_parsed_text'
+        'external_parsed_text',
+        'retitle_ml',
+        'summary_ml'
     ]
     filters = {
         'topic_id': topic_id,
@@ -290,6 +294,7 @@ def getNewsPostsForMapping(topic_id, min_datetime=MIN_DATETIME_DEFAULT, max_date
     ]
     filters = {
         'topic_id': topic_id,
+        'outdated_ml': False,
         'category_ml': 'news'
     }
     return readEntries(table=table, min_datetime=min_datetime, fields=fields, filters=filters, max_datetime=max_datetime)
@@ -405,6 +410,11 @@ def getThemesForTopic(topic_id, min_datetime=MIN_DATETIME_DEFAULT, max_datetime=
     return readEntries(table=table, min_datetime=min_datetime, fields=fields, filters=filters, max_datetime=max_datetime)
 
 #delete functions
+def deleteThemes(min_datetime=MIN_DATETIME_DEFAULT, max_datetime=MAX_DATETIME_DEFAULT, filters={}):
+    table = THEME_TABLE
+    deleteEntries(table=table, min_datetime=min_datetime, filters=filters, max_datetime=max_datetime)
+    print(f'Themes from {min_datetime} to {max_datetime} deleted')
+
 def deleteStories(min_datetime=MIN_DATETIME_DEFAULT, max_datetime=MAX_DATETIME_DEFAULT, filters={}):
     table = STORY_TABLE
     deleteEntries(table=table, min_datetime=min_datetime, filters=filters, max_datetime=max_datetime)

@@ -9,11 +9,11 @@ from transformers import AutoTokenizer
 #GENERAL READ/WRITE
 #####################################################################################
 #Read secrets json
-def read_secrets():
+def read_secrets(key):
     filename = os.path.join('secrets.json')
     try:
         with open(filename, mode='r') as f:
-            return json.loads(f.read())
+            return json.loads(f.read())[key]
     except FileNotFoundError:
         return {}
 
@@ -93,7 +93,7 @@ def cleanWhitespace(text):
             segments[i] = ''.join(segments[i].split())
     return '"'.join(segments)
 
-def parseMappingLLAMA(model_raw_text):
+def parseMapping(model_raw_text):
     model_raw_text = cleanWhitespace(model_raw_text)
     start = '[{'
     end = '}]'
@@ -104,12 +104,19 @@ def parseMappingLLAMA(model_raw_text):
 #COUNT TOKENS
 ##############################################################################################
 #Count tokens using Lllama3 tokenizer
-PATH_TOKEN_COUNT = 'data/tokencount.json'
+PATH_TOKEN_COUNT_LLAMA3 = 'notes/tokencount_llama.json'
+PATH_TOKEN_COUNT_OAI = 'notes/tokencount_openai.json'
 def tokenCountLlama3(text):
-    tokenizer = AutoTokenizer.from_pretrained(configs.DEFAULT_MODEL)
+    tokenizer = AutoTokenizer.from_pretrained('meta-llama/Meta-Llama-3-70B-Instruct')
     return len(tokenizer.encode(text))
 
-def countTokensAndSave(text):
-    count = loadJSON(PATH_TOKEN_COUNT)['count'] + tokenCountLlama3(text)
+def countTokensAndSaveLlama3(text):
+    count = loadJSON(PATH_TOKEN_COUNT_LLAMA3)['count'] + tokenCountLlama3(text)
     data = {'count': count}
-    saveJSON(data, PATH_TOKEN_COUNT)
+    saveJSON(data, PATH_TOKEN_COUNT_LLAMA3)
+
+def countTokensAndSaveOAI(prompt_tokens, completion_tokens):
+    count_prompt = loadJSON(PATH_TOKEN_COUNT_OAI)['count_prompt'] + prompt_tokens
+    count_completion = loadJSON(PATH_TOKEN_COUNT_OAI)['count_completion'] + completion_tokens
+    data = {'count_prompt': count_prompt, 'count_completion': count_completion}
+    saveJSON(data, PATH_TOKEN_COUNT_OAI)

@@ -11,7 +11,7 @@ from email.mime.multipart import MIMEMultipart
 #Send newsletter
 def sendNewsletter(subject, recipients, content_html):
     sender = 'no-reply@example.com'
-    pw = utils.read_secrets()['GMAIL_APP_PW']
+    pw = utils.read_secrets('GMAIL_APP_PW')
 
     message = MIMEMultipart('alternative')
     message['Subject'] = subject

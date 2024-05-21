@@ -72,8 +72,21 @@ def summarizeNewsPosts(topic, min_datetime, max_datetime=MAX_DATETIME_DEFAULT):
     db.updatePosts(posts_update)
     print(f'News post summaries + retitles updated in DB')
 
+#filter outdated posts
+def filterNewsPosts(topic, min_datetime):
+    news_posts = db.getPostsForNewsSummary(topic['topic_id'], min_datetime=min_datetime)
+    evaluated_posts = editor.filterOutdatedNews(news_posts, topic_prompt_params=topic['topic_prompt_params'])
+    posts_update = []
+    for post in evaluated_posts:
+        posts_update.append({
+            'post_id': post['pid'],
+            'outdated_ml': post['outdated']
+        })
+    db.updatePosts(posts_update)
+    print(f'Outdated news posts filtered and updated in DB')
+
 #load news posts, draft themes, assign posts to themes, save themes to DB
-def draftAndMapThemes(topic, min_datetime, batch_size=5):
+def draftAndMapThemes(topic, min_datetime, batch_size=30):
     news_posts = db.getNewsPostsForMapping(topic['topic_id'], min_datetime=min_datetime)
     drafted_themes = editor.draftNewsThemes(news_posts, topic_prompt_params=topic['topic_prompt_params'])
     
@@ -107,13 +120,14 @@ def draftAndMapThemes(topic, min_datetime, batch_size=5):
     #fill in theme_id column in Post table
     themes = db.getThemesForTopic(topic['topic_id'], min_datetime=min_datetime)
     for theme in themes:
-        posts = []
-        for post_id in theme['posts']:
-            posts.append({
-                'post_id': post_id,
-                'theme_id': theme['theme_id']
-            })
-        db.updatePosts(posts)
+        if theme['posts'] != []:
+            posts = []
+            for post_id in theme['posts']:
+                posts.append({
+                    'post_id': post_id,
+                    'theme_id': theme['theme_id']
+                })
+            db.updatePosts(posts)
     print('Themes mapped and saved to DB')
 
 #load each theme, dedup and group posts for each theme to unique stories
@@ -299,18 +313,19 @@ def storyQAToCSV(topic, min_datetime, max_datetime=MAX_DATETIME_DEFAULT):
 ##############################################################################################
 def main():
     #Pipeline params
-    topic_id = 2
+    topic_id = 1
     max_posts_reddit = 100
-    last2days = datetime.now().timestamp() - 1e5 #get current time minus ~1 day
     top_k_stories = 3
     topic = db.getTopics(filters={'topic_id': topic_id})[0]
     topic['topic_prompt_params']['topic_name'] = topic['topic_name']
 
     #db.deleteStories(min_datetime=DATETIME_TODAY_START)
+    #db.deleteThemes(min_datetime=DATETIME_TODAY_START)
 
-    pullPosts(topic, max_posts_reddit, min_timestamp=last2days)
-    categorizePosts(topic, min_datetime=DATETIME_TODAY_START)
-    summarizeNewsPosts(topic, min_datetime=DATETIME_TODAY_START)
+    #pullPosts(topic, max_posts_reddit, min_timestamp=DATETIME_TODAY_START.timestamp())
+    #categorizePosts(topic, min_datetime=DATETIME_TODAY_START)
+    #summarizeNewsPosts(topic, min_datetime=DATETIME_TODAY_START)
+    #filterNewsPosts(topic, min_datetime=DATETIME_TODAY_START)
     draftAndMapThemes(topic, min_datetime=DATETIME_TODAY_START)
     groupStories(topic, min_datetime=DATETIME_TODAY_START)
     mappingToCSV(topic, min_datetime=DATETIME_TODAY_START)

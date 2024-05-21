@@ -1,6 +1,3 @@
-#Model
-DEFAULT_MODEL = 'meta-llama/Meta-Llama-3-70B-Instruct'
-
 #date time related
 LOCAL_TZ = 'America/Los_Angeles'
 
