@@ -57,6 +57,9 @@ def standardizeURL(url):
     cleanURL = URLTuple(o.scheme, o.netloc, o.path, '', '', '')
     return urlunparse(cleanURL)
 
+def linebreaksHTML(text:str):
+    return text.replace('\n', '<br>')
+
 def firstNWords(text, num_words, preserve_lines=False):
     words = text.split()
     if len(words) <= num_words:

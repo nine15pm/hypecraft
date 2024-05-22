@@ -374,7 +374,8 @@ def getStoriesForTopic(topic_id, min_datetime=MIN_DATETIME_DEFAULT, max_datetime
         'summary_ml',
         'headline_ml',
         'posts_summarized',
-        'daily_i_score_ml'
+        'daily_i_score_ml',
+        'theme_id'
     ]
     filters = {
         'topic_id': topic_id,

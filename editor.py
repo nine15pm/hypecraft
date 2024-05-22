@@ -320,12 +320,12 @@ def generateHeadlineFromSummary(summary, prompt_config='default') -> str:
 ##############################################################################################
 #For a given set of stories, return scores reflecting the importance
 def scoreNewsStories(stories: list, topic_prompt_params: dict, prompt_config='default') -> list:
-    prompt_config = promptconfigs.RANKING_PROMPTS['score_headlines_news'](topic_prompt_params) if prompt_config == 'default' else prompt_config
+    prompt_config = promptconfigs.RANKING_PROMPTS['score_news_fn'](topic_prompt_params) if prompt_config == 'default' else prompt_config
     content = ''
     for story in stories:
-        content = content + f'{{"sid": {story['story_id']}, "summary": "{story['summary_ml']}"}}\n'
+        content = content + f'{{"sid": {story['story_id']}, "headline": "{story['headline_ml']}", "summary": "{story['summary_ml']}"}}\n'
     
-    raw_response = getResponseLLAMA(content, prompt_config)
+    raw_response = getResponseOPENAI(content, prompt_config)
     try:
         parsed_response = utils.parseMapping(raw_response)
     except:

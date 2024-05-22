@@ -134,6 +134,10 @@ def draftAndMapThemes(topic, min_datetime, batch_size=30):
 def groupStories(topic, min_datetime, max_datetime=MAX_DATETIME_DEFAULT):
     news_themes = db.getNewsThemes(topic['topic_id'], min_datetime=min_datetime, max_datetime=max_datetime)
     for theme in news_themes:
+        #check if theme has no posts
+        if theme['posts'] == []:
+            continue
+
         posts = db.getPosts(min_datetime=min_datetime, max_datetime=max_datetime, filters={'post_id':theme['posts']})
         grouped_stories = editor.groupNewsPostsToStories(posts, topic_prompt_params=topic['topic_prompt_params'])
 
@@ -207,6 +211,10 @@ def summarizeStories(topic, min_datetime, max_datetime=MAX_DATETIME_DEFAULT):
 def rankStories(topic, min_datetime, max_datetime=MAX_DATETIME_DEFAULT):
     themes = db.getNewsThemes(topic['topic_id'], min_datetime=min_datetime)
     for theme in themes:
+        #check if theme has no posts
+        if theme['posts'] == []:
+            continue
+
         stories = db.getStoriesForTheme(theme['theme_id'], min_datetime=min_datetime, max_datetime=max_datetime)
         stories_scores = editor.scoreNewsStories(stories, topic_prompt_params=topic['topic_prompt_params'])
         story_updates = []
@@ -224,6 +232,9 @@ def rankStories(topic, min_datetime, max_datetime=MAX_DATETIME_DEFAULT):
 def summarizeThemes(topic, min_datetime, top_k_stories, max_datetime=MAX_DATETIME_DEFAULT):
     themes = db.getNewsThemes(topic['topic_id'], min_datetime=min_datetime)
     for theme in themes:
+        #check if theme has no posts
+        if theme['posts'] == []:
+            continue
         stories = db.getStoriesForTheme(theme['theme_id'], min_datetime=min_datetime, max_datetime=max_datetime)
         stories = sorted(stories, key=lambda story: story['daily_i_score_ml'], reverse=True)
         stories = stories[:top_k_stories] if len(stories) > top_k_stories else stories
@@ -240,6 +251,8 @@ def summarizeTopic(topic, min_datetime, max_datetime=MAX_DATETIME_DEFAULT):
     themes = db.getNewsThemes(topic['topic_id'], min_datetime=min_datetime)
     highlight_stories = []
     for theme in themes:
+        if theme['posts'] == []:
+            continue
         stories = db.getStoriesForTheme(theme['theme_id'], min_datetime=min_datetime, max_datetime=max_datetime)
         stories = sorted(stories, key=lambda story: story['daily_i_score_ml'], reverse=True)
         highlight_stories.append(stories[0])
@@ -313,7 +326,7 @@ def storyQAToCSV(topic, min_datetime, max_datetime=MAX_DATETIME_DEFAULT):
 ##############################################################################################
 def main():
     #Pipeline params
-    topic_id = 1
+    topic_id = 2
     max_posts_reddit = 100
     top_k_stories = 3
     topic = db.getTopics(filters={'topic_id': topic_id})[0]
@@ -331,7 +344,7 @@ def main():
     mappingToCSV(topic, min_datetime=DATETIME_TODAY_START)
     summarizeStories(topic, min_datetime=DATETIME_TODAY_START)
     rankStories(topic, min_datetime=DATETIME_TODAY_START)
-    summarizeThemes(topic, top_k_stories=top_k_stories, min_datetime=DATETIME_TODAY_START)
+    #summarizeThemes(topic, top_k_stories=top_k_stories, min_datetime=DATETIME_TODAY_START)
     summarizeTopic(topic, min_datetime=DATETIME_TODAY_START)
     storyQAToCSV(topic, min_datetime=DATETIME_TODAY_START)
 

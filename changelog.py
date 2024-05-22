@@ -2,10 +2,10 @@
 ####################
 changelog_current = 'Changelog \n\
 --------------------------------\n\
-- Experimenting with barebones AMP email for easier QA format and to allow for future testing of UX interactions \n\
-- Added "themes" to bucket news stories and updated grouping/ranking pipeline to use themes \n\
+- Set up barebones AMP email for easier QA format and to allow for future testing of UX interactions \n\
+- Updated grouping/ranking pipeline to use themes and switched model to GPT-4o \n\
 - Added new step in pipeline where model re-writes scraped post headlines to avoid confusing noisy garbage headlines in later steps (grouping, ranking, etc.) \n\
-- Updated story grouping to full chain of thought output + 2 step prompt (draft, revise), added logic to prevent exceeding token window \n\
+- Updated all grouping prompts to full chain of thought output + 2 step prompt (draft, revise), added logic to prevent exceeding token window \n\
 - Fixed some bugs with web scrape \n\
 --------------------------------'
 

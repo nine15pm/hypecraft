@@ -1,5 +1,6 @@
 import db
 import configs
+import utils
 import emailer
 import changelog
 from pytz import timezone
@@ -10,26 +11,20 @@ from datetime import datetime, time, timedelta
 def ampLink(text, url):
     return f'<a href="{url}" class="link">{text}</a>'
 
-def storyUnit(headline:str, body:str, links:list):
+def storyUnit(tag:str, headline:str, body:str, links:list):
     links_html = ''
     for i, link in enumerate(links):
         links_html = links_html + ampLink(text=f'Link {i}', url=link)
     output_html = f'''
-        <div class="story">
+        <div class="unit-story">
+            <span class="tag">{tag}</span>
             <h4 class="heading-unit"><b>{headline}</b></h4>
             <p class="paragraph">{body}</p>
-            {links_html}
+            <div class="unit-story-links">
+                {links_html}
+            </div>
         </div>
         '''
-    return output_html
-
-def themeUnit(tag:str, body:str):
-    output_html = f'''
-    <h4 class="theme-unit">
-        <span class="tag">{tag}</span>
-        <p class="paragraph">{body}</p>
-    </h4>
-    '''
     return output_html
 
 def ampAccordion(units:list[tuple]):
@@ -57,46 +52,51 @@ def ampAccordion(units:list[tuple]):
 def constructNewsBlock(topic_id, top_k_stories, min_datetime):
     themes = db.getThemesForTopic(topic_id, min_datetime=min_datetime)
     units = []
+    story_candidates = []
     unused_stories = []
-    #construct accordion section for each theme
+    
+    #get stories for all themes, except other
     for theme in themes:
         stories = db.getStoriesForTheme(theme['theme_id'], min_datetime=min_datetime)
-        
-        #filter out Other
-        if theme['theme_name_ml'] == 'Other':
+        if theme['theme_name_ml'] != 'Other':
+            for i in range(len(stories)):
+                stories[i]['theme_name_ml'] = theme['theme_name_ml']
+            story_candidates = story_candidates + stories
+        else:
             unused_stories = unused_stories + stories
-            continue
-        
-        #sort stories based on i_score from model, take top 3, then construct units
-        stories = sorted(stories, key=lambda story: story['daily_i_score_ml'], reverse=True)
-        theme_score = stories[0]['daily_i_score_ml']
-        if len(stories) > top_k_stories:
-            unused_stories = stories[top_k_stories:]
-            stories = stories[:top_k_stories]
-        child = ''
-        for story in stories:
-            #get links of summarized posts
-            posts = db.getPostLinksForStory(story['posts_summarized'])
-            links = []
-            for post in posts:
-                if post['external_link'] == None or post['external_link'] == '':
-                    link = post['post_link']
-                else:
-                    link = post['external_link']
-                links.append(link)
-            ml_score = f' (ML score: {story['daily_i_score_ml']})'
-            child = child + storyUnit(headline=story['headline_ml'] + ml_score, body=story['summary_ml'], links=links)
-            child = f'<div>{child}</div>'
-        parent = themeUnit(tag=theme['theme_name_ml'], body=theme['summary_ml'])
-        units.append((parent, child, theme_score))
 
-    #sort units by theme with highest i score story
-    units = sorted(units, key=lambda tup: tup[2])
-    
+    #sort stories based on i_score from model, take top 3, then construct units
+    story_candidates = sorted(story_candidates, key=lambda story: story['daily_i_score_ml'], reverse=True)
+
+    if len(story_candidates) > top_k_stories:
+        unused_stories = story_candidates[top_k_stories:]
+        story_candidates = story_candidates[:top_k_stories]
+
+    child = ''
+    parent = f'''
+    <h4 class="accordion-title">
+        <b>[Top {top_k_stories} ranked stories]</b>
+    </h4>
+    '''
+    for story in story_candidates:
+        #get links of summarized posts
+        posts = db.getPostLinksForStory(story['posts_summarized'])
+        links = []
+        for post in posts:
+            if post['external_link'] == None or post['external_link'] == '':
+                link = post['post_link']
+            else:
+                link = post['external_link']
+            links.append(link)
+        ml_score = f' (ML score: {story['daily_i_score_ml']})'
+        child = child + storyUnit(tag=story['theme_name_ml'], headline=story['headline_ml'] + ml_score, body=story['summary_ml'], links=links)
+        child = f'<div>{child}</div>'
+    units.append((parent, child))
+
     #add unused stories accordion section if applicable
     if unused_stories != []:
         parent = f'''
-        <h4 class="theme-unit">
+        <h4 class="accordion-title">
             <b>[Stories cut from newsletter]</b>
         </h4>
         '''
@@ -112,7 +112,7 @@ def constructNewsBlock(topic_id, top_k_stories, min_datetime):
                     link = post['external_link']
                 links.append(link)
             ml_score = f' (ML score: {story['daily_i_score_ml']})'
-            child = child + storyUnit(headline=story['headline_ml'] + ml_score, body=story['summary_ml'], links=links)
+            child = child + storyUnit(tag=story['theme_name_ml'], headline=story['headline_ml'] + ml_score, body=story['summary_ml'], links=links)
             child = f'<div>{child}</div>'
         units.append((parent, child))
     
@@ -132,7 +132,7 @@ def constructHighlightBlock(topic_id, min_datetime):
     output_html = f'''
     <div class="block-spotlight">
       <h3 class="heading-block"><b>Highlights</b></h3>
-      <p class="paragraph">{highlight['summary_ml']}<br></p>
+      <p class="paragraph">{utils.linebreaksHTML(highlight['summary_ml'])}<br></p>
     </div>
     '''
     return output_html
@@ -156,7 +156,7 @@ def constructChangelogSection(changelog):
     output_html = f'''
     <div class="section-changelog">
         <h2 class="heading-section">Changelog</h2>
-        <p class="paragraph">{changelog}</p>
+        <p class="paragraph">{utils.linebreaksHTML(changelog)}</p>
     </div>
     '''
     return output_html
@@ -205,7 +205,7 @@ PATH_EMAIL_TEMPLATE = 'emailtemplates/amptemplate_v004.html'
 today_start = datetime.combine(datetime.today(), time.min).astimezone(timezone(configs.LOCAL_TZ)) - timedelta(days=1)
 topics = [{'topic_id': 1}, {'topic_id': 2}]
 title = 'HYPECRAFT V0.0.4 TEST'
-top_k_stories = 3
+top_k_stories = 5
 footer_text = f'''<br><br><p><small>🫶 Written for you with love by Hypecraft on {datetime.strftime(datetime.now(), "%A, %B %m")}. Powered by Lllama 3.</small></p>'''
 recipients1 = ['maintainer@example.com']
 recipients2 = ['maintainer@example.com', 'contributor@example.com']
@@ -218,4 +218,4 @@ for topic in topics:
 footer = constructFooterSection(footer_text=footer_text)
 newsletter_html = wrapEncodeHTML(body_html=header + log + main_content + footer, template_path=PATH_EMAIL_TEMPLATE)
 #print(newsletter_html)
-emailer.sendNewsletter(subject=title, recipients=recipients1, content_html=newsletter_html)
+emailer.sendNewsletter(subject=title, recipients=recipients2, content_html=newsletter_html)
