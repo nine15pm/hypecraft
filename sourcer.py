@@ -26,6 +26,10 @@ def isDuplicateLink(link):
     else:
         return False
 
+test_url = utils.standardizeURL('https://racer.com/2024/05/21/why-the-f1-driver-market-is-about-to-get-busy-again/')
+print(test_url)
+print(isDuplicateLink(test_url))
+
 def isDuplicateText(title=None, post_text=None, external_text=None):
     filters_title = {
         'post_title': title
@@ -191,7 +195,7 @@ def parseFeedReddit(topic_id, feed_id, min_timestamp=0, max_posts=10, endpoint='
         post_link = utils.standardizeURL('https://www.reddit.com' + listing['data']['permalink'])
 
         #check if post permalink is duplicate
-        if isDuplicateLink(post_link):
+        if isDuplicateLink(post_link) or any(post['post_link'] == post_link for post in posts):
             print('Skipped duplicate (post link)')
             continue
 
@@ -222,7 +226,7 @@ def parseFeedReddit(topic_id, feed_id, min_timestamp=0, max_posts=10, endpoint='
                 isValid = True if 'http' in external_content_link else False
                 
                 #check if duplicate external link
-                if isDuplicateLink(external_content_link):
+                if isDuplicateLink(external_content_link) or any(post['external_link'] == external_content_link for post in posts):
                     print('Skipped duplicate (external link)')
                     continue
 
@@ -241,7 +245,7 @@ def parseFeedReddit(topic_id, feed_id, min_timestamp=0, max_posts=10, endpoint='
                     continue
 
                 #final check for duplicate post based on extracted text
-                if isDuplicateText(title=listing['data']['title'], external_text=external_scraped_text):
+                if isDuplicateText(title=listing['data']['title'], external_text=external_scraped_text) or any(post['post_title'] == listing['data']['title'] for post in posts) or any(post['external_parsed_text'] == external_scraped_text for post in posts):
                     print('Skipped duplicate (title/external-text)')
                     continue
 
@@ -259,7 +263,7 @@ def parseFeedReddit(topic_id, feed_id, min_timestamp=0, max_posts=10, endpoint='
                     continue
 
                 #final check for duplicate post based on extracted text
-                if isDuplicateText(title=listing['data']['title'], post_text=listing['data']['selftext']):
+                if isDuplicateText(title=listing['data']['title'], post_text=listing['data']['selftext']) or any(post['post_title'] == listing['data']['title'] for post in posts) or any(post['post_text'] == listing['data']['selftext'] for post in posts):
                     print('Skipped duplicate (title/post-text)')
                     continue
 
@@ -327,7 +331,7 @@ def parseFeedRSS(topic_id, feed_id, min_timestamp=0) -> list[dict]:
         post_link = utils.standardizeURL(entry.link) if 'link' in entry else None
         #check if already exists in DB, skip if so
         if post_link is not None:
-            if isDuplicateLink(entry.link):
+            if isDuplicateLink(entry.link) or any(post['post_link'] == entry.link for post in posts):
                 print('Skipped duplicate (link)')
                 continue
 
@@ -358,7 +362,7 @@ def parseFeedRSS(topic_id, feed_id, min_timestamp=0) -> list[dict]:
         description = entry.description if 'description' in entry else None
 
         #check for duplicate post based on extracted text
-        if isDuplicateText(title=headline, post_text=post_text, external_text=external_parsed_text):
+        if isDuplicateText(title=headline, post_text=post_text, external_text=external_parsed_text) or any(post['post_title'] == headline for post in posts) or any(post['post_text'] == post_text for post in posts) or any(post['external_parsed_text'] == external_parsed_text for post in posts):
             print('Skipped duplicate (title/text)')
             continue
 
