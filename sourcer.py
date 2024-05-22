@@ -26,10 +26,6 @@ def isDuplicateLink(link):
     else:
         return False
 
-test_url = utils.standardizeURL('https://racer.com/2024/05/21/why-the-f1-driver-market-is-about-to-get-busy-again/')
-print(test_url)
-print(isDuplicateLink(test_url))
-
 def isDuplicateText(title=None, post_text=None, external_text=None):
     filters_title = {
         'post_title': title
