@@ -7,9 +7,9 @@ import configs
 import time
 from datetime import datetime
 import json
-import ua_generator
 import undetected_chromedriver as uc
 import trafilatura
+from haystack.components.fetchers import LinkContentFetcher
 
 #SHARED FUNCTIONS
 ###################################################################
@@ -50,30 +50,9 @@ def isDuplicateText(title=None, post_text=None, external_text=None):
 #TEXT EXTRACTION FROM LINKS
 ###################################################################
 
-def generateHeaders():
-    #generate request headers for simple http request to mimic browser
-    ua = ua_generator.generate(device='desktop', platform = ('windows'), browser=('chrome', 'edge'))
-    ua.headers.accept_ch('Sec-Ch-Ua-Model, Sec-Ch-Ua-Arch, Sec-Ch-Ua-Bitness, Sec-Ch-Ua-Full-Version, Sec-Ch-Ua-Platform, Sec-Ch-Ua-Wow64, Sec-CH-UA-Platform-Version, Sec-CH-UA-Full-Version-List')
-    additional_headers = {
-        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
-        'Accept-Encoding': 'gzip, deflate, br, zstd',
-        'Accept-Language': 'en-US,en;q=0.9',
-        'Sec-Fetch-Dest': 'document',
-        'Sec-Fetch-Mode': 'navigate',
-        'Sec-Fetch-Site': 'same-origin',
-        'Sec-Fetch-User': '1',
-        'Upgrade-Insecure-Requests': '1',
-        'cache-control': 'max-age=0'
-        }
-    headers = additional_headers.update(ua.headers.get()) #combine generated headers with additional fixed headers
-    return headers
-
 #logic for scraping external links
 def getWebText(url, min_text_length, unsupported_hosts=[]):
     print(url)
-
-    #generate request headers
-    headers = generateHeaders()
 
     #check if external content url is explicitly unsupported (e.g. twitter, youtube, etc.)
     isUnsupported = True if any(hostname in url for hostname in unsupported_hosts) else False
@@ -84,10 +63,12 @@ def getWebText(url, min_text_length, unsupported_hosts=[]):
     if isUnsupported:
         return extracted_text
 
-    #first try getting html using basic request
+    fetcher = LinkContentFetcher()
+    
+    #first try getting html using Haystack component
     try:
-        source_html = requests.get(url, headers=headers).text
-        extracted_text = trafilatura.extract(source_html, url=url, deduplicate=True, include_comments=False)
+        source_html_bytestream = fetcher.run(urls=[url])['streams'][0]
+        extracted_text = trafilatura.extract(source_html_bytestream, url=url, deduplicate=True, include_comments=False)
     except Exception as error:
         print("Error:", type(error).__name__, "-", error)
         
@@ -98,8 +79,8 @@ def getWebText(url, min_text_length, unsupported_hosts=[]):
     #if can't extract text or extracted text is too short, try google webcache
     try:
         print('Trying webcache')
-        source_html = requests.get(configs.WEBCACHE_URL + url, headers=headers).text
-        extracted_text = trafilatura.extract(source_html, url=url, deduplicate=True, include_comments=False)
+        source_html_bytestream = fetcher.run(urls=[configs.WEBCACHE_URL + url])['streams'][0]
+        extracted_text = trafilatura.extract(source_html_bytestream, url=url, deduplicate=True, include_comments=False)
     except Exception as error:
         print("Error:", type(error).__name__, "-", error)
             
@@ -127,7 +108,6 @@ def getWebText(url, min_text_length, unsupported_hosts=[]):
 
 def getLinkedTweetContent(url):
     #generate request headers
-    headers = generateHeaders()
     response = json.loads(requests.get(url=configs.TWITTER_OEMBED_URL + url, headers=headers).text)
     tweet_body_html = response['html'][response['html'].find('<p'):response['html'].find('/p>')+3]
     tweet_text = trafilatura.extract(tweet_body_html, url=url, deduplicate=True, include_comments=False)
