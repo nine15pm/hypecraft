@@ -3,6 +3,7 @@ import db
 import sourcer
 import editor
 import configs
+import random
 from pytz import timezone
 from datetime import datetime, time, timedelta
 
@@ -60,7 +61,7 @@ def summarizeNewsPosts(topic, min_datetime, max_datetime=MAX_DATETIME_DEFAULT):
 
     for idx, post in enumerate(posts):
         feed = [feed for feed in feeds if feed['feed_id'] == post['feed_id']][0]
-        summary = editor.generateNewsPostSummary(post=post, feed=feed)
+        summary = editor.generateNewsPostSummary(post=post, feed=feed, topic_prompt_params=topic['topic_prompt_params'])
         retitle = editor.retitleNewsPost(post_summary=summary)
         posts_update.append({
             'post_id': post['post_id'],
@@ -85,30 +86,51 @@ def filterNewsPosts(topic, min_datetime):
     db.updatePosts(posts_update)
     print(f'Outdated news posts filtered and updated in DB')
 
-#load news posts, draft themes, assign posts to themes, save themes to DB
-def draftAndMapThemes(topic, min_datetime, batch_size=30):
+#load news posts, brainstorm themes, select themes, assign posts to themes, save themes to DB
+def draftAndMapThemes(topic, min_datetime, brainstorm_loops=3, batch_size=30):
     news_posts = db.getNewsPostsForMapping(topic['topic_id'], min_datetime=min_datetime)
-    drafted_themes = editor.draftNewsThemes(news_posts, topic_prompt_params=topic['topic_prompt_params'])
+
+    #brainstorm themes (loop through N times)
+    theme_options = []
+    for i in range(brainstorm_loops):
+        #add characters to news post to get different response from HF API
+        news_posts[0]['summary_ml'] = news_posts[0]['summary_ml'] + ' '*i
+
+        brainstorm = editor.brainstormNewsThemes(news_posts, topic_prompt_params=topic['topic_prompt_params'])
+        print(f'BRAINSTORM {i+1} \n')
+        print(brainstorm)
+        for idea in brainstorm:
+            if (idea['name'] != "Other") and (' and ' not in idea['name']) and (' & ' not in idea['name']) and not any(option['name'] == idea['name'] for option in theme_options):
+                theme_options.append({
+                    'id': len(theme_options)+1,
+                    'name': idea['name']
+                })
+    print('THEME OPTIONS: \n')
+    print(theme_options)
     
-    #sort drafted themes so they match id order, add a blank list of posts
-    drafted_themes = sorted(drafted_themes, key=lambda x: x['id'], reverse=False)
-    for i in range(len(drafted_themes)):
-        drafted_themes[i]['posts'] = []
+    #select themes from brainstormed options
+    selected_themes = editor.selectNewsThemes(news_posts, theme_options=theme_options, topic_prompt_params=topic['topic_prompt_params'])
     
-    print(drafted_themes)
+    #sort selected themes so they match id order, add a blank list of posts
+    selected_themes = sorted(selected_themes, key=lambda x: x['id'], reverse=False)
+    for j in range(len(selected_themes)):
+        selected_themes[j]['posts'] = []
+    
+    print('SELECTED THEMES: \n')
+    print(selected_themes)
 
     #do post assignment to themes in batches
     batched_news_posts = []
-    for i in range(0, len(news_posts), batch_size): 
-        batched_news_posts.append(news_posts[i:i+batch_size])
+    for k in range(0, len(news_posts), batch_size): 
+        batched_news_posts.append(news_posts[k:k+batch_size])
     for batch in batched_news_posts:
-        mapping = editor.assignNewsPostsToThemes(batch, themes=drafted_themes, topic_prompt_params=topic['topic_prompt_params'])
+        mapping = editor.assignNewsPostsToThemes(batch, themes=selected_themes, topic_prompt_params=topic['topic_prompt_params'])
         for post in mapping:
-            drafted_themes[post['section']-1]['posts'].append(post['pid'])
+            selected_themes[post['section']-1]['posts'].append(post['pid'])
 
     #parse and format into theme objects for DB
     theme_updates = []
-    for theme in drafted_themes:
+    for theme in selected_themes:
         theme_updates.append({
             'topic_id': topic['topic_id'],
             'posts': theme['posts'],
@@ -328,6 +350,7 @@ def main():
     #Pipeline params
     topic_id = 2
     max_posts_reddit = 100
+    brainstorm_loops = 3
     top_k_stories = 3
     topic = db.getTopics(filters={'topic_id': topic_id})[0]
     topic['topic_prompt_params']['topic_name'] = topic['topic_name']
@@ -335,16 +358,16 @@ def main():
     #db.deleteStories(min_datetime=DATETIME_TODAY_START)
     #db.deleteThemes(min_datetime=DATETIME_TODAY_START)
 
-    #pullPosts(topic, max_posts_reddit, min_timestamp=DATETIME_TODAY_START.timestamp())
-    #categorizePosts(topic, min_datetime=DATETIME_TODAY_START)
-    #summarizeNewsPosts(topic, min_datetime=DATETIME_TODAY_START)
-    #filterNewsPosts(topic, min_datetime=DATETIME_TODAY_START)
-    draftAndMapThemes(topic, min_datetime=DATETIME_TODAY_START)
+    pullPosts(topic, max_posts_reddit, min_timestamp=DATETIME_TODAY_START.timestamp())
+    categorizePosts(topic, min_datetime=DATETIME_TODAY_START)
+    summarizeNewsPosts(topic, min_datetime=DATETIME_TODAY_START)
+    filterNewsPosts(topic, min_datetime=DATETIME_TODAY_START)
+    draftAndMapThemes(topic, brainstorm_loops=brainstorm_loops, min_datetime=DATETIME_TODAY_START)
     groupStories(topic, min_datetime=DATETIME_TODAY_START)
     mappingToCSV(topic, min_datetime=DATETIME_TODAY_START)
     summarizeStories(topic, min_datetime=DATETIME_TODAY_START)
     rankStories(topic, min_datetime=DATETIME_TODAY_START)
-    #summarizeThemes(topic, top_k_stories=top_k_stories, min_datetime=DATETIME_TODAY_START)
+    summarizeThemes(topic, top_k_stories=top_k_stories, min_datetime=DATETIME_TODAY_START)
     summarizeTopic(topic, min_datetime=DATETIME_TODAY_START)
     storyQAToCSV(topic, min_datetime=DATETIME_TODAY_START)
 

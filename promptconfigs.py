@@ -18,6 +18,16 @@ TASK_MODEL_PARAMS_LLAMA = {
     'return_full_text': False
 }
 
+BRAINSTORM_MODEL_PARAMS_LLAMA = {
+    'temperature': 0.75,
+    'truncate': 6144,
+    'max_new_tokens': 2047,
+    'top_p': 0.9,
+    'stop': ['<|eot_id|>'],
+    'stop_sequences': ['<|eot_id|>'],
+    'return_full_text': False
+}
+
 WRITING_MODEL_PARAMS = {
     'temperature': 0.9,
     'truncate': 6144,
@@ -92,6 +102,19 @@ CLASSIFIER_PROMPTS = {
 }
 
 #Functions for dynamic summarization prompts
+def post_summary_news(topic_prompt_params:dict):
+    prompt = {
+        'system_prompt': f'You are a {topic_prompt_params['topic_name']} newsletter writer. The user will provide content for you to summarize. Respond ONLY with the summary, do NOT respond with chat.',
+        'user_prompt': f'Your task is to summarize {topic_prompt_params['topic_name']}a news content. The content may include headlines, text from social media posts, and text from news articles.\n\n\
+        Your instructions:\n\
+            1. Ingest the provided content.\n\
+            2. Understand the key facts of the news story and identify any important quotes.\n\
+            3. Summarize all the key facts into 1 paragraph and incorporate any important quotes. Do not exceed {SUMMARY_LEN_NEWS} words.\n\
+        Write a summary for the following content:\n\n',
+        'model_params': TASK_MODEL_PARAMS_LLAMA
+    }
+    return prompt
+
 def story_summary_news(topic_prompt_params:dict):
     prompt = {
         'system_prompt': 'You are an email newsletter editor. The user will provide content for you to summarize. Respond ONLY with the summary, do NOT respond with chat.',
@@ -101,7 +124,7 @@ def story_summary_news(topic_prompt_params:dict):
             1. Read the content of all the posts.\n\
             2. Identify the most important facts and takeaways. Prioritize the info a {topic_prompt_params['topic_name']} enthusiast cares about most.\n\
             3. Summarize the key facts into 1 single summary paragraph. Include relevant quotes if they are important. Do not exceed {SUMMARY_LEN_NEWS} words.\n\
-            4. Make the language engaging and entertaining so the reader will want to see more detailed content about the story.\n\n\
+            4. Make the language concise, conversational, and engaging to read. Avoid using unnecessary complex words. \n\n\
         Combine the following posts:\n\n',
         'model_params': WRITING_MODEL_PARAMS
     }
@@ -125,7 +148,7 @@ def topic_summary_news(topic_prompt_params:dict):
         'user_prompt': f'Your task is to summarize top {topic_prompt_params['topic_name']} news stories into a bulleted list of highlights that a reader can quickly skim. \n\n\
         Your steps are as follows:\n\
             1. Read the content of all the stories. Prioritize exclusive or breaking news, the info a {topic_prompt_params['topic_name']} enthusiast cares about most.\n\
-            3. Write a list of bulleted highlights, 1 for each story. Order the highest i_score stories first. Make the language engaging and entertaining.\n\n\
+            3. Write a list of bulleted highlights, 1 for each story. Order the highest i_score stories first. Make the language concise, conversational, and easy to understand.\n\n\
         Summarize the following stories:\n\n',
         'model_params': WRITING_MODEL_PARAMS
     }
@@ -133,16 +156,7 @@ def topic_summary_news(topic_prompt_params:dict):
 
 #Prompts for summarizing
 SUMMARIZER_PROMPTS = {
-    'news':{
-        'system_prompt': 'You are an email newsletter writer. The user will provide content for you to summarize. Respond ONLY with the summary, do NOT respond with chat.',
-        'user_prompt': f'Your task is to summarize news content. The content may include headlines, text from social media posts, and text from news articles.\n\n\
-        Your steps are as follows:\n\
-            1. Ingest the provided content.\n\
-            2. Understand the key facts of the news story and identify any important quotes.\n\
-            3. Summarize the key facts into 1 paragraph and incorporate any important quotes. Do not exceed {SUMMARY_LEN_NEWS} words.\n\
-        Write a summary for the following content:\n\n',
-        'model_params': TASK_MODEL_PARAMS_LLAMA
-    }, 
+    'post_summary_news_fn': post_summary_news, 
     'insights':{
         'system_prompt': 'You are an email newsletter writer. The user will provide content for you to summarize. Respond ONLY with the summary, do NOT respond with chat.',
         'user_prompt': f'Your task is to write a short summary of a new blog post or article for someone who does not have time to read the full thing.\n\n\
@@ -168,7 +182,7 @@ def filter_outdated_news(topic_prompt_params:dict):
             1.  Go through each post and identify whether it is outdated. For example, if Post A is about rumors of an event, and Post B is a report after the event has happened, then Post A is outdated. Duplicate or redundant posts are OK as long as they are not outdated. \n\
             3. Return a formatted JSON list of all the posts and whether each is outdated (true or false). For example: [{{"pid": 261, "outdated": true}}, {{"pid": 94, "outdated": false}}, {{"pid": 433, "outdated": true}}] \n\
         Go step by step and identify outdated posts. \n\n',
-        'model_params': TASK_MODEL_PARAMS_OAI
+        'model_params': TASK_MODEL_PARAMS_OPENAI
     }
     return prompt
 
@@ -183,29 +197,35 @@ def group_story_news(topic_prompt_params:dict):
     }
     return prompt
 
-def draft_theme_news(topic_prompt_params:dict):
+def brainstorm_theme_news(topic_prompt_params:dict):
     prompt = {
-        'system_prompt': f'You are a {topic_prompt_params['topic_name']} newsletter editor. The user will provide you news posts in JSON format and instructions. Your task is to come up with a set of newsletter sections that best fits the provided news posts. Go step by step and write out each step.',
-        'user_prompt': f'Follow these steps to draft newsletter sections:\n\
-            1. Draft a list of 3 to 5 well-defined sections that best covers all of the news stories. Fewer sections is better. Make sure sections are MUTUALLY EXCLUSIVE. Section names should be short and catchy, e.g. {topic_prompt_params['theme_examples']}. One of the sections can be "Other" if there are posts that do not fit well. \n\
-            2. Assign each post id to its appropriate section \n\
-            3. Review each section and evaluate: Is there overlap with other sections? Is it overly vague or niche? Are there posts about the same story assigned to different sections? \n\
-            4. Make improvements to sections, add or remove sections if needed. Provide an updated list of sections, do NOT exceed 5 sections. \n\
-            5. Format the list of sections as a JSON list. For example: [{{"id": 1, "name": "Section A", "scope": "Covers x, y, z types of stories"}}, {{"id": 2, "name": "Section B", "scope": "Covers x, y, z types of stories"}}, {{"id": 3, "name": "Section C", "scope": "Covers x, y, z types of stories"}}] \n\n\
-            Go step by step and come up with newsletter sections.',
-        'model_params': WRITING_MODEL_PARAMS
+        'system_prompt': f'You are a {topic_prompt_params['topic_name']} newsletter editor. The user will provide posts in JSON format and instructions. Your job is to come up with ideas for newsletter sections. Make sure to go step by step and write out every step',
+        'user_prompt': f'Your task is to come up with ideas for sections for a {topic_prompt_params['topic_name']} newsletter:\n\
+            1. Draft a list of 10 ideas of well-defined section names. Each section idea should CLOSELY and DIRECTLY fit multiple news posts (the more the better). Section names should be short and catchy, e.g. {topic_prompt_params['theme_examples']}. One of the sections can be "Other" if there are posts that do not fit well. \n\
+            2. Format the list of sections as a JSON list. For example: [{{"id": 1, "name": "Section A"}}, {{"id": 2, "name": "Section B"}}, {{"id": 3, "name": "Section C"}}] \n\n\
+        Go step by step and come up with section ideas for the posts below: \n\n',
+        'model_params': BRAINSTORM_MODEL_PARAMS_LLAMA
     }
     return prompt
 
-def draft_theme_news_revise(topic_prompt_params:dict):
+def select_theme_news(topic_prompt_params:dict):
     prompt = {
-        'system_prompt': f'You are a {topic_prompt_params['topic_name']} newsletter editor. The user will provide you news posts in JSON format and instructions. Your task is to come up with a set of newsletter sections that best fits the provided news posts. Go step by step and write out each step.',
-        'user_prompt': f'1. Review each section (except for "Other") and write out a detailed evaluation:\n\
-            - Does it overlap with another section? \n\
-            - Are posts about the same story split into different sections? \n\
-            - Is it too vague and not specific to {topic_prompt_params['topic_name']}? \n\
-            - Is the naming too awkward or boring? \n\
-        2. Make improvements, add or remove sections if needed, and provide an updated JSON list of sections. \n\n',
+        'system_prompt': f'You are a {topic_prompt_params['topic_name']} newsletter editor. The user will provide instructions, section options, and news posts. Go step by step and write out each step.',
+        'user_prompt': f'Your task is to evaluate different options for newsletter sections and come up with a final set of sections that best fits the provided news posts. Follow these steps: \n\
+            1. Write a 1-line assessment of the fit of each option with the news posts. Criteria to consider: \n\
+                - Closely and directly fits multiple news posts \n\
+                - Focuses on 1 topic or theme, specific to {topic_prompt_params['topic_name']} \n\
+                - Short, engaging, not repetitive name \n\
+                - Not vague or overly broad, has minimum overlap with other sections \n\
+            2. Select a set of 3-5 sections that best fits the news posts. Include 1 "Other" section for posts that do not fit. \n\
+            3. Assign each post (id, title) to a section. \n\
+            4. Review each section and assigned posts - identify any case of the following errors: \n\
+                - Post is not perfectly related to section \n\
+                - Section has overlap with another section \n\
+                - Posts about same story assigned to different sections \n\
+                - Section is empty \n\
+            5. Fix the issues, add or remove sections if needed. Provide a final list of sections, do NOT exceed 5 sections. \n\
+            6. Format the sections as a JSON list. For example: [{{"id": 1, "name": "Section A", "scope": "Covers x, y, z types of stories"}}, {{"id": 2, "name": "Section B", "scope": "Covers x, y, z types of stories"}}, {{"id": 3, "name": "Section C", "scope": "Covers x, y, z types of stories"}}] \n\n',
         'model_params': TASK_MODEL_PARAMS_OPENAI
     }
     return prompt
@@ -216,7 +236,11 @@ def assign_theme_news(themes:str, topic_prompt_params:dict):
         'user_prompt': f'Your task is to assign each {topic_prompt_params['topic_name']} news post to the appropriate section of a newsletter according to the following steps:\n\
             1. For each post, evaluate which of the following sections it best fits into and write out your rationale. If a post does not fit any section and there is an "Other" section, you can assign it to "Other". \n\
                 {themes} \
-            3. Check your work for mistakes. Check to make sure all posts about the same story are assigned to the same section. Make corrections if needed. \n\
+            2. Check your work for mistakes: \n\
+                - Make sure all posts about the same story are assigned to the same section. \n\
+                - Make sure the news story of each posts actually fits the assigned section. \n\
+                - Make sure similar types of news stories are consistently assigned, e.g. all posts about {topic_prompt_params['assign_theme_examples']} should be in the same section. \n\
+            3. Make corrections if needed. \n\
             4. Provide a formatted JSON list of posts grouped by section. Make sure every post is assigned a section. Do NOT assign a post to more than 1 section. Here is an example: [{{"pid": 63, "section": 1}}, {{"pid": 19, "section": 3]}}, {{"pid": 812, "section": 2}}] \n\n',
         'model_params': TASK_MODEL_PARAMS_OPENAI
     }
@@ -226,8 +250,8 @@ def assign_theme_news(themes:str, topic_prompt_params:dict):
 COLLATION_PROMPTS = {
     'filter_outdated_news_fn': filter_outdated_news,
     'group_story_news_fn': group_story_news,
-    'draft_theme_news_fn': draft_theme_news,
-    'draft_theme_news_revise_fn': draft_theme_news_revise,
+    'brainstorm_theme_news_fn': brainstorm_theme_news,
+    'select_theme_news_fn': select_theme_news,
     'assign_theme_news_fn': assign_theme_news
 }
 
@@ -275,9 +299,23 @@ ERROR_FIXING_PROMPTS = {
 
 
 
-####ARCHIVED LLAMA3 COLLATION PROMPTS####
+####ARCHIVED PROMPTS####
 ###############################################################################################################################################
 '''
+
+def draft_theme_news_revise(topic_prompt_params:dict):
+    prompt = {
+        'system_prompt': f'You are a {topic_prompt_params['topic_name']} newsletter editor. The user will provide you news posts in JSON format and instructions. Your task is to come up with a set of newsletter sections that best fits the provided news posts. Go step by step and write out each step.',
+        'user_prompt': f'1. Review each section (except for "Other") and write out a detailed evaluation:\n\
+            - Does it overlap with another section? \n\
+            - Are posts about the same story split into different sections? \n\
+            - Is it too vague and not specific to {topic_prompt_params['topic_name']}? \n\
+            - Is the naming too awkward or boring? \n\
+        2. Make improvements, add or remove sections if needed, and provide an updated JSON list of sections. \n\n',
+        'model_params': TASK_MODEL_PARAMS_OPENAI
+    }
+    return prompt
+
 def group_story_news(topic_prompt_params:dict):
     prompt = {
         'system_prompt': 'Your job is to group news posts that refer to the same story. The user will provide posts in JSON format. Make sure to do the task step by step and write out every step.',

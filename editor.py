@@ -60,6 +60,29 @@ def getResponseOPENAI(content: str, prompt_config: dict, prior_chat: list[dict] 
     utils.countTokensAndSaveOAI(response.usage.prompt_tokens, response.usage.completion_tokens)
     return (output, user_prompt) if return_user_prompt else output
 
+#PARSING RESPONSE
+##############################################################################################
+def extractResponseJSON(response, step_label='[unspecified step]'):
+    try:
+        json_extracted = utils.parseMapping(response)
+    except:
+        print(f'Cannot extract out JSON from {step_label}...')
+        print(response)
+        raise
+    try:
+        output = json.loads(json_extracted)
+        return output
+    except:
+        print('Extracted JSON is not valid, trying fix...')
+    try:
+        json_extracted = fixJSON(json_extracted)
+        output = json.loads(json_extracted)
+        return output
+    except Exception as error:
+        print(f'{step_label} error:', type(error).__name__, "-", error)
+        print(response)
+        raise error
+
 #CLASSIFICATION
 ##############################################################################################
 #construct the prompt for Reddit post and get category
@@ -79,8 +102,8 @@ def classifyPost(post, feed, prompt_config='default') -> str:
 ##############################################################################################
 
 #construct the prompt for post and get summary
-def generateNewsPostSummary(post, feed, prompt_config='default') -> str:
-    prompt_config = promptconfigs.SUMMARIZER_PROMPTS['news'] if prompt_config == 'default' else prompt_config
+def generateNewsPostSummary(post, feed, topic_prompt_params: dict, prompt_config='default') -> str:
+    prompt_config = promptconfigs.SUMMARIZER_PROMPTS['post_summary_news_fn'](topic_prompt_params) if prompt_config == 'default' else prompt_config
     #combine post data into chunk of text for model
     feed_source = 'Source type: ' + feed['feed_source']
     feed_name = 'Source name: ' + feed['feed_name'] + '\n'
@@ -103,31 +126,11 @@ def filterOutdatedNews(posts: list, topic_prompt_params: dict, prompt_config='de
     response = getResponseOPENAI(content, prompt_config)
     
     print(response)
+    return extractResponseJSON(response, step_label = 'filter outdated news')
 
-    try:
-        json_extracted = utils.parseMapping(response)
-    except:
-        print('Cannot extract out JSON from model drafted themes...')
-        print(response)
-        raise
-    try:
-        output = json.loads(json_extracted)
-        return output
-    except:
-        print('Extracted JSON is not valid, trying fix...')
-    try:
-        json_extracted = fixJSON(json_extracted)
-        output = json.loads(json_extracted)
-        return output
-    except Exception as error:
-        print(f'Theme drafting error:', type(error).__name__, "-", error)
-        print(response)
-        raise error
-
-#Come up with themes to bucket news posts
-def draftNewsThemes(posts: list, topic_prompt_params: dict, prompt_config_init='default', prompt_config_revise='default') -> list[dict]:
-    prompt_config_init = promptconfigs.COLLATION_PROMPTS['draft_theme_news_fn'](topic_prompt_params) if prompt_config_init == 'default' else prompt_config_init
-    prompt_config_revise = promptconfigs.COLLATION_PROMPTS['draft_theme_news_revise_fn'](topic_prompt_params) if prompt_config_revise == 'default' else prompt_config_revise
+#Brainstorm and collect a set of potential theme options
+def brainstormNewsThemes(posts: list, topic_prompt_params: dict, prompt_config='default') -> list[dict]:
+    prompt_config = promptconfigs.COLLATION_PROMPTS['brainstorm_theme_news_fn'](topic_prompt_params) if prompt_config == 'default' else prompt_config
     content = ''
 
     #construct the string with all the posts
@@ -138,38 +141,29 @@ def draftNewsThemes(posts: list, topic_prompt_params: dict, prompt_config_init='
     #content = content_long if utils.tokenCountLlama3(content_long) <= prompt_config_init['model_params']['truncate'] else content_short
 
     #first get initial themes from model with base prompt
-    initial_response, user_prompt = getResponseOPENAI(content, prompt_config_init, return_user_prompt=True)
+    response = getResponseLLAMA(content, prompt_config)
+    return extractResponseJSON(response, step_label = 'brainstorm themes')
 
-    print(initial_response)
+#Select the best fit themes to bucket news posts from the brainstormed options
+def selectNewsThemes(posts: list, theme_options:list, topic_prompt_params: dict, prompt_config='default') -> list[dict]:
+    prompt_config = promptconfigs.COLLATION_PROMPTS['select_theme_news_fn'](topic_prompt_params) if prompt_config == 'default' else prompt_config
+    content = ''
 
-    #then send model chat history and ask it to revise
-    prior_chat = [{
-        'user': user_prompt,
-        'assistant': initial_response
-    }]
-    revised_response = getResponseOPENAI(content='', prompt_config=prompt_config_revise, prior_chat=prior_chat)
+    #add theme options to string
+    content = content + f'SECTION OPTIONS: \n\n{json.dumps(theme_options)} \n\nNEWS POSTS: \n\n'
 
-    print(revised_response)
+    #construct the string with all the posts
+    for post in posts:
+        content = content + f'{{"pid": {post['post_id']}, "title": "{post['retitle_ml']}", "summary": "{post['summary_ml']}"}}\n'
 
-    try:
-        json_extracted = utils.parseMapping(revised_response)
-    except:
-        print('Cannot extract out JSON from model drafted themes...')
-        print(revised_response)
-        raise
-    try:
-        output = json.loads(json_extracted)
-        return output
-    except:
-        print('Extracted JSON is not valid, trying fix...')
-    try:
-        json_extracted = fixJSON(json_extracted)
-        output = json.loads(json_extracted)
-        return output
-    except Exception as error:
-        print(f'Theme drafting error:', type(error).__name__, "-", error)
-        print(revised_response)
-        raise error
+    #check if tokens exceeds max input, if so, just use titles no summary text
+    #content = content_long if utils.tokenCountLlama3(content_long) <= prompt_config_init['model_params']['truncate'] else content_short
+
+    #first get initial themes from model with base prompt
+    response = getResponseOPENAI(content, prompt_config)
+
+    print(response)
+    return extractResponseJSON(response, step_label = 'select themes')
 
 #Groups news posts into up to N buckets
 def assignNewsPostsToThemes(posts: list, themes: list, topic_prompt_params: dict, prompt_config='default') -> list[dict]:
@@ -187,26 +181,7 @@ def assignNewsPostsToThemes(posts: list, themes: list, topic_prompt_params: dict
     response = getResponseOPENAI(content, prompt_config)
 
     print(response)
-
-    try:
-        json_extracted = utils.parseMapping(response)
-    except:
-        print('Cannot extract out JSON from model theme mapping...')
-        print(response)
-        raise
-    try:
-        output = json.loads(json_extracted)
-        return output
-    except:
-        print('Theme mapping from model not valid JSON, trying fix...')
-    try:
-        json_extracted = fixJSON(json_extracted)
-        output = json.loads(json_extracted)
-        return output
-    except Exception as error:
-        print(f'Theme mapping error:', type(error).__name__, "-", error)
-        print(response)
-        raise error
+    return extractResponseJSON(response, step_label = 'map posts to themes')
 
 #Groups similar/repeat headlines into stories - split into 2 steps, initial and revise
 def groupNewsPostsToStories(posts: list, topic_prompt_params: dict, prompt_config='default') -> list[dict]:
@@ -222,27 +197,7 @@ def groupNewsPostsToStories(posts: list, topic_prompt_params: dict, prompt_confi
 
     response = getResponseOPENAI(content, prompt_config)
 
-    print(response)
-    
-    try:
-        json_extracted = utils.parseMapping(response)
-    except:
-        print('Cannot extract JSON from model story mapping response')
-        print(response)
-        raise
-    try:
-        output = json.loads(json_extracted)
-        return output
-    except:
-        print('Story mapping from model not valid JSON, trying fix...')
-    try:
-        json_extracted = fixJSON(json_extracted)
-        output = json.loads(json_extracted)
-        return output
-    except Exception as error:
-        print(f'Story mapping error:', type(error).__name__, "-", error)
-        print(response)
-        raise error
+    return extractResponseJSON(response, step_label = 'group posts to stories')
 
 #collates posts associated with story into a single summary
 def generateStorySummary(storyposts: list, topic_prompt_params: dict, prompt_config='default') -> tuple[str, list]:
@@ -325,25 +280,8 @@ def scoreNewsStories(stories: list, topic_prompt_params: dict, prompt_config='de
     for story in stories:
         content = content + f'{{"sid": {story['story_id']}, "headline": "{story['headline_ml']}", "summary": "{story['summary_ml']}"}}\n'
     
-    raw_response = getResponseOPENAI(content, prompt_config)
-    try:
-        parsed_response = utils.parseMapping(raw_response)
-    except:
-        print(raw_response)
-        raise
-    try:
-        output = json.loads(parsed_response)
-        return output
-    except:
-        print('Initial story scoring output not valid JSON, trying fix...')
-    try:
-        parsed_response = fixJSON(parsed_response)
-        output = json.loads(parsed_response)
-        return output
-    except Exception as error:
-        print(f'Story scoring error:', type(error).__name__, "-", error)
-        print(raw_response)
-        raise
+    response = getResponseOPENAI(content, prompt_config)
+    return extractResponseJSON(response, step_label = 'story ranking')
 
 #ERROR FIXING
 ##############################################################################################
