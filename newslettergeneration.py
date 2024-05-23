@@ -6,6 +6,27 @@ import changelog
 from pytz import timezone
 from datetime import datetime, time, timedelta
 
+#HELPER FUNCTIONS
+##############################################################################################
+#Record usage of story and posts in newsletter
+def recordUsage(stories:list[dict], newsletter_date):
+    story_updates = []
+    post_updates = []
+    for story in stories:
+        story_updates.append({
+            'story_id': story['story_id'],
+            'used_in_newsletter': True,
+            'newsletter_date': newsletter_date
+        })
+        for post in story['posts_summarized']:
+            post_updates.append({
+                'post_id': post['post_id'],
+                'used_in_newsletter': True,
+                'newsletter_date': newsletter_date
+            })
+    db.updateStories(story_updates)
+    db.updatePosts(post_updates)
+
 #HTML UNIT CONSTRUCTORS
 ##############################################################################################
 def ampLink(text, url):
@@ -92,6 +113,9 @@ def constructNewsBlock(topic_id, top_k_stories, min_datetime):
         child = child + storyUnit(tag=story['theme_name_ml'], headline=story['headline_ml'] + ml_score, body=story['summary_ml'], links=links)
         child = f'<div>{child}</div>'
     units.append((parent, child))
+
+    #record usage of stories and posts in newsletter
+    recordUsage(story_candidates)
 
     #add unused stories accordion section if applicable
     if unused_stories != []:
@@ -202,7 +226,7 @@ def wrapEncodeHTML(body_html, template_path):
 #GENERATE NEWSLETTER AND SEND
 ##############################################################################################
 PATH_EMAIL_TEMPLATE = 'emailtemplates/amptemplate_v004.html'
-today_start = datetime.combine(datetime.today(), time.min).astimezone(timezone(configs.LOCAL_TZ)) - timedelta(days=1)
+today_start = datetime.combine(datetime.today(), time.min).astimezone(timezone(configs.LOCAL_TZ))
 topics = [{'topic_id': 1}, {'topic_id': 2}]
 title = 'HYPECRAFT V0.0.4 TEST'
 top_k_stories = 5
