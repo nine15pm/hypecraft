@@ -8,7 +8,7 @@ from openai import OpenAI
 #CONFIGS
 ##############################################################################################
 #Summary configs
-MAX_POSTS_PER_STORY_SUMMARY = 3
+MAX_POSTS_PER_STORY_SUMMARY = 4
 NUM_WORDS_POST_EXCERPT = 100
 
 #Huggingface API
@@ -209,25 +209,27 @@ def generateStorySummary(storyposts: list, topic_prompt_params: dict, prompt_con
         summary = storyposts[0]['summary_ml']
         posts_summarized = [storyposts[0]['post_id']]
     else:
-        #if more than 1 post, but within cap of 3, then use all posts for summary
+        #if more than 1 post, but within cap, then use all posts for summary
         if len(storyposts) <= MAX_POSTS_PER_STORY_SUMMARY:
             selected_posts = storyposts
         
-        #if more than max cap of 3 posts, then select the newest, longest text, highest likes score, in that order
+        #if more than max cap posts, then select the newest, longest text, highest likes score, in that order
         else:
             selected_posts = []
             #get list index and post for newest post
-            filtered = max(enumerate(storyposts), key = lambda post: post[1]['post_publish_time'])
-            del storyposts[filtered[0]]
-            selected_posts.append(filtered[1])
-            #out of remaining posts, get longest text post
-            filtered = max(enumerate(storyposts), key = lambda post: len((post[1]['post_text'] if post[1]['post_text'] is not None else '') + (post[1]['external_parsed_text'] if post[1]['external_parsed_text'] is not None else '')))
-            del storyposts[filtered[0]]
-            selected_posts.append(filtered[1])
+            filtered = sorted(enumerate(storyposts), key = lambda post: post[1]['post_publish_time'], reverse=True)
+            del storyposts[filtered[0][0]]
+            selected_posts.append(filtered[0][1])
+            #out of remaining posts, get 2 longest text posts
+            filtered = sorted(enumerate(storyposts), key = lambda post: len((post[1]['post_text'] if post[1]['post_text'] is not None else '') + (post[1]['external_parsed_text'] if post[1]['external_parsed_text'] is not None else '')), reverse=True)
+            del storyposts[filtered[0][0]]
+            del storyposts[filtered[1][0]]
+            selected_posts.append(filtered[0][1])
+            selected_posts.append(filtered[1][1])
             #out of remaining posts, get most likes post
-            filtered = max(enumerate(storyposts), key = lambda post: (post[1]['likes_score'] if post[1]['likes_score'] is not None else 0))
-            del storyposts[filtered[0]]
-            selected_posts.append(filtered[1])
+            filtered = sorted(enumerate(storyposts), key = lambda post: (post[1]['likes_score'] if post[1]['likes_score'] is not None else 0), reverse=True)
+            del storyposts[filtered[0][0]]
+            selected_posts.append(filtered[0][1])
 
         #construct content string for model
         for i, post in enumerate(selected_posts):
