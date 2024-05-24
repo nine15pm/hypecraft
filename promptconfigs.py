@@ -76,12 +76,20 @@ def constructPromptOPENAI(user_prompt, prior_chat: list[dict] = None, system_pro
     #print(messages)
     return messages
 
+def constructSFREmbedQuery(task_description:str, query:str):
+    return f'Instruct: {task_description}\nQuery: {query}'
+
 #PROMPTS
 ###################################################################
 
 #shared configs across multiple prompts
 SUMMARY_LEN_NEWS = 150
 SUMMARY_LEN_INSIGHTS = 250
+
+#RAG search prompts
+RAG_SEARCH_TASKS = {
+    'similar_news': 'Given a piece of news, retrieve relevant passages about the same news story - e.g. prior developments, related context'
+}
 
 #Prompts for classification
 #REFACTOR this later to make categories reference separate variable
@@ -199,7 +207,7 @@ def group_story_news(topic_prompt_params:dict):
 
 def brainstorm_theme_news(topic_prompt_params:dict):
     prompt = {
-        'system_prompt': f'You are a {topic_prompt_params['topic_name']} newsletter editor. The user will provide posts in JSON format and instructions. Your job is to come up with ideas for newsletter sections. Make sure to go step by step and write out every step',
+        'system_prompt': f'You are a {topic_prompt_params['topic_name']} newsletter editor. The user will provide posts and instructions. Your job is to come up with ideas for newsletter sections. Make sure to format the ideas in a JSON list',
         'user_prompt': f'Your task is to come up with ideas for sections for a {topic_prompt_params['topic_name']} newsletter:\n\
             1. Draft a list of 10 ideas of well-defined section names. Each section idea should CLOSELY and DIRECTLY fit multiple news posts (the more the better). Section names should be short and catchy, e.g. {topic_prompt_params['theme_examples']}. One of the sections can be "Other" if there are posts that do not fit well. \n\
             2. Format the list of sections as a JSON list. For example: [{{"id": 1, "name": "Section A"}}, {{"id": 2, "name": "Section B"}}, {{"id": 3, "name": "Section C"}}] \n\n\

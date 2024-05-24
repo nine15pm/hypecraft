@@ -200,7 +200,7 @@ def getTopics(filters={}):
     table = TOPIC_TABLE
     return readEntries(table=table, filters=filters)
 
-def getPostsForDupCheck(min_datetime=MIN_DATETIME_DEFAULT, filters={}):
+def getFilteredPostIDs(min_datetime=MIN_DATETIME_DEFAULT, filters={}):
     table = POST_TABLE
     fields = [
         'post_id'
@@ -320,6 +320,28 @@ def getPostsForStorySummary(post_ids):
     }
     return readEntries(table=table, fields=fields, filters=filters)
 
+def getPostsForEmbed(topic_id, min_datetime=MIN_DATETIME_DEFAULT, max_datetime=MAX_DATETIME_DEFAULT):
+    table = POST_TABLE
+    fields = [
+        'post_id',
+        'post_publish_time',
+        'post_title',
+        'story_id',
+        'topic_id',
+        'used_in_newsletter',
+        'newsletter_date',
+        'created_at',
+        'post_link',
+        'summary_ml',
+        'retitle_ml',
+        'category_ml'
+    ]
+    filters = {
+        'topic_id': topic_id,
+        'category_ml': 'news'
+    }
+    return readEntries(table=table, min_datetime=min_datetime, fields=fields, filters=filters, max_datetime=max_datetime)
+
 def getPostLinksForStory(post_ids):
     table = POST_TABLE
     fields = [
@@ -376,6 +398,25 @@ def getStoriesForTopic(topic_id, min_datetime=MIN_DATETIME_DEFAULT, max_datetime
         'posts_summarized',
         'daily_i_score_ml',
         'theme_id'
+    ]
+    filters = {
+        'topic_id': topic_id,
+    }
+    return readEntries(table=table, min_datetime=min_datetime, fields=fields, filters=filters, max_datetime=max_datetime)
+
+def getStoriesForEmbed(topic_id, min_datetime=MIN_DATETIME_DEFAULT, max_datetime=MAX_DATETIME_DEFAULT):
+    table = STORY_TABLE
+    fields = [
+        'story_id',
+        'topic_id',
+        'used_in_newsletter',
+        'newsletter_date',
+        'created_at',
+        'posts_summarized',
+        'posts',
+        'daily_i_score_ml',
+        'headline_ml',
+        'summary_ml'
     ]
     filters = {
         'topic_id': topic_id,

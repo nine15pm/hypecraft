@@ -3,7 +3,7 @@ import db
 import sourcer
 import editor
 import configs
-import random
+import RAG
 from pytz import timezone
 from datetime import datetime, time, timedelta
 
@@ -205,6 +205,12 @@ def groupStories(topic, min_datetime, max_datetime=MAX_DATETIME_DEFAULT):
             db.updatePosts(posts)
         print(f'Stories for theme "{theme['theme_name_ml']}" mapped and saved to DB')
 
+#embed news post summaries and save to vector DB
+def embedNewsPosts(topic, min_datetime, max_datetime=MAX_DATETIME_DEFAULT):
+    news_posts = db.getPostsForEmbedding(topic['topic_id'], min_datetime=min_datetime)
+    RAG.embedAndUpsertPosts(news_posts)
+    print(f'Posts embedded and saved to vector DB')
+
 #load stories, generate story summary, update in DB
 def summarizeStories(topic, min_datetime, max_datetime=MAX_DATETIME_DEFAULT):
     stories = db.getStoriesForTopic(topic['topic_id'], min_datetime=min_datetime, max_datetime=max_datetime)
@@ -249,6 +255,12 @@ def rankStories(topic, min_datetime, max_datetime=MAX_DATETIME_DEFAULT):
 
         db.updateStories(story_updates)
         print(f'Stories for theme "{theme['theme_name_ml']}" scored and i_scores updated in DB')
+
+#embed stories headline and summaries and save to vector DB
+def embedStories(topic, min_datetime, max_datetime=MAX_DATETIME_DEFAULT):
+    stories = db.getStoriesForEmbedding(topic['topic_id'], min_datetime=min_datetime)
+    RAG.embedAndUpsertStories(stories)
+    print(f'Stories embedded and saved to vector DB')
 
 #load stories, generate theme
 def summarizeThemes(topic, min_datetime, top_k_stories, max_datetime=MAX_DATETIME_DEFAULT):
@@ -348,7 +360,7 @@ def storyQAToCSV(topic, min_datetime, max_datetime=MAX_DATETIME_DEFAULT):
 ##############################################################################################
 def main():
     #Pipeline params
-    topic_id = 2
+    topic_id = 1
     max_posts_reddit = 100
     brainstorm_loops = 3
     top_k_stories = 3
@@ -358,10 +370,10 @@ def main():
     #db.deleteStories(min_datetime=DATETIME_TODAY_START)
     #db.deleteThemes(min_datetime=DATETIME_TODAY_START)
 
-    pullPosts(topic, max_posts_reddit, min_timestamp=DATETIME_TODAY_START.timestamp())
-    categorizePosts(topic, min_datetime=DATETIME_TODAY_START)
-    summarizeNewsPosts(topic, min_datetime=DATETIME_TODAY_START)
-    filterNewsPosts(topic, min_datetime=DATETIME_TODAY_START)
+    #pullPosts(topic, max_posts_reddit, min_timestamp=DATETIME_TODAY_START.timestamp())
+    #categorizePosts(topic, min_datetime=DATETIME_TODAY_START)
+    #summarizeNewsPosts(topic, min_datetime=DATETIME_TODAY_START)
+    #filterNewsPosts(topic, min_datetime=DATETIME_TODAY_START)
     draftAndMapThemes(topic, brainstorm_loops=brainstorm_loops, min_datetime=DATETIME_TODAY_START)
     groupStories(topic, min_datetime=DATETIME_TODAY_START)
     mappingToCSV(topic, min_datetime=DATETIME_TODAY_START)
