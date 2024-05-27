@@ -2,7 +2,7 @@ import promptconfigs
 import numpy as np
 from datetime import datetime
 from qdrant_client import QdrantClient
-from qdrant_client.models import Distance, VectorParams, PointStruct, Filter, FieldCondition, FilterSelector, MatchValue, DatetimeRange
+from qdrant_client.models import Distance, VectorParams, PointStruct, Filter, FieldCondition, FilterSelector, MatchValue, DatetimeRange, SearchParams, HnswConfigDiff
 from haystack_integrations.components.embedders.ollama import OllamaTextEmbedder
 
 #CONFIGS
@@ -25,7 +25,7 @@ def normalizeVec(vector, p=2, dim=-1):
 
 #ADMIN
 #####################################################
-def addCollection(name:str, dim:int, distance=Distance.COSINE, on_disk=True):
+def addCollection(name:str, dim:int, distance=Distance.DOT, on_disk=True):
     client = QdrantClient(
         url=QDRANT_URL
     )
@@ -36,6 +36,19 @@ def addCollection(name:str, dim:int, distance=Distance.COSINE, on_disk=True):
             distance=distance,
             on_disk=on_disk
         ),
+    )
+    print(f'Collection "{name}" added')
+
+def updateCollectionHNSW(collection:str, m:int, ef:int):
+    client = QdrantClient(
+        url=QDRANT_URL
+    )
+    client.update_collection(
+        collection_name=collection,
+        hnsw_config=HnswConfigDiff(
+            m=m,
+            ef_construct=ef,
+        )
     )
 
 def deletePointsByTopic(collection, topic_id):
@@ -75,13 +88,15 @@ def searchCollection(collection:str, task_description:str, text:str, max_results
         url=QDRANT_URL
     )
 
-    #construct query and get vector embedding
+    #construct query, get vector embedding, normalize
     embedder = OllamaTextEmbedder(model=MODEL_EMBEDDER, url=OLLAMA_EMBEDDING_URL)
     query_vec = embedder.run(promptconfigs.constructSFREmbedQuery(task_description=task_description, query=text))['embedding']
-    query_vec = query_vec
+    query_vec = normalizeVec(query_vec)
 
     #add filters if applicable
     payload_filters = None if filters == [] or filters is None else Filter(must=filters)
+
+    search_params = SearchParams(indexed_only=True)
 
     #search
     results = client.search(
@@ -90,7 +105,8 @@ def searchCollection(collection:str, task_description:str, text:str, max_results
         query_filter=payload_filters,
         with_payload=True,
         limit=max_results,
-        score_threshold=min_score
+        score_threshold=min_score,
+        search_params=search_params
     )
 
     #format results into JSON with payload
@@ -112,7 +128,7 @@ def postsToPoints(posts:list[dict]) -> list[PointStruct]:
 
     for post in posts:
         embedding = embedder.run(f'{post['retitle_ml']}\n\n{post['summary_ml']}')['embedding']
-        embedding = embedding
+        embedding = normalizeVec(embedding)
         payload = {
             'story_id': post['story_id'],
             'topic_id': post['topic_id'],
@@ -136,7 +152,7 @@ def storiesToPoints(stories:list[dict]) -> list[PointStruct]:
 
     for story in stories:
         embedding = embedder.run(f'{story['headline_ml']}\n\n{story['summary_ml']}')['embedding']
-        embedding = embedding
+        embedding = normalizeVec(embedding)
         payload = {
             'story_id': story['story_id'],
             'topic_id': story['topic_id'],
@@ -163,7 +179,7 @@ def embedAndUpsertStories(stories:list[dict]):
     points = storiesToPoints(stories)
     upsertPoints(collection=QDRANT_STORY_COLLECTION, points=points)
 
-def searchStories(text:str, max_results:int, min_score:float=0.0, match_filters:dict={}, min_datetime=MIN_DATETIME_DEFAULT, max_datetime=MAX_DATETIME_DEFAULT):
+def searchStories(text:str, max_results:int, min_score:float=0.0, match_filters:dict={}, min_datetime=MIN_DATETIME_DEFAULT, max_datetime=MAX_DATETIME_DEFAULT) -> list[dict]:
     #construct filters
     filters = []
     filters.append(FieldCondition(key='created_at', range=DatetimeRange(gt=min_datetime, lt=max_datetime)))

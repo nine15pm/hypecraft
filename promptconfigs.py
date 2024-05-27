@@ -88,7 +88,7 @@ SUMMARY_LEN_INSIGHTS = 250
 
 #RAG search prompts
 RAG_SEARCH_TASKS = {
-    'similar_news': 'Given a piece of news, retrieve relevant passages about the same news story - e.g. prior developments, related context'
+    'similar_news': 'Given a news post, retrieve posts that discuss the SAME news story'
 }
 
 #Prompts for classification
@@ -182,18 +182,49 @@ SUMMARIZER_PROMPTS = {
     'topic_summary_news_fn': topic_summary_news
 }
 
-#Functions for collation prompts
+#Functions for filter prompts
 def filter_outdated_news(topic_prompt_params:dict):
     prompt = {
         'system_prompt': f'You are a {topic_prompt_params['topic_name']} newsletter editor. The user will provide you news posts in JSON format and instructions. Your task is to identify outdated news posts given the context of other news posts. Go step by step and write out each step.',
         'user_prompt': f'Follow these steps to identify outdated posts:\n\
-            1.  Go through each post and identify whether it is outdated. For example, if Post A is about rumors of an event, and Post B is a report after the event has happened, then Post A is outdated. Duplicate or redundant posts are OK as long as they are not outdated. \n\
-            3. Return a formatted JSON list of all the posts and whether each is outdated (true or false). For example: [{{"pid": 261, "outdated": true}}, {{"pid": 94, "outdated": false}}, {{"pid": 433, "outdated": true}}] \n\
+            1. Go through each post and identify whether it is outdated. For example, if Post A is about rumors of an event, and Post B is a report after the event has happened, then Post A is outdated. Duplicate or redundant posts are OK as long as they are not outdated. \n\
+            2. Return a formatted JSON list of all the posts and whether each is outdated (true or false). For example: [{{"pid": 261, "outdated": true}}, {{"pid": 94, "outdated": false}}, {{"pid": 433, "outdated": true}}] \n\
         Go step by step and identify outdated posts. \n\n',
         'model_params': TASK_MODEL_PARAMS_OPENAI
     }
     return prompt
 
+def filter_RAG_results(topic_prompt_params:dict):
+    prompt = {
+        'system_prompt': f'You are a {topic_prompt_params['topic_name']} newsletter editor. The user will provide you news stories and instructions. Make sure to go step by step and write out each step.',
+        'user_prompt': f'Your task is to identify the candidate posts that discuss the SAME NEWS STORY as the target post. Follow these steps:\n\
+            1. Evaluate each candidate post vs. the target. Write out your assessment of whether it discusses the same news story. \n\
+            2. Return a formatted JSON list of ONLY the posts that discuss the same news story as target. Here is an example: [{{"id": 157, "title": "post 157 title"}}, {{"id": 942, "title": "post 942 title"}}, {{"id": 418, "title": "post 418 title"}}] \n\
+            3. If there are no posts to return, return empty list [{{}}] \n\
+        Go step by step and do the task. \n\n',
+        'model_params': TASK_MODEL_PARAMS_LLAMA
+    }
+    return prompt
+
+def filter_newinfo_story(topic_prompt_params:dict):
+    prompt = {
+        'system_prompt': f'You are a {topic_prompt_params['topic_name']} newsletter editor. The user will provide you news stories and instructions. Make sure to go step by step and write out each step.',
+        'user_prompt': f'Your task is to compare the target news post with past news posts to determine whether the target news post has newer, more recent info. Follow these steps:\n\
+            1. Compare the target post against each past post. Ignore posts that do not discuss the same news story. Write out each piece of new and more recent info contained in the target post. If there is newer info, evaluate if it is meaningful or insignificant. \n\
+            2. Based on this evaluation, decide if the target post has new and meaningful info or is repetitive. Respond with JSON true or false: [{{"new_and_meaningful": false}}] \n\
+        Go step by step and do the task. \n\n',
+        'model_params': TASK_MODEL_PARAMS_LLAMA
+    }
+    return prompt
+
+#Filter prompts
+FILTERING_PROMPTS = {
+    'filter_outdated_news_fn': filter_outdated_news,
+    'filter_RAG_results_fn': filter_RAG_results,
+    'filter_newinfo_story_fn': filter_newinfo_story
+}
+
+#Functions for collation prompts
 def group_story_news(topic_prompt_params:dict):
     prompt = {
         'system_prompt': f'You are a {topic_prompt_params['topic_name']} newsletter editor. The user will provide you news posts in JSON format and instructions. Your task is identify posts about the same news story. Go step by step and write out each step.',
@@ -266,20 +297,38 @@ COLLATION_PROMPTS = {
 #Functions for dynamic ranking prompts
 def score_news(topic_prompt_params:dict):
     prompt = {
-        'system_prompt': f'You are a {topic_prompt_params['topic_name']} newsletter editor. The user will provide you news stories in JSON format and instructions. Your task is to score the importance of news stories. Go step by step and write out each step.',
+        'system_prompt': f'You are a {topic_prompt_params['topic_name']} newsletter editor. The user will provide you news stories in JSON format and instructions. Your task is to score news stories to determine their ranking in the newsletter. Go step by step and write out each step.',
         'user_prompt': f'Follow these steps: \n\
-            1. Evaluate how important the news is to a {topic_prompt_params['topic_name']} enthusiast. Prioritize exclusive, surprising, or breaking news with big potential impact. \n\
-            2. List out a brief summary assessment for each story. \n\
-            3. Assign a score from 1-100 to each story based on your assessment. Higher score means more important. Do not assign the same score to multiple stories. \n\
-            4. Format the scores as a JSON list. Here is an example: [{{"sid": 157, "i_score": 71}}, {{"sid": 942, "i_score": 42}}, {{"sid": 418, "i_score": 16}}]. \n\
+            1. Score each news story from 1-100 based on these guidelines, write out the rationale. Use your best judgement and consider what a Formula 1 enthusiast would most care to read about. \n\
+            General guidelines for score ranges: \n\
+                - Breaking or exclusive news with huge impact: 80-100 \n\
+                - News revealing major new info or rumors with big impact: 60-80 \n\
+                - Most day-to-day news: 30-60 \n\
+                - Minor or low impact news: 1-30 \n\
+            Relative priority of different news categories: \n\
+                {topic_prompt_params['ranking_rubric']} \n\
+            2. Format the scores as a JSON list. Here is an example: [{{"sid": 157, "i_score": 71}}, {{"sid": 942, "i_score": 42}}, {{"sid": 418, "i_score": 16}}]. \n\
         Go step by step and evaluate the stories.\n\n',
         'model_params': TASK_MODEL_PARAMS_OPENAI
     }
     return prompt
 
+def tweet_search_query(topic_prompt_params:dict):
+    prompt = {
+        'system_prompt': f'You are a {topic_prompt_params['topic_name']} news sourcer. The user will provide a news story and instructions. Go step by step and write out each step.',
+        'user_prompt': f'Your task is to come up with a search query to find tweets about the news story. Follow these steps: \n\
+            1. Read the provided news story and write out 5 draft search queries that are likely to return trending tweets about the story. A query CANNOT exceed 10 words. \n\
+            2. Evaluate the draft queries and choose the best query. Write out your rationale. \n\
+            3. Format the best search query as a JSON list. Here is an example: [{{"query": "example search query"}}] \n\
+        Go step by step and come up with a good search query.\n\n',
+        'model_params': TASK_MODEL_PARAMS_LLAMA
+    }
+    return prompt
+
 #Prompts for selection and ranking
 RANKING_PROMPTS = {
-    'score_news_fn': score_news
+    'score_news_fn': score_news,
+    'tweet_search_query_fn': tweet_search_query
 }
 
 #Prompts for writing headlines

@@ -1,5 +1,4 @@
 import promptconfigs
-import configs
 import requests
 import json
 import utils
@@ -33,7 +32,10 @@ def getResponseLLAMA(content: str, prompt_config: dict, prior_chat: list[dict] =
     utils.countTokensAndSaveLlama3(inputs)
     payload = {
         'inputs': inputs,
-        'parameters': params
+        'parameters': params,
+        'options': {
+            'wait_for_model': True
+        }
     }
     response = requests.post(HF_API_URL + HF_MODEL, headers=HF_API_HEADERS, json=payload)
     try:
@@ -118,7 +120,7 @@ def generateNewsPostSummary(post, feed, topic_prompt_params: dict, prompt_config
 ##############################################################################################
 #Filter out outdated news stories
 def filterOutdatedNews(posts: list, topic_prompt_params: dict, prompt_config='default') -> list[dict]:
-    prompt_config = promptconfigs.COLLATION_PROMPTS['filter_outdated_news_fn'](topic_prompt_params) if prompt_config == 'default' else prompt_config
+    prompt_config = promptconfigs.FILTERING_PROMPTS['filter_outdated_news_fn'](topic_prompt_params) if prompt_config == 'default' else prompt_config
     content = ''
     for post in posts:
         content = content + f'{{"pid": {post['post_id']}, "title": "{post['retitle_ml']}", "summary": "{post['summary_ml']}"}}\n'
@@ -196,8 +198,37 @@ def groupNewsPostsToStories(posts: list, topic_prompt_params: dict, prompt_confi
     #content = content_long if utils.tokenCountLlama3(content_long) <= prompt_config_init['model_params']['truncate'] else content_short
 
     response = getResponseOPENAI(content, prompt_config)
-
     return extractResponseJSON(response, step_label = 'group posts to stories')
+
+#Filters RAG results to remove unrelated stories
+def filterStoryRAGResults(target_story: dict, RAG_stories: list, topic_prompt_params: dict, prompt_config='default') -> list[dict]:
+    prompt_config = promptconfigs.FILTERING_PROMPTS['filter_RAG_results_fn'](topic_prompt_params) if prompt_config == 'default' else prompt_config
+    content = ''
+
+    #add target story to string
+    content = content + f'TARGET POST: \n\nHeadline:{target_story['headline_ml']} \nSummary: {target_story['summary_ml']}\n\n'
+
+    #add RAG story to string
+    for story in RAG_stories:
+        content = content + f'CANDIDATE POSTS: \n\n{{"id": {story['story_id']}, "headline": {story['headline_ml']}}}\n'
+    
+    response = getResponseLLAMA(content, prompt_config)
+    return extractResponseJSON(response, step_label = 'filter RAG results')
+
+#filter based on whether story has meaningful new info vs. past stories discussing the same news
+def filterStoryNewInfo(target_story: dict, past_stories: list, topic_prompt_params: dict, prompt_config='default') -> list[dict]:
+    prompt_config = promptconfigs.FILTERING_PROMPTS['filter_newinfo_story_fn'](topic_prompt_params) if prompt_config == 'default' else prompt_config
+    content = ''
+
+    #add target story to string
+    content = content + f'TARGET POST: \n\nHeadline:{target_story['headline_ml']} \nSummary: {target_story['summary_ml']}\n\n'
+
+    #add past stories to string
+    for story in past_stories:
+        content = content + f'PAST POSTS: \n\n{{"id": {story['story_id']}, "headline": {story['headline_ml']}}}\n'
+    
+    response = getResponseLLAMA(content, prompt_config)
+    return extractResponseJSON(response, step_label = 'filter if story has new info vs past')
 
 #collates posts associated with story into a single summary
 def generateStorySummary(storyposts: list, topic_prompt_params: dict, prompt_config='default') -> tuple[str, list]:
@@ -284,6 +315,13 @@ def scoreNewsStories(stories: list, topic_prompt_params: dict, prompt_config='de
     
     response = getResponseOPENAI(content, prompt_config)
     return extractResponseJSON(response, step_label = 'story ranking')
+
+#generate a tweet search query for calcing trend score
+def generateTweetSearchQuery(story: dict, topic_prompt_params: dict, prompt_config='default') -> str:
+    prompt_config = promptconfigs.RANKING_PROMPTS['tweet_search_query_fn'](topic_prompt_params) if prompt_config == 'default' else prompt_config
+    content = f'Headline: {story['headline_ml']} \nSummary: {story['summary_ml']}'
+    response = getResponseOPENAI(content, prompt_config)
+    return extractResponseJSON(response, step_label = 'generate tweet search query')
 
 #ERROR FIXING
 ##############################################################################################
