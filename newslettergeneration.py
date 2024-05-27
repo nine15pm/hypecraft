@@ -33,17 +33,18 @@ def recordUsage(stories:list[dict], newsletter_date):
 def ampLink(text, url):
     return f'<a href="{url}" class="link">{text}</a>'
 
-def storyUnit(tag:str, headline:str, body:str, links:list):
+def storyUnit(tag:str, headline:str, body:str, links:list, rag=False, rag_items=[]):
     links_html = ''
     for i, link in enumerate(links):
         links_html = links_html + ampLink(text=f'Link {i}', url=link)
     
     #Show RAG results for QA
-    results = RAG.searchStories(text=f'{headline}/n/n{body}', max_results=4)
-    rag_string = ''
-    for item in results:
-        story = db.getStories(filters={'story_id':item['id']})[0]
-        rag_string = rag_string + f'- [Cos-sim: {item['sim_score']}] [Past newsletter: {story['used_in_newsletter']}] {story['headline_ml']}\n'
+    if rag:
+        rag_string = ''
+        for item in rag_items:
+            rag_string = rag_string + f'- [[Past newsletter: {item['newsletter_date']}] {item['headline_ml']}\n'
+    else:
+        rag_string=''
 
     output_html = f'''
         <div class="unit-story">
@@ -92,7 +93,7 @@ def constructNewsBlock(topic_id, top_k_stories, min_datetime, newsletter_date):
     
     #get stories for all themes, except other
     for theme in themes:
-        stories = db.getStoriesForTheme(theme['theme_id'], min_datetime=min_datetime)
+        stories = db.getFilteredStoriesForTheme(theme['theme_id'], min_datetime=min_datetime)
         if theme['theme_name_ml'] != 'Other':
             for i in range(len(stories)):
                 stories[i]['theme_name_ml'] = theme['theme_name_ml']
@@ -100,7 +101,7 @@ def constructNewsBlock(topic_id, top_k_stories, min_datetime, newsletter_date):
         else:
             unused_stories = unused_stories + stories
 
-    #sort stories based on i_score from model, take top 3, then construct units
+    #sort stories based on i_score from model, take top k, then construct units
     story_candidates = sorted(story_candidates, key=lambda story: story['daily_i_score_ml'], reverse=True)
 
     if len(story_candidates) > top_k_stories:
@@ -123,8 +124,17 @@ def constructNewsBlock(topic_id, top_k_stories, min_datetime, newsletter_date):
             else:
                 link = post['external_link']
             links.append(link)
+
+        #Get QA info to attach
         ml_score = f' (ML score: {story['daily_i_score_ml']})'
-        child = child + storyUnit(tag=story['theme_name_ml'], headline=story['headline_ml'] + ml_score, body=story['summary_ml'], links=links)
+        trend_score = f' (Trend score: {story['trend_score']})'
+        past_newsletter = f' (Past repeat: {story['past_newsletter_repeat']})'
+
+        #optional rag
+        rag = True
+        rag_list = db.getStories(filters={'story_id': story['past_common_stories']})
+
+        child = child + storyUnit(tag=story['theme_name_ml'], headline=story['headline_ml'] + ml_score + trend_score + past_newsletter, body=story['summary_ml'], links=links, rag=rag)
         child = f'<div>{child}</div>'
     units.append((parent, child))
 
@@ -149,7 +159,12 @@ def constructNewsBlock(topic_id, top_k_stories, min_datetime, newsletter_date):
                 else:
                     link = post['external_link']
                 links.append(link)
+
+            #Get QA info to attach
             ml_score = f' (ML score: {story['daily_i_score_ml']})'
+            trend_score = f' (Trend score: {story['trend_score']})'
+            past_newsletter = f' (Past repeat: {story['past_newsletter_repeat']})'
+
             child = child + storyUnit(tag=story['theme_name_ml'], headline=story['headline_ml'] + ml_score, body=story['summary_ml'], links=links)
             child = f'<div>{child}</div>'
         units.append((parent, child))
