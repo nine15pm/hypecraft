@@ -292,6 +292,28 @@ def filterRepeatStories(topic, min_datetime, max_datetime=MAX_DATETIME_DEFAULT, 
         db.updateStories(story_updates)
     print(f'Stories checked for repeat vs past newsletters, {repeat_count} out of {len(stories)} repeats')
 
+#get context for ranking = currently just calc trend score
+def getStoryRankingContext(topic, min_datetime, max_datetime=MAX_DATETIME_DEFAULT):
+    #get stories with past newsletter repeats filtered out
+    stories = db.getFilteredStoriesForTopic(topic['topic_id'], min_datetime=min_datetime)
+    story_updates = []
+
+    #generate search query and calc trend score from tweets
+    for story in stories:
+        story_content = db.getStories(filters={'story_id': story['sid']})[0]
+        query = editor.generateTweetSearchQuery(story_content, topic_prompt_params=topic['topic_prompt_params'])[0]['query']
+        print(query)
+        trend_score = trendscoring.calcTrendScore(query)
+    
+        #save updates
+        story_updates.append({
+            'story_id': story['sid'],
+            'trend_score': trend_score
+        })
+
+    db.updateStories(story_updates)
+    print(f'Story ranking context (trend score) gathered and saved to DB')
+
 #score stories for newsletter ranking order
 def rankStories(topic, min_datetime, max_datetime=MAX_DATETIME_DEFAULT):
     themes = db.getNewsThemes(topic['topic_id'], min_datetime=min_datetime)
@@ -308,15 +330,10 @@ def rankStories(topic, min_datetime, max_datetime=MAX_DATETIME_DEFAULT):
         story_updates = []
 
         for story in stories_scores:
-            #generate search query and calc trend score from tweets
-            story_content = db.getStories(filters={'story_id': story['sid']})[0]
-            query = editor.generateTweetSearchQuery(story_content, topic_prompt_params=topic['topic_prompt_params'])[0]['query']
-            trend_score = trendscoring.calcTrendScore(query)
             #save updates
             story_updates.append({
                 'story_id': story['sid'],
-                'daily_i_score_ml': story['i_score'],
-                'trend_score': trend_score
+                'daily_i_score_ml': story['i_score']
             })
 
         db.updateStories(story_updates)
@@ -434,19 +451,25 @@ def main():
     topic = db.getTopics(filters={'topic_id': topic_id})[0]
     topic['topic_prompt_params']['topic_name'] = topic['topic_name']
 
-    #db.deleteStories(min_datetime=DATETIME_TODAY_START)
-    #db.deleteThemes(min_datetime=DATETIME_TODAY_START)
-
-    #pullPosts(topic, max_posts_reddit, min_timestamp=DATETIME_TODAY_START.timestamp())
-    #categorizePosts(topic, min_datetime=DATETIME_TODAY_START)
-    #summarizeNewsPosts(topic, min_datetime=DATETIME_TODAY_START)
-    #embedNewsPosts(topic=topic, min_datetime=DATETIME_TODAY_START)
-    #filterNewsPosts(topic, min_datetime=DATETIME_TODAY_START)
-    #draftAndMapThemes(topic, brainstorm_loops=brainstorm_loops, min_datetime=DATETIME_TODAY_START)
-    #groupStories(topic, min_datetime=DATETIME_TODAY_START)
-    #mappingToCSV(topic, min_datetime=DATETIME_TODAY_START)
+    pullPosts(topic, max_posts_reddit, min_timestamp=DATETIME_TODAY_START.timestamp())
+    categorizePosts(topic, min_datetime=DATETIME_TODAY_START)
+    summarizeNewsPosts(topic, min_datetime=DATETIME_TODAY_START)
+    embedNewsPosts(topic=topic, min_datetime=DATETIME_TODAY_START)
+    filterNewsPosts(topic, min_datetime=DATETIME_TODAY_START)
+    try:
+        draftAndMapThemes(topic, brainstorm_loops=brainstorm_loops, min_datetime=DATETIME_TODAY_START)
+    except:
+        db.deleteThemes(min_datetime=DATETIME_TODAY_START, filters={'topic_id': topic_id})
+        raise
+    try:
+        groupStories(topic, min_datetime=DATETIME_TODAY_START)
+    except:
+        db.deleteStories(min_datetime=DATETIME_TODAY_START, filters={'topic_id': topic_id})
+        raise
+    mappingToCSV(topic, min_datetime=DATETIME_TODAY_START)
     summarizeStories(topic, min_datetime=DATETIME_TODAY_START)
     filterRepeatStories(topic, min_datetime=DATETIME_TODAY_START, search_limit=RAG_search_limit)
+    getStoryRankingContext(topic, min_datetime=DATETIME_TODAY_START)
     rankStories(topic, min_datetime=DATETIME_TODAY_START)
     embedStories(topic=topic, min_datetime=DATETIME_TODAY_START)
     summarizeThemes(topic, top_k_stories=top_k_stories, min_datetime=DATETIME_TODAY_START)
