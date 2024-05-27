@@ -97,7 +97,15 @@ def classifyPost(post, feed, prompt_config='default') -> str:
     post_text = ('Post text: ' + post['post_text'] + '\n') if post['post_text'] is not None else ''
     external_link = ('Linked site: ' + post['external_link'] + '\n') if post['external_link'] is not None else ''
     external_link_text = ('Linked site text: ' + post['external_parsed_text'] + '\n') if post['external_parsed_text'] is not None else ''
-    content = feed_source + feed_name + headline + post_tags + post_text + external_link + external_link_text
+    content_long = feed_source + feed_name + headline + post_tags + post_text + external_link + external_link_text
+    content_short = feed_source + feed_name + headline + post_tags + external_link_text
+    
+    if utils.tokenCountLlama3(content_long) <= prompt_config['model_params']['truncate']:
+        content = content_long
+    else:
+        content = content_short
+        print(content_long)
+
     return getResponseLLAMA(content, prompt_config).strip('#')
 
 #SUMMARIZATION
@@ -213,6 +221,7 @@ def filterStoryRAGResults(target_story: dict, RAG_stories: list, topic_prompt_pa
         content = content + f'CANDIDATE POSTS: \n\n{{"id": {story['story_id']}, "headline": {story['headline_ml']}}}\n'
     
     response = getResponseLLAMA(content, prompt_config)
+
     return extractResponseJSON(response, step_label = 'filter RAG results')
 
 #filter based on whether story has meaningful new info vs. past stories discussing the same news

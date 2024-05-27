@@ -160,9 +160,17 @@ def groupStories(topic, min_datetime, max_datetime=MAX_DATETIME_DEFAULT):
         #check if theme has no posts
         if theme['posts'] == []:
             continue
-
+        
         posts = db.getPosts(min_datetime=min_datetime, max_datetime=max_datetime, filters={'post_id':theme['posts']})
-        grouped_stories = editor.groupNewsPostsToStories(posts, topic_prompt_params=topic['topic_prompt_params'])
+
+        #check if single post only
+        if len(posts) == 1:
+            grouped_stories = [{
+                'sid': 1,
+                'pid': [posts[0]['post_id']]
+            }]
+        else:
+            grouped_stories = editor.groupNewsPostsToStories(posts, topic_prompt_params=topic['topic_prompt_params'])
 
         grouped_post_ids = []
         stories = []
@@ -253,32 +261,35 @@ def filterRepeatStories(topic, min_datetime, max_datetime=MAX_DATETIME_DEFAULT, 
         RAG_stories = db.getStories(filters={'story_id': [result['id'] for result in results]})
         
         #filter out any unrelated stories from search results
-        filtered_results = [item['id'] for item in editor.filterStoryRAGResults(target_story=story, RAG_stories=RAG_stories, topic_prompt_params=topic['topic_prompt_params'])]
-        RAG_stories = [story for story in RAG_stories if story['story_id'] in filtered_results]
-        
-        #check if there is any meaningful new info vs. past stories
-        new_and_meaningful = editor.filterStoryNewInfo(target_story=story, past_stories=RAG_stories, topic_prompt_params=topic['topic_prompt_params'])['new_and_meaningful']
-        
-        #update status in DB
-        if not new_and_meaningful:
-            story_updates.append(
-                {
-                    'story_id': story['story_id'],
-                    'past_newsletter_repeat': True,
-                    'past_common_stories': [story['story_id'] for story in RAG_stories]
-                }
-            )
-            repeat_count += 1
-        else:
-            story_updates.append(
-                {
-                    'story_id': story['story_id'],
-                    'past_newsletter_repeat': False,
-                    'past_common_stories': [story['story_id'] for story in RAG_stories]
-                }
-            )
+        filtered_results = editor.filterStoryRAGResults(target_story=story, RAG_stories=RAG_stories, topic_prompt_params=topic['topic_prompt_params'])
 
-    db.updateStories(story_updates)
+        if filtered_results != [{}]:
+            filtered_results = [item['id'] for item in filtered_results]
+            RAG_stories = [story for story in RAG_stories if story['story_id'] in filtered_results]
+        
+            #check if there is any meaningful new info vs. past stories
+            new_and_meaningful = editor.filterStoryNewInfo(target_story=story, past_stories=RAG_stories, topic_prompt_params=topic['topic_prompt_params'])[0]['new_and_meaningful']
+            
+            #update status in DB
+            if not new_and_meaningful:
+                story_updates.append(
+                    {
+                        'story_id': story['story_id'],
+                        'past_newsletter_repeat': True,
+                        'past_common_stories': [story['story_id'] for story in RAG_stories]
+                    }
+                )
+                repeat_count += 1
+            else:
+                story_updates.append(
+                    {
+                        'story_id': story['story_id'],
+                        'past_newsletter_repeat': False,
+                        'past_common_stories': [story['story_id'] for story in RAG_stories]
+                    }
+                )
+    if story_updates != []:
+        db.updateStories(story_updates)
     print(f'Stories checked for repeat vs past newsletters, {repeat_count} out of {len(stories)} repeats')
 
 #score stories for newsletter ranking order
@@ -298,8 +309,8 @@ def rankStories(topic, min_datetime, max_datetime=MAX_DATETIME_DEFAULT):
 
         for story in stories_scores:
             #generate search query and calc trend score from tweets
-            story_content = db.getStories(filters={'story_id': story['sid']})
-            query = editor.generateTweetSearchQuery(story_content, topic_prompt_params=topic['topic_prompt_params'])['query']
+            story_content = db.getStories(filters={'story_id': story['sid']})[0]
+            query = editor.generateTweetSearchQuery(story_content, topic_prompt_params=topic['topic_prompt_params'])[0]['query']
             trend_score = trendscoring.calcTrendScore(query)
             #save updates
             story_updates.append({
@@ -415,7 +426,7 @@ def storyQAToCSV(topic, min_datetime, max_datetime=MAX_DATETIME_DEFAULT):
 ##############################################################################################
 def main():
     #Pipeline params
-    topic_id = 2
+    topic_id = 1
     max_posts_reddit = 100
     brainstorm_loops = 3
     top_k_stories = 3
@@ -426,14 +437,14 @@ def main():
     #db.deleteStories(min_datetime=DATETIME_TODAY_START)
     #db.deleteThemes(min_datetime=DATETIME_TODAY_START)
 
-    pullPosts(topic, max_posts_reddit, min_timestamp=DATETIME_TODAY_START.timestamp())
-    categorizePosts(topic, min_datetime=DATETIME_TODAY_START)
-    summarizeNewsPosts(topic, min_datetime=DATETIME_TODAY_START)
-    embedNewsPosts(topic=topic, min_datetime=DATETIME_TODAY_START)
-    filterNewsPosts(topic, min_datetime=DATETIME_TODAY_START)
-    draftAndMapThemes(topic, brainstorm_loops=brainstorm_loops, min_datetime=DATETIME_TODAY_START)
-    groupStories(topic, min_datetime=DATETIME_TODAY_START)
-    mappingToCSV(topic, min_datetime=DATETIME_TODAY_START)
+    #pullPosts(topic, max_posts_reddit, min_timestamp=DATETIME_TODAY_START.timestamp())
+    #categorizePosts(topic, min_datetime=DATETIME_TODAY_START)
+    #summarizeNewsPosts(topic, min_datetime=DATETIME_TODAY_START)
+    #embedNewsPosts(topic=topic, min_datetime=DATETIME_TODAY_START)
+    #filterNewsPosts(topic, min_datetime=DATETIME_TODAY_START)
+    #draftAndMapThemes(topic, brainstorm_loops=brainstorm_loops, min_datetime=DATETIME_TODAY_START)
+    #groupStories(topic, min_datetime=DATETIME_TODAY_START)
+    #mappingToCSV(topic, min_datetime=DATETIME_TODAY_START)
     summarizeStories(topic, min_datetime=DATETIME_TODAY_START)
     filterRepeatStories(topic, min_datetime=DATETIME_TODAY_START, search_limit=RAG_search_limit)
     rankStories(topic, min_datetime=DATETIME_TODAY_START)
