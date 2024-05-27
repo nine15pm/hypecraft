@@ -300,14 +300,13 @@ def getStoryRankingContext(topic, min_datetime, max_datetime=MAX_DATETIME_DEFAUL
 
     #generate search query and calc trend score from tweets
     for story in stories:
-        story_content = db.getStories(filters={'story_id': story['sid']})[0]
-        query = editor.generateTweetSearchQuery(story_content, topic_prompt_params=topic['topic_prompt_params'])[0]['query']
-        print(query)
-        trend_score = trendscoring.calcTrendScore(query)
+        print(story['headline_ml'])
+        queries_list = editor.generateTweetSearchQueries(story, topic_prompt_params=topic['topic_prompt_params'])
+        trend_score = trendscoring.calcTrendScore(queries_list=queries_list, sample_size=10, min_datetime=min_datetime)
     
         #save updates
         story_updates.append({
-            'story_id': story['sid'],
+            'story_id': story['story_id'],
             'trend_score': trend_score
         })
 
@@ -450,7 +449,8 @@ def main():
     RAG_search_limit = 5
     topic = db.getTopics(filters={'topic_id': topic_id})[0]
     topic['topic_prompt_params']['topic_name'] = topic['topic_name']
-
+    getStoryRankingContext(topic, min_datetime=DATETIME_TODAY_START-timedelta(days=1))
+    '''
     pullPosts(topic, max_posts_reddit, min_timestamp=DATETIME_TODAY_START.timestamp())
     categorizePosts(topic, min_datetime=DATETIME_TODAY_START)
     summarizeNewsPosts(topic, min_datetime=DATETIME_TODAY_START)
@@ -474,7 +474,7 @@ def main():
     embedStories(topic=topic, min_datetime=DATETIME_TODAY_START)
     summarizeThemes(topic, top_k_stories=top_k_stories, min_datetime=DATETIME_TODAY_START)
     summarizeTopic(topic, min_datetime=DATETIME_TODAY_START)
-    storyQAToCSV(topic, min_datetime=DATETIME_TODAY_START)
+    storyQAToCSV(topic, min_datetime=DATETIME_TODAY_START)'''
 
 if __name__ == '__main__':
     main()

@@ -317,10 +317,10 @@ def tweet_search_query(topic_prompt_params:dict):
     prompt = {
         'system_prompt': f'You are a {topic_prompt_params['topic_name']} news sourcer. The user will provide a news story and instructions. Go step by step and write out each step.',
         'user_prompt': f'Your task is to come up with a search query to find tweets about the news story. Follow these steps: \n\
-            1. Read the provided news story and write out 5 draft search queries that are likely to return trending tweets about the story. A query CANNOT exceed 10 words. \n\
-            2. Evaluate the draft queries and choose the best query. Write out your rationale. \n\
-            3. Format the best search query as a JSON list. Here is an example: [{{"query": "example search query"}}] \n\
-        Go step by step and come up with a good search query.\n\n',
+            1. Understand the main point of the news story and draft 5 different search queries that will correctly return tweets about the story. A query CANNOT exceed 4 keywords. Pick keywords that are simple, but can identify the specific story - e.g. if people are the main point, then pick people as keywords, if actions/events are the main point, then focus on that. \n\
+            2. Evaluate the draft queries and select 3 different queries that uniquely identify the main point of the story. Write out your rationale. \n\
+            3. Format the search queries as a JSON list. Here is an example: [{{"id": 1, "query": "example query"}}, {{"id": 2, "query": "example query"}}, {{"id": 3, "query": "example query"}}] \n\
+        Go step by step and come up with a good query.\n\n',
         'model_params': TASK_MODEL_PARAMS_LLAMA
     }
     return prompt

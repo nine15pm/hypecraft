@@ -25,7 +25,7 @@ SCALING_FACTOR = 1
 def searchTwitter(search_text, min_date=DATESTR_TODAY, search_type='top', min_likes=10):
     #construct query
     query = f'{search_text} since:{min_date} min_faves:{min_likes}'
-
+    print(query)
     params = {
         'query': query,
         'search_type': search_type
@@ -38,16 +38,28 @@ def searchTwitter(search_text, min_date=DATESTR_TODAY, search_type='top', min_li
 #TRENDING SCORE
 ##############################################################################################
 #calc score to determine popularity of news story
-def calcTrendScore(story_query, sample_size, min_date):
-    top_tweets = searchTwitter(search_text=story_query, min_date=min_date)
-    if len(top_tweets) > sample_size:
-        top_tweets = top_tweets[:sample_size]
+def calcTrendScore(queries_list, sample_size, min_datetime):
+    top_tweets = []
+    #iterate through queries list and try search
+    for query in queries_list:
+        results = searchTwitter(search_text=query['query'], min_date=min_datetime.strftime('%Y-%m-%d'))
+        if len(results) > sample_size:
+            top_tweets += results[:sample_size]
+            break
+        else:
+            top_tweets += results
+
+    #check if no results, return -1 to indicate no valid score
+    if len(top_tweets) == 0:
+        return -1
+
     trend_score = 0.0
     for tweet in top_tweets:
-        create_time = datetime.strptime(tweet['creation_date'], DATE_FORMAT)
+        create_time = datetime.strptime(tweet['created_at'], DATE_FORMAT)
         tweet_lifetime = (datetime.now(timezone.utc) - create_time).total_seconds() / 3600 #how many hours tweet has been up
-        trend_score += (VIEWS_WEIGHT*tweet['views'] + LIKES_WEIGHT*tweet['favorite_count']) / (tweet_lifetime * SCALING_FACTOR)
-        print(f'QA - LIFETIME: {tweet_lifetime} hrs, VIEWS: {tweet['views']}, LIKES: {tweet['favorite_count']}')
+        trend_score += (VIEWS_WEIGHT*float(tweet['views']) + LIKES_WEIGHT*tweet['favorites']) / (tweet_lifetime * SCALING_FACTOR)
     #average trend score by num tweets
     trend_score = trend_score / len(top_tweets)
+    print(f'Num tweets {len(top_tweets)}')
+    print(f'{trend_score}')
     return trend_score

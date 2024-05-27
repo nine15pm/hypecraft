@@ -325,11 +325,11 @@ def scoreNewsStories(stories: list, topic_prompt_params: dict, prompt_config='de
     response = getResponseOPENAI(content, prompt_config)
     return extractResponseJSON(response, step_label = 'story ranking')
 
-#generate a tweet search query for calcing trend score
-def generateTweetSearchQuery(story: dict, topic_prompt_params: dict, prompt_config='default') -> str:
+#generate 3 tweet search queries for calcing trend score
+def generateTweetSearchQueries(story: dict, topic_prompt_params: dict, prompt_config='default') -> list[dict]:
     prompt_config = promptconfigs.RANKING_PROMPTS['tweet_search_query_fn'](topic_prompt_params) if prompt_config == 'default' else prompt_config
     content = f'Headline: {story['headline_ml']} \nSummary: {story['summary_ml']}'
-    response = getResponseOPENAI(content, prompt_config)
+    response = getResponseLLAMA(content, prompt_config)
     return extractResponseJSON(response, step_label = 'generate tweet search query')
 
 #ERROR FIXING
