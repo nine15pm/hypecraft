@@ -2,6 +2,36 @@
 ####################
 changelog_current = 'Changelog \n\
 --------------------------------\n\
+- Added more QA info to newsletter - (1) trend score based on tweets, (2) whether story is a repeat of past newsletter, (3) common stories from past newsletter via RAG\n\
+- Updated ranking prompts and added topic-specific ranking rubric \n\
+- Implemented trend score to use in future ranking update, calculated using views/likes of top tweets about news story (LLM gen search query --> tweets API) \n\
+- Implemented RAG-based filtering to (1) check if story was already featured in previous newsletter and (2) check if there is any new info, if no new info then filter out \n\
+--------------------------------'
+
+#ARCHIVE
+####################
+changelog_05_24 = 'Changelog \n\
+--------------------------------\n\
+- Added top 5 retrieved past stories and similarity scores to QA search quality \n\
+- Implemented search part of RAG, added pipeline steps to gen embeddings for story and post summaries and save in vector DB \n\
+- Updated example themes for crypto prompts based on meeting \n\
+- Fixed bug with deduping RSS feed posts \n\
+--------------------------------'
+
+changelog_05_23 = 'Changelog \n\
+--------------------------------\n\
+- [Not much besides slight prompt tweaks, working on implementing RAG] \n\
+--------------------------------'
+
+changelog_05_22 = 'Changelog \n\
+--------------------------------\n\
+- Reworked theme drafting and grouping to new prompting strategy to try and improve consistency and reduce obvious errors (LLAMA brainstorms 10 theme options, repeat 3x --> give options to GPT-4o to analyze and select best 3-5 --> self-check and edit) \n\
+- Fixed bug with posts within feed not deduping properly \n\
+- Prayed that tomorrows news pull doesnt break all the prompts 😰\n\
+--------------------------------'
+
+changelog_05_21 = 'Changelog \n\
+--------------------------------\n\
 - Set up barebones AMP email for easier QA format and to allow for future testing of UX interactions \n\
 - Updated grouping/ranking pipeline to use themes and switched model to GPT-4o \n\
 - Added new step in pipeline where model re-writes scraped post headlines to avoid confusing noisy garbage headlines in later steps (grouping, ranking, etc.) \n\
@@ -9,8 +39,6 @@ changelog_current = 'Changelog \n\
 - Fixed some bugs with web scrape \n\
 --------------------------------'
 
-#ARCHIVE
-####################
 changelog_05_14 = 'Changelog \n\
 --------------------------------\n\
 - Reworked story grouping to avoid grouping unrelated posts into a story \n\

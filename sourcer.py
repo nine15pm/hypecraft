@@ -7,6 +7,7 @@ import configs
 import time
 from datetime import datetime
 import json
+import ua_generator
 import undetected_chromedriver as uc
 import trafilatura
 from haystack.components.fetchers import LinkContentFetcher
@@ -21,7 +22,7 @@ def isDuplicateLink(link):
     filters_external = {
         'external_link': link
     }
-    if db.getPostsForDupCheck(filters=filters_self) != [] or db.getPosts(filters=filters_external) != []:
+    if db.getFilteredPostIDs(filters=filters_self) != [] or db.getPosts(filters=filters_external) != []:
         return True
     else:
         return False
@@ -37,10 +38,10 @@ def isDuplicateText(title=None, post_text=None, external_text=None):
         'external_parsed_text': external_text
     }
     if title is not None:
-        if db.getPostsForDupCheck(filters=filters_title) != []:
+        if db.getFilteredPostIDs(filters=filters_title) != []:
             return True
     if post_text is not None:
-        if db.getPostsForDupCheck(filters=filters_post_text) != []:
+        if db.getFilteredPostIDs(filters=filters_post_text) != []:
             return True
     if external_text is not None:
         if db.getPosts(filters=filters_external_text) != []:
@@ -49,6 +50,25 @@ def isDuplicateText(title=None, post_text=None, external_text=None):
 
 #TEXT EXTRACTION FROM LINKS
 ###################################################################
+
+def generateHeaders():
+    #generate request headers for simple http request to mimic browser
+    ua = ua_generator.generate(device='desktop', platform = ('windows'), browser=('chrome', 'edge'))
+    ua.headers.accept_ch('Sec-Ch-Ua-Model, Sec-Ch-Ua-Arch, Sec-Ch-Ua-Bitness, Sec-Ch-Ua-Full-Version, Sec-Ch-Ua-Platform, Sec-Ch-Ua-Wow64, Sec-CH-UA-Platform-Version, Sec-CH-UA-Full-Version-List')
+    additional_headers = {
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
+        'Accept-Encoding': 'gzip, deflate, br, zstd',
+        'Accept-Language': 'en-US,en;q=0.9',
+        'Sec-Fetch-Dest': 'document',
+        'Sec-Fetch-Mode': 'navigate',
+        'Sec-Fetch-Site': 'same-origin',
+        'Sec-Fetch-User': '1',
+        'Upgrade-Insecure-Requests': '1',
+        'cache-control': 'max-age=0'
+        }
+    headers = additional_headers.update(ua.headers.get()) #combine generated headers with additional fixed headers
+    return headers
+
 
 #logic for scraping external links
 def getWebText(url, min_text_length, unsupported_hosts=[]):
@@ -72,6 +92,19 @@ def getWebText(url, min_text_length, unsupported_hosts=[]):
     except Exception as error:
         print("Error:", type(error).__name__, "-", error)
         
+    #check output is valid text and long enough
+    if extracted_text is not None and len(extracted_text) > min_text_length:
+        return extracted_text
+    
+    #then try get html using basic request instead of Haystack
+    try:
+        print('Trying basic request with custom headers')
+        headers = generateHeaders()
+        source_html = requests.get(url, headers=headers).text
+        extracted_text = trafilatura.extract(source_html, url=url, deduplicate=True, include_comments=False)
+    except Exception as error:
+        print("Error:", type(error).__name__, "-", error)
+    
     #check output is valid text and long enough
     if extracted_text is not None and len(extracted_text) > min_text_length:
         return extracted_text
@@ -221,8 +254,16 @@ def parseFeedReddit(topic_id, feed_id, min_timestamp=0, max_posts=10, endpoint='
                     continue
 
                 #final check for duplicate post based on extracted text
-                if isDuplicateText(title=listing['data']['title'], external_text=external_scraped_text) or any(post['post_title'] == listing['data']['title'] for post in posts) or any(post['external_parsed_text'] == external_scraped_text for post in posts):
+                if isDuplicateText(title=listing['data']['title'], external_text=external_scraped_text):
                     print('Skipped duplicate (title/external-text)')
+                    continue
+
+                if any(post['post_title'] == listing['data']['title'] for post in posts) and listing['data']['title'] is not None and listing['data']['title'] != '':
+                    print('Skipped duplicate (title/text)')
+                    continue
+
+                if any(post['external_parsed_text'] == external_scraped_text for post in posts) and external_scraped_text is not None and external_scraped_text != '':
+                    print('Skipped duplicate (title/text)')
                     continue
 
                 external_success_count += 1
@@ -239,8 +280,16 @@ def parseFeedReddit(topic_id, feed_id, min_timestamp=0, max_posts=10, endpoint='
                     continue
 
                 #final check for duplicate post based on extracted text
-                if isDuplicateText(title=listing['data']['title'], post_text=listing['data']['selftext']) or any(post['post_title'] == listing['data']['title'] for post in posts) or any(post['post_text'] == listing['data']['selftext'] for post in posts):
+                if isDuplicateText(title=listing['data']['title'], post_text=listing['data']['selftext']):
                     print('Skipped duplicate (title/post-text)')
+                    continue
+
+                if any(post['post_title'] == listing['data']['title'] for post in posts) and listing['data']['title'] is not None and listing['data']['title'] != '':
+                    print('Skipped duplicate (title/text)')
+                    continue
+
+                if any(post['post_text'] == listing['data']['selftext'] for post in posts) and listing['data']['selftext'] is not None and listing['data']['selftext'] != '':
+                    print('Skipped duplicate (title/text)')
                     continue
 
                 total_success_count += 1
@@ -338,7 +387,19 @@ def parseFeedRSS(topic_id, feed_id, min_timestamp=0) -> list[dict]:
         description = entry.description if 'description' in entry else None
 
         #check for duplicate post based on extracted text
-        if isDuplicateText(title=headline, post_text=post_text, external_text=external_parsed_text) or any(post['post_title'] == headline for post in posts) or any(post['post_text'] == post_text for post in posts) or any(post['external_parsed_text'] == external_parsed_text for post in posts):
+        if isDuplicateText(title=headline, post_text=post_text, external_text=external_parsed_text):
+            print('Skipped duplicate (title/text)')
+            continue
+        
+        if any(post['post_title'] == headline for post in posts) and headline is not None and headline != '':
+            print('Skipped duplicate (title/text)')
+            continue
+
+        if any(post['post_text'] == post_text for post in posts) and post_text is not None and post_text != '':
+            print('Skipped duplicate (title/text)')
+            continue
+
+        if any(post['external_parsed_text'] == external_parsed_text for post in posts) and external_parsed_text is not None and external_parsed_text != '':
             print('Skipped duplicate (title/text)')
             continue
 
