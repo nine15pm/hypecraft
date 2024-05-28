@@ -442,39 +442,38 @@ def storyQAToCSV(topic, min_datetime, max_datetime=MAX_DATETIME_DEFAULT):
 ##############################################################################################
 def main():
     #Pipeline params
-    topic_id = 1
+    topic_id = 2
     max_posts_reddit = 100
     brainstorm_loops = 3
     top_k_stories = 3
     RAG_search_limit = 5
     topic = db.getTopics(filters={'topic_id': topic_id})[0]
     topic['topic_prompt_params']['topic_name'] = topic['topic_name']
-    getStoryRankingContext(topic, min_datetime=DATETIME_TODAY_START-timedelta(days=1))
-    '''
-    pullPosts(topic, max_posts_reddit, min_timestamp=DATETIME_TODAY_START.timestamp())
-    categorizePosts(topic, min_datetime=DATETIME_TODAY_START)
-    summarizeNewsPosts(topic, min_datetime=DATETIME_TODAY_START)
-    embedNewsPosts(topic=topic, min_datetime=DATETIME_TODAY_START)
-    filterNewsPosts(topic, min_datetime=DATETIME_TODAY_START)
-    try:
-        draftAndMapThemes(topic, brainstorm_loops=brainstorm_loops, min_datetime=DATETIME_TODAY_START)
-    except:
-        db.deleteThemes(min_datetime=DATETIME_TODAY_START, filters={'topic_id': topic_id})
-        raise
-    try:
-        groupStories(topic, min_datetime=DATETIME_TODAY_START)
-    except:
-        db.deleteStories(min_datetime=DATETIME_TODAY_START, filters={'topic_id': topic_id})
-        raise
-    mappingToCSV(topic, min_datetime=DATETIME_TODAY_START)
-    summarizeStories(topic, min_datetime=DATETIME_TODAY_START)
-    filterRepeatStories(topic, min_datetime=DATETIME_TODAY_START, search_limit=RAG_search_limit)
-    getStoryRankingContext(topic, min_datetime=DATETIME_TODAY_START)
+
+    #pullPosts(topic, max_posts_reddit, min_timestamp=DATETIME_TODAY_START.timestamp())
+    #categorizePosts(topic, min_datetime=DATETIME_TODAY_START)
+    #summarizeNewsPosts(topic, min_datetime=DATETIME_TODAY_START)
+    #embedNewsPosts(topic=topic, min_datetime=DATETIME_TODAY_START)
+    #filterNewsPosts(topic, min_datetime=DATETIME_TODAY_START)
+    #try:
+    #    draftAndMapThemes(topic, brainstorm_loops=brainstorm_loops, min_datetime=DATETIME_TODAY_START)
+    #except:
+    #    db.deleteThemes(min_datetime=DATETIME_TODAY_START, filters={'topic_id': topic_id})
+    #    raise
+    #try:
+    #    groupStories(topic, min_datetime=DATETIME_TODAY_START)
+    #except:
+    #    db.deleteStories(min_datetime=DATETIME_TODAY_START, filters={'topic_id': topic_id})
+    #    raise
+    #mappingToCSV(topic, min_datetime=DATETIME_TODAY_START)
+    #summarizeStories(topic, min_datetime=DATETIME_TODAY_START)
+    #filterRepeatStories(topic, min_datetime=DATETIME_TODAY_START, search_limit=RAG_search_limit)
+    #getStoryRankingContext(topic, min_datetime=DATETIME_TODAY_START)
     rankStories(topic, min_datetime=DATETIME_TODAY_START)
     embedStories(topic=topic, min_datetime=DATETIME_TODAY_START)
     summarizeThemes(topic, top_k_stories=top_k_stories, min_datetime=DATETIME_TODAY_START)
     summarizeTopic(topic, min_datetime=DATETIME_TODAY_START)
-    storyQAToCSV(topic, min_datetime=DATETIME_TODAY_START)'''
+    storyQAToCSV(topic, min_datetime=DATETIME_TODAY_START)
 
 if __name__ == '__main__':
     main()

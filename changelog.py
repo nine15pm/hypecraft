@@ -2,14 +2,21 @@
 ####################
 changelog_current = 'Changelog \n\
 --------------------------------\n\
+- [No major changes, R&Ding AMP email components]\n\
+- Updated tweet search prompt approach and reworked trend score calculation to fix issues\n\
+- Tweaked ranking prompts\n\
+--------------------------------'
+
+#ARCHIVE
+####################
+changelog_05_24 = 'Changelog \n\
+--------------------------------\n\
 - Added more QA info to newsletter - (1) trend score based on tweets, (2) whether story is a repeat of past newsletter, (3) common stories from past newsletter via RAG\n\
 - Updated ranking prompts and added topic-specific ranking rubric \n\
 - Implemented trend score to use in future ranking update, calculated using views/likes of top tweets about news story (LLM gen search query --> tweets API) \n\
 - Implemented RAG-based filtering to (1) check if story was already featured in previous newsletter and (2) check if there is any new info, if no new info then filter out \n\
 --------------------------------'
 
-#ARCHIVE
-####################
 changelog_05_24 = 'Changelog \n\
 --------------------------------\n\
 - Added top 5 retrieved past stories and similarity scores to QA search quality \n\

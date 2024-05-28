@@ -404,6 +404,23 @@ def getStoriesForTopic(topic_id, min_datetime=MIN_DATETIME_DEFAULT, max_datetime
     }
     return readEntries(table=table, min_datetime=min_datetime, fields=fields, filters=filters, max_datetime=max_datetime)
 
+def getFilteredStoriesForTopic(topic_id, min_datetime=MIN_DATETIME_DEFAULT, max_datetime=MAX_DATETIME_DEFAULT):
+    table = STORY_TABLE
+    fields = [
+        'story_id',
+        'posts',
+        'summary_ml',
+        'headline_ml',
+        'posts_summarized',
+        'daily_i_score_ml',
+        'theme_id'
+    ]
+    filters = {
+        'topic_id': topic_id,
+        'past_newsletter_repeat': False
+    }
+    return readEntries(table=table, min_datetime=min_datetime, fields=fields, filters=filters, max_datetime=max_datetime)
+
 def getStoriesForEmbed(topic_id, min_datetime=MIN_DATETIME_DEFAULT, max_datetime=MAX_DATETIME_DEFAULT):
     table = STORY_TABLE
     fields = [

@@ -230,7 +230,7 @@ def group_story_news(topic_prompt_params:dict):
         'system_prompt': f'You are a {topic_prompt_params['topic_name']} newsletter editor. The user will provide you news posts in JSON format and instructions. Your task is identify posts about the same news story. Go step by step and write out each step.',
         'user_prompt': f'Follow these steps to map news posts:\n\
             1. Find and list every case where multiple posts are discussing the same broad news story. Cite the post ids and write out the rationale. \n\
-            3. Provide a formatted JSON list of all the posts grouped into stories. Every post must be mapped to at least 1 story. Here is an example: [{{"sid": 1, "pid": [31,63]}}, {{"sid": 2, "pid": [53,46,24]}}, {{"sid": 3, "pid": [97]}}]. \n\
+            3. Provide a formatted JSON list of all the posts grouped into stories. Every post must be mapped to at least 1 story. Here is an example, follow it and do not include comments: [{{"sid": 1, "pid": [31,63]}}, {{"sid": 2, "pid": [53,46,24]}}, {{"sid": 3, "pid": [97]}}]. \n\
         Go step by step and map the posts. \n\n',
         'model_params': TASK_MODEL_PARAMS_OPENAI
     }

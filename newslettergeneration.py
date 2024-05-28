@@ -5,7 +5,7 @@ import emailer
 import changelog
 import RAG
 from pytz import timezone
-from datetime import datetime, time, timedelta
+from datetime import datetime, time
 
 #HELPER FUNCTIONS
 ##############################################################################################
@@ -13,18 +13,25 @@ from datetime import datetime, time, timedelta
 def recordUsage(stories:list[dict], newsletter_date):
     story_updates = []
     post_updates = []
+    story_vectordb_ids = []
+    story_vectordb_update = {
+        'used_in_newsletter': True,
+        'newsletter_date': newsletter_date
+    }
     for story in stories:
         story_updates.append({
             'story_id': story['story_id'],
             'used_in_newsletter': True,
             'newsletter_date': newsletter_date
         })
+        story_vectordb_ids.append(story['story_id'])
         for post_id in story['posts_summarized']:
             post_updates.append({
                 'post_id': post_id,
                 'used_in_newsletter': True,
                 'newsletter_date': newsletter_date
             })
+    RAG.updateStoriesPayload(point_ids=story_vectordb_ids, payload_fields=story_vectordb_update)
     db.updateStories(story_updates)
     db.updatePosts(post_updates)
 
@@ -94,9 +101,9 @@ def constructNewsBlock(topic_id, top_k_stories, min_datetime, newsletter_date):
     #get stories for all themes, except other
     for theme in themes:
         stories = db.getFilteredStoriesForTheme(theme['theme_id'], min_datetime=min_datetime)
+        for i in range(len(stories)):
+            stories[i]['theme_name_ml'] = theme['theme_name_ml']
         if theme['theme_name_ml'] != 'Other':
-            for i in range(len(stories)):
-                stories[i]['theme_name_ml'] = theme['theme_name_ml']
             story_candidates = story_candidates + stories
         else:
             unused_stories = unused_stories + stories
@@ -114,6 +121,7 @@ def constructNewsBlock(topic_id, top_k_stories, min_datetime, newsletter_date):
         <b>[Top {top_k_stories} ranked stories]</b>
     </h4>
     '''
+
     for story in story_candidates:
         #get links of summarized posts
         posts = db.getPostLinksForStory(story['posts_summarized'])
@@ -127,15 +135,17 @@ def constructNewsBlock(topic_id, top_k_stories, min_datetime, newsletter_date):
 
         #Get QA info to attach
         ml_score = f' (ML score: {story['daily_i_score_ml']})'
-        trend_score = f' (Trend score: {story['trend_score']})'
+        trend_score = f' (Trend score: {round(story['trend_score'])})'
         past_newsletter = f' (Past repeat: {story['past_newsletter_repeat']})'
 
         #optional rag
         rag = True
         rag_list = db.getStories(filters={'story_id': story['past_common_stories']})
-
-        child = child + storyUnit(tag=story['theme_name_ml'], headline=story['headline_ml'] + ml_score + trend_score + past_newsletter, body=story['summary_ml'], links=links, rag=rag)
+        
+        headline = story['headline_ml'] + ml_score + trend_score + past_newsletter
+        child = child + storyUnit(tag=story['theme_name_ml'], headline=headline, body=story['summary_ml'], links=links, rag=rag, rag_items=rag_list)
         child = f'<div>{child}</div>'
+            
     units.append((parent, child))
 
     #record usage of stories and posts in newsletter
@@ -162,10 +172,11 @@ def constructNewsBlock(topic_id, top_k_stories, min_datetime, newsletter_date):
 
             #Get QA info to attach
             ml_score = f' (ML score: {story['daily_i_score_ml']})'
-            trend_score = f' (Trend score: {story['trend_score']})'
+            trend_score = f' (Trend score: {round(story['trend_score'])})'
             past_newsletter = f' (Past repeat: {story['past_newsletter_repeat']})'
 
-            child = child + storyUnit(tag=story['theme_name_ml'], headline=story['headline_ml'] + ml_score, body=story['summary_ml'], links=links)
+            headline = story['headline_ml'] + ml_score + trend_score + past_newsletter
+            child = child + storyUnit(tag=story['theme_name_ml'], headline=headline, body=story['summary_ml'], links=links)
             child = f'<div>{child}</div>'
         units.append((parent, child))
     
@@ -272,4 +283,4 @@ for topic in topics:
 footer = constructFooterSection(footer_text=footer_text)
 newsletter_html = wrapEncodeHTML(body_html=header + log + main_content + footer, template_path=PATH_EMAIL_TEMPLATE)
 #print(newsletter_html)
-emailer.sendNewsletter(subject=title, recipients=recipients2, content_html=newsletter_html)
+emailer.sendNewsletter(subject=title, recipients=recipients1, content_html=newsletter_html)

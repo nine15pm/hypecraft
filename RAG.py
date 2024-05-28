@@ -72,6 +72,16 @@ def deletePointsByTopic(collection, topic_id):
 
 #DB FUNCS
 #####################################################
+def updatePointsPayload(collection:str, point_ids:list, payload_fields:dict):
+    client = QdrantClient(
+        url=QDRANT_URL
+    )
+    client.set_payload(
+        collection_name=collection,
+        payload=payload_fields,
+        points=point_ids,
+    )
+
 def upsertPoints(collection:str, points:list[PointStruct]):
     client = QdrantClient(
         url=QDRANT_URL
@@ -189,3 +199,6 @@ def searchStories(text:str, max_results:int, min_score:float=0.0, match_filters:
             filters.append(FieldCondition(key=key, match=MatchValue(value=match_filters[key])))
 
     return searchCollection(collection=QDRANT_STORY_COLLECTION, task_description=promptconfigs.RAG_SEARCH_TASKS['similar_news'], text=text, max_results=max_results, min_score=min_score, filters=filters)
+
+def updateStoriesPayload(point_ids:list, payload_fields:dict):
+    updatePointsPayload(collection=QDRANT_STORY_COLLECTION, point_ids=point_ids, payload_fields=payload_fields)
