@@ -2,14 +2,23 @@
 ####################
 changelog_current = 'Changelog \n\
 --------------------------------\n\
+- Testing out some AMP UI interactions \n\
+- Rewrote logic for selecting top stories to incorporate trend score \n\
+- Updated summary generation to clean up LLM chat language from summaries \n\
+- Updated topic highlights generation to have structured output to enforce bullet order match story ranking order \n\
+- Fixed issue where RAG was not pulling correct past newsletter stories for comparison \n\
+--------------------------------'
+
+#ARCHIVE
+####################
+changelog_05_27 = 'Changelog \n\
+--------------------------------\n\
 - [No major changes, R&Ding AMP email components]\n\
 - Updated tweet search prompt approach and reworked trend score calculation to fix issues\n\
 - Tweaked ranking prompts\n\
 --------------------------------'
 
-#ARCHIVE
-####################
-changelog_05_24 = 'Changelog \n\
+changelog_05_25 = 'Changelog \n\
 --------------------------------\n\
 - Added more QA info to newsletter - (1) trend score based on tweets, (2) whether story is a repeat of past newsletter, (3) common stories from past newsletter via RAG\n\
 - Updated ranking prompts and added topic-specific ranking rubric \n\

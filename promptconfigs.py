@@ -125,14 +125,15 @@ def post_summary_news(topic_prompt_params:dict):
 
 def story_summary_news(topic_prompt_params:dict):
     prompt = {
-        'system_prompt': 'You are an email newsletter editor. The user will provide content for you to summarize. Respond ONLY with the summary, do NOT respond with chat.',
+        'system_prompt': f'You are a {topic_prompt_params['topic_name']} newsletter editor. The user will provide content for you to summarize. Respond only with a JSON list containing the summary.',
         'user_prompt': f'Your task is to combine multiple posts about the same news story into a single summary. \
         The post content may include headlines, text from social media posts, and text from news articles.\n\n\
         Your steps are as follows:\n\
             1. Read the content of all the posts.\n\
             2. Identify the most important facts and takeaways. Prioritize the info a {topic_prompt_params['topic_name']} enthusiast cares about most.\n\
             3. Summarize the key facts into 1 single summary paragraph. Include relevant quotes if they are important. Do not exceed {SUMMARY_LEN_NEWS} words.\n\
-            4. Make the language concise, conversational, and engaging to read. Avoid using unnecessary complex words. \n\n\
+            4. Make the language concise, casual, and engaging to read. Avoid using unnecessary complex words. \n\
+            5. Format the summary into a JSON list, follow this example: [{{"summary": "example summary text"}}] \n\n\
         Combine the following posts:\n\n',
         'model_params': WRITING_MODEL_PARAMS
     }
@@ -140,7 +141,7 @@ def story_summary_news(topic_prompt_params:dict):
 
 def theme_summary_news(topic_prompt_params:dict):
     prompt = {
-        'system_prompt': 'You are an email newsletter editor. The user will provide content for you to summarize. Respond ONLY with the summary, do NOT respond with chat.',
+        'system_prompt': f'You are a {topic_prompt_params['topic_name']} newsletter editor. The user will provide content for you to summarize. Respond ONLY with the summary, do NOT respond with chat.',
         'user_prompt': f'Your task is to summarize top {topic_prompt_params['topic_name']} news stories into a 1 line highlight that a reader can quickly skim. \n\n\
         Your steps are as follows:\n\
             1. Identify the news that a {topic_prompt_params['topic_name']} enthusiast would care most about. \n\
@@ -152,11 +153,12 @@ def theme_summary_news(topic_prompt_params:dict):
 
 def topic_summary_news(topic_prompt_params:dict):
     prompt = {
-        'system_prompt': 'You are an email newsletter editor. The user will provide content for you to summarize. Respond ONLY with the summary bullets, do NOT respond with chat.',
+        'system_prompt': f'You are a {topic_prompt_params['topic_name']} newsletter editor. The user will provide content for you to summarize. Respond only with a JSON list of summary bullets.',
         'user_prompt': f'Your task is to summarize top {topic_prompt_params['topic_name']} news stories into a bulleted list of highlights that a reader can quickly skim. \n\n\
         Your steps are as follows:\n\
-            1. Read the content of all the stories. Prioritize exclusive or breaking news, the info a {topic_prompt_params['topic_name']} enthusiast cares about most.\n\
-            3. Write a list of bulleted highlights, 1 for each story. Order the highest i_score stories first. Make the language concise, conversational, and easy to understand.\n\n\
+            1. Read the content of all the stories. Understand the main point of each story, the info a {topic_prompt_params['topic_name']} enthusiast cares about most.\n\
+            2. Write 1 summary bullet for each story, less than 20 words. Make the language simple, casual, direct, and easy to understand. \n\
+            3. Format the bullets into a JSON list, follow this example: [{{"story_id":121, "bullet": "example text bullet 1"}}, {{"story_id":95, "bullet": "example text bullet 2"}}]\n\n\
         Summarize the following stories:\n\n',
         'model_params': WRITING_MODEL_PARAMS
     }

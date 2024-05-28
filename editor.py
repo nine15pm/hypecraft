@@ -277,7 +277,8 @@ def generateStorySummary(storyposts: list, topic_prompt_params: dict, prompt_con
                 Post {i} text: {post['summary_ml']}\n\n'
             content = content + post_string
         #generate summary
-        summary = getResponseLLAMA(content, prompt_config)
+        response = getResponseLLAMA(content, prompt_config)
+        summary = extractResponseJSON(response, step_label = 'story summarization')[0]['summary']
         posts_summarized = [post['post_id'] for post in selected_posts]
     return summary, posts_summarized
 
@@ -296,10 +297,12 @@ def generateTopicSummary(stories: list, topic_prompt_params: dict, prompt_config
     prompt_config = promptconfigs.SUMMARIZER_PROMPTS['topic_summary_news_fn'](topic_prompt_params) if prompt_config == 'default' else prompt_config
     #construct string combining all story summaries
     content = ''
-    for idx, story in enumerate(stories):
-        story_str = f'Story {idx} (i_score: {story['daily_i_score_ml']}) - {story['summary_ml']} \n\n'
+    for story in stories:
+        story_str = f'[story_id: {story['story_id']}] {story['summary_ml']} \n\n'
         content = content + story_str
-    return getResponseLLAMA(content, prompt_config)
+    response = getResponseLLAMA(content, prompt_config)
+
+    return extractResponseJSON(response, step_label = 'generate topic summary bullets')
 
 #HEADLINE GENERATION
 ##############################################################################################

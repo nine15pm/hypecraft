@@ -92,37 +92,27 @@ def ampAccordion(units:list[tuple]):
 #BLOCK CONSTRUCTORS
 ##############################################################################################
 #Prep a news themes/stories block within a topic section
-def constructNewsBlock(topic_id, top_k_stories, min_datetime, newsletter_date):
-    themes = db.getThemesForTopic(topic_id, min_datetime=min_datetime)
+def constructNewsBlock(topic_id, min_datetime, newsletter_date):
     units = []
-    story_candidates = []
-    unused_stories = []
     
-    #get stories for all themes, except other
-    for theme in themes:
-        stories = db.getFilteredStoriesForTheme(theme['theme_id'], min_datetime=min_datetime)
-        for i in range(len(stories)):
-            stories[i]['theme_name_ml'] = theme['theme_name_ml']
-        if theme['theme_name_ml'] != 'Other':
-            story_candidates = story_candidates + stories
-        else:
-            unused_stories = unused_stories + stories
+    #get top stories and sort
+    top_story_ids = db.getTopicHighlights(min_datetime=min_datetime, filters={'topic_id':topic_id})[0]['top_stories']
+    top_stories = db.getStories(min_datetime=min_datetime, filters={'story_id': top_story_ids})
+    top_stories = sorted(top_stories, key=lambda story: story['daily_i_score_ml'], reverse=True)
 
-    #sort stories based on i_score from model, take top k, then construct units
-    story_candidates = sorted(story_candidates, key=lambda story: story['daily_i_score_ml'], reverse=True)
-
-    if len(story_candidates) > top_k_stories:
-        unused_stories = story_candidates[top_k_stories:]
-        story_candidates = story_candidates[:top_k_stories]
+    #get remaining stories and sort
+    all_stories = db.getStoriesForTopic(topic_id=topic_id, min_datetime=min_datetime)
+    all_stories = [story for story in all_stories if story['story_id'] not in top_story_ids]
+    unused_stories = sorted(all_stories, key=lambda story: story['daily_i_score_ml'], reverse=True) if all_stories != [] else []
 
     child = ''
     parent = f'''
     <h4 class="accordion-title">
-        <b>[Top {top_k_stories} ranked stories]</b>
+        <b>[Top ranked stories]</b>
     </h4>
     '''
 
-    for story in story_candidates:
+    for story in top_stories:
         #get links of summarized posts
         posts = db.getPostLinksForStory(story['posts_summarized'])
         links = []
@@ -149,7 +139,7 @@ def constructNewsBlock(topic_id, top_k_stories, min_datetime, newsletter_date):
     units.append((parent, child))
 
     #record usage of stories and posts in newsletter
-    recordUsage(stories=story_candidates, newsletter_date=newsletter_date)
+    recordUsage(stories=top_stories, newsletter_date=newsletter_date)
 
     #add unused stories accordion section if applicable
     if unused_stories != []:
@@ -192,11 +182,17 @@ def constructNewsBlock(topic_id, top_k_stories, min_datetime, newsletter_date):
 
 #Prep a topic highlight block within a topic section
 def constructHighlightBlock(topic_id, min_datetime):
-    highlight = db.getTopicHighlights(min_datetime=min_datetime, filters={'topic_id':topic_id})[0]
+    bullets_list_sorted = db.getTopicHighlights(min_datetime=min_datetime, filters={'topic_id':topic_id})[0]['summary_bullets_ml']
+
+    #construct bullets html
+    bullets_html = ''
+    for bullet in bullets_list_sorted:
+        bullets_html += f'<li>{bullet['summary']}</li>'
+
     output_html = f'''
     <div class="block-spotlight">
       <h3 class="heading-block"><b>Highlights</b></h3>
-      <p class="paragraph">{utils.linebreaksHTML(highlight['summary_ml'])}<br></p>
+      <p class="paragraph"><ol>{bullets_html}</ol><br></p>
     </div>
     '''
     return output_html

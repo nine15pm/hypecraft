@@ -174,9 +174,13 @@ def updateStories(stories: list[dict]):
     table = STORY_TABLE
     updateEntries(table, stories)
 
-def createTopicHighlight(topic_highlights: list[dict]):
+def createTopicHighlights(topic_highlights: list[dict]):
     table = TOPIC_HIGHLIGHT_TABLE
     writeEntries(table, topic_highlights)
+
+def updateTopicHighlights(topic_highlights: list[dict]):
+    table = TOPIC_HIGHLIGHT_TABLE
+    updateEntries(table, topic_highlights)
 
 def getPosts(min_datetime=MIN_DATETIME_DEFAULT, max_datetime=MAX_DATETIME_DEFAULT, filters={}):
     table = POST_TABLE
@@ -206,6 +210,7 @@ def getFilteredPostIDs(min_datetime=MIN_DATETIME_DEFAULT, filters={}):
         'post_id'
     ]
     return readEntries(table=table, min_datetime=min_datetime, fields=fields, filters=filters)
+
 
 def getPostsForCategorize(topic_id, min_datetime=MIN_DATETIME_DEFAULT, max_datetime=MAX_DATETIME_DEFAULT):
     table = POST_TABLE
@@ -413,7 +418,8 @@ def getFilteredStoriesForTopic(topic_id, min_datetime=MIN_DATETIME_DEFAULT, max_
         'headline_ml',
         'posts_summarized',
         'daily_i_score_ml',
-        'theme_id'
+        'theme_id',
+        'trend_score'
     ]
     filters = {
         'topic_id': topic_id,

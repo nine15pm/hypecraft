@@ -6,6 +6,12 @@ from urllib.parse import urlparse, urlunparse
 from collections import namedtuple
 from transformers import AutoTokenizer
 
+#HELPER FUNCS
+#####################################################################################
+#get index of dict in list of dicts
+def getDictIndex(list_of_dicts:list[dict], key, value):
+    return next((index for (index, item) in enumerate(list_of_dicts) if item[key] == value), None)
+
 #GENERAL READ/WRITE
 #####################################################################################
 #Read secrets json

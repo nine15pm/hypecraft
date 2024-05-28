@@ -362,24 +362,55 @@ def summarizeThemes(topic, min_datetime, top_k_stories, max_datetime=MAX_DATETIM
         db.updateThemes(theme_updates)
     print(f'Theme summaries saved to DB')
 
-#load stories, generate topic summary
-def summarizeTopic(topic, min_datetime, max_datetime=MAX_DATETIME_DEFAULT):
-    themes = db.getNewsThemes(topic['topic_id'], min_datetime=min_datetime)
-    highlight_stories = []
-    for theme in themes:
-        if theme['posts'] == []:
-            continue
-        stories = db.getFilteredStoriesForTheme(theme['theme_id'], min_datetime=min_datetime, max_datetime=max_datetime)
-        stories = sorted(stories, key=lambda story: story['daily_i_score_ml'], reverse=True)
-        highlight_stories.append(stories[0])
-    
+#logic to pick out the top stories to be used in topic summary
+def selectTopStories(topic, top_k_stories, min_trend_score, min_datetime, max_datetime=MAX_DATETIME_DEFAULT):
+    stories = db.getFilteredStoriesForTopic(topic_id=topic['topic_id'], min_datetime=min_datetime, max_datetime=max_datetime)
+
+    #first sort stories by model given score, get top candidates
+    stories = sorted(stories, key=lambda story: story['daily_i_score_ml'], reverse=True)
+    if len(stories) > top_k_stories:
+        candidates = stories[:top_k_stories]
+        stories = stories[top_k_stories:]
+
+        #then check if any high trend score stories are not included, add them to candidates
+        candidates += [story for story in stories if story['trend_score'] >= min_trend_score]
+
+        #then sort by trend score and filter down to desired number
+        candidates = sorted(candidates, key=lambda story: story['trend_score'], reverse=True)
+        if len(candidates) > top_k_stories:
+            candidates = candidates[:top_k_stories]
+    else:
+        candidates = stories
+
     topic_highlights = [{
         'topic_id': topic['topic_id'],
-        'summary_ml': editor.generateTopicSummary(highlight_stories, topic_prompt_params=topic['topic_prompt_params'])
+        'top_stories': [story['story_id'] for story in candidates]
+    }]
+    db.createTopicHighlights(topic_highlights)
+
+#load stories, generate topic summary bullets, save sorted bullet list
+def summarizeTopic(topic, min_datetime, max_datetime=MAX_DATETIME_DEFAULT):
+    topic_highlight = db.getTopicHighlights(min_datetime=min_datetime, max_datetime=max_datetime, filters={'topic_id': topic['topic_id']})[0]
+    top_story_ids = topic_highlight['top_stories']
+    top_stories = db.getStories(min_datetime=min_datetime, max_datetime=max_datetime, filters={'story_id': top_story_ids})
+    
+    bullets_list = editor.generateTopicSummary(top_stories, topic_prompt_params=topic['topic_prompt_params'])
+
+    #get the i_score for each bullet
+    for story in top_stories:
+        idx = utils.getDictIndex(bullets_list, 'story_id', story['story_id'])
+        bullets_list[idx]['daily_i_score_ml'] = story['daily_i_score_ml']
+    
+    #sort bullets list
+    bullets_list = sorted(bullets_list, key=lambda story: story['daily_i_score_ml'], reverse=True)
+
+    topic_highlights = [{
+        'topic_highlight_id': topic_highlight['topic_highlight_id'],
+        'summary_bullets_ml': bullets_list
     }]
 
-    db.createTopicHighlight(topic_highlights)
-    print(f'Topic summary saved to DB')
+    db.updateTopicHighlights(topic_highlights)
+    print(f'Topic summary bullets saved to DB')
 
 #CSV dump for checking theme and story mapping
 def mappingToCSV(topic, min_datetime, max_datetime=MAX_DATETIME_DEFAULT):
@@ -445,7 +476,8 @@ def main():
     topic_id = 2
     max_posts_reddit = 100
     brainstorm_loops = 3
-    top_k_stories = 3
+    top_k_stories = 5
+    min_trend_score = 2500
     RAG_search_limit = 5
     topic = db.getTopics(filters={'topic_id': topic_id})[0]
     topic['topic_prompt_params']['topic_name'] = topic['topic_name']
@@ -471,7 +503,7 @@ def main():
     #getStoryRankingContext(topic, min_datetime=DATETIME_TODAY_START)
     rankStories(topic, min_datetime=DATETIME_TODAY_START)
     embedStories(topic=topic, min_datetime=DATETIME_TODAY_START)
-    summarizeThemes(topic, top_k_stories=top_k_stories, min_datetime=DATETIME_TODAY_START)
+    selectTopStories(topic, top_k_stories=top_k_stories, min_trend_score=min_trend_score, min_datetime=DATETIME_TODAY_START)
     summarizeTopic(topic, min_datetime=DATETIME_TODAY_START)
     storyQAToCSV(topic, min_datetime=DATETIME_TODAY_START)
 
