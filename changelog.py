@@ -2,15 +2,20 @@
 ####################
 changelog_current = 'Changelog \n\
 --------------------------------\n\
-- Testing out some AMP UI interactions \n\
-- Rewrote logic for selecting top stories to incorporate trend score \n\
+- Reworked news section blocks to more traditional newsletter form to account for AMP being shit and largely unuseable \n\
+- Added first version of contextual summary writing - i.e. get model to write summary that continues narrative from past stories\n\
+- Adjusted logic and prompt for checking past newsletters to try get it to dedup stories that are basically repetitive but contain different info (e.g. new approach would have filtered out the top 2 F1 stories from 5-28 test newsletter) \n\
+--------------------------------'
+
+#ARCHIVE
+####################
+changelog_05_28 = 'Changelog \n\
+--------------------------------\n\
 - Updated summary generation to clean up LLM chat language from summaries \n\
 - Updated topic highlights generation to have structured output to enforce bullet order match story ranking order \n\
 - Fixed issue where RAG was not pulling correct past newsletter stories for comparison \n\
 --------------------------------'
 
-#ARCHIVE
-####################
 changelog_05_27 = 'Changelog \n\
 --------------------------------\n\
 - [No major changes, R&Ding AMP email components]\n\
