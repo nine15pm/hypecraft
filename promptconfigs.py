@@ -29,7 +29,7 @@ BRAINSTORM_MODEL_PARAMS_LLAMA = {
 }
 
 WRITING_MODEL_PARAMS = {
-    'temperature': 0.9,
+    'temperature': 0.8,
     'truncate': 6144,
     'max_new_tokens': 2047,
     'top_p': 0.9,
@@ -132,20 +132,31 @@ def story_summary_news(topic_prompt_params:dict):
             1. Read the content of all the posts.\n\
             2. Identify the most important facts and takeaways. Prioritize the info a {topic_prompt_params['topic_name']} enthusiast cares about most.\n\
             3. Summarize the key facts into 1 single summary paragraph. Include relevant quotes if they are important. Do not exceed {SUMMARY_LEN_NEWS} words.\n\
-            4. Make the language concise, casual, and engaging to read. Avoid using unnecessary complex words. \n\
+            4. Make the language concise, casual, and engaging to read. Use simple and direct sentence structure. \n\
             5. Format the summary into a JSON list, follow this example: [{{"summary": "example summary text"}}] \n\n\
         Combine the following posts:\n\n',
         'model_params': WRITING_MODEL_PARAMS
     }
     return prompt
 
+def story_rewrite_summary_news(topic_prompt_params:dict):
+    prompt = {
+        'system_prompt': f'You are a {topic_prompt_params['topic_name']} newsletter editor. he user will provide content for you to summarize. Go step by step and write out each step. End with a formatted JSON list.',
+        'user_prompt': f'Your task is to rewrite a draft news story summary to connect it to past related stories. Follow these steps: \n\
+            1. Read the draft summary and past posts. Identify the broader story that relates the draft summary and past posts. \n\
+            2. Focus on just the draft summary. Identify the main point and the most important new facts and takeaways. Include relevant quotes if they are important. Prioritize the info a {topic_prompt_params['topic_name']} enthusiast cares about most. \n\
+            3. Rewrite the draft summary to continue the broader narrative and tie into past posts. Start with a sentence that gives context of the broader story - e.g. past events, time period that has passed, etc. Do NOT exceed {SUMMARY_LEN_NEWS} words. Make the language casual and engaging. Use simple and direct sentence structure. Format the summary into a JSON list, follow this example: [{{"summary": "example summary text"}}] \n\n',
+        'model_params': WRITING_MODEL_PARAMS
+    }
+    return prompt
+
 def theme_summary_news(topic_prompt_params:dict):
     prompt = {
-        'system_prompt': f'You are a {topic_prompt_params['topic_name']} newsletter editor. The user will provide content for you to summarize. Respond ONLY with the summary, do NOT respond with chat.',
-        'user_prompt': f'Your task is to summarize top {topic_prompt_params['topic_name']} news stories into a 1 line highlight that a reader can quickly skim. \n\n\
-        Your steps are as follows:\n\
-            1. Identify the news that a {topic_prompt_params['topic_name']} enthusiast would care most about. \n\
-            2. Write a concise 1 line highlight previewing this news. Mention the highest i_score stories first and prioritize exclusive or breaking news. Make the language engaging and entertaining.\n\n\
+        'system_prompt': f'You are a {topic_prompt_params['topic_name']} newsletter editor. The user will provide content for you to summarize. Go step by step and write out each step. Respond only with a JSON list containing the summary.',
+        'user_prompt': f'Your task is to summarize top {topic_prompt_params['topic_name']} news stories so that a reader can quickly skim. Follow these steps: \n\n\
+            1. Understand the main point of each story and the broader theme common to all the stories. \n\
+            2. Write a concise 1 paragraph summary of all the stories. Feature the highest i_score stories first. Prioritize info a {topic_prompt_params['topic_name']} enthusiast would care most about. Use casual language and simple and direct sentence structure.\n\
+            3. Format the summary text into a JSON list mapping each part to its corresponding story. Keep appropriate punctuation. Follow this example: [{{"part": "Example part about story 1.", "story_id": 64}}, {{"part": "Next part about story 2.", "story_id": 217}}] \n\n\
         Summarize the following stories:\n\n',
         'model_params': WRITING_MODEL_PARAMS
     }
@@ -180,6 +191,7 @@ SUMMARIZER_PROMPTS = {
         'model_params': WRITING_MODEL_PARAMS
     },
     'story_summary_news_fn': story_summary_news,
+    'story_rewrite_summary_news_fn': story_rewrite_summary_news,
     'theme_summary_news_fn': theme_summary_news,
     'topic_summary_news_fn': topic_summary_news
 }
@@ -189,9 +201,9 @@ def filter_outdated_news(topic_prompt_params:dict):
     prompt = {
         'system_prompt': f'You are a {topic_prompt_params['topic_name']} newsletter editor. The user will provide you news posts in JSON format and instructions. Your task is to identify outdated news posts given the context of other news posts. Go step by step and write out each step.',
         'user_prompt': f'Follow these steps to identify outdated posts:\n\
-            1. Go through each post and identify whether it is outdated. For example, if Post A is about rumors of an event, and Post B is a report after the event has happened, then Post A is outdated. Duplicate or redundant posts are OK as long as they are not outdated. \n\
+            1. Go through each post and identify whether it is outdated. For example, if Post A is about rumors of an event, and Post B is a report after the event has happened, then Post A is outdated. Exact duplicate or redundant posts are OK if the info is not outdated. \n\
             2. Return a formatted JSON list of all the posts and whether each is outdated (true or false). For example: [{{"pid": 261, "outdated": true}}, {{"pid": 94, "outdated": false}}, {{"pid": 433, "outdated": true}}] \n\
-        Go step by step and identify outdated posts. \n\n',
+        Go step by step and identify outdated posts. Redundant posts are OK. \n\n',
         'model_params': TASK_MODEL_PARAMS_OPENAI
     }
     return prompt
@@ -211,9 +223,9 @@ def filter_RAG_results(topic_prompt_params:dict):
 def filter_newinfo_story(topic_prompt_params:dict):
     prompt = {
         'system_prompt': f'You are a {topic_prompt_params['topic_name']} newsletter editor. The user will provide you news stories and instructions. Make sure to go step by step and write out each step.',
-        'user_prompt': f'Your task is to compare the target news post with past news posts to determine whether the target news post has newer, more recent info. Follow these steps:\n\
-            1. Compare the target post against each past post. Ignore posts that do not discuss the same news story. Write out each piece of new and more recent info contained in the target post. If there is newer info, evaluate if it is meaningful or insignificant. \n\
-            2. Based on this evaluation, decide if the target post has new and meaningful info or is repetitive. Respond with JSON true or false: [{{"new_and_meaningful": false}}] \n\
+        'user_prompt': f'Your task is to compare the target news post with past news posts to determine whether the target news post should be featured. Follow these steps:\n\
+            1. Compare the target post against each past post. Focus on the headline and main point of the story. Ignore posts that do not discuss the same news story. Write out any SIGNIFICANT new developments from the headline or main story. \n\
+            2. Based on this evaluation, decide whether the target post is new and significant or is largely repetitive. Respond with JSON true or false: [{{"new_and_meaningful": false}}] \n\
         Go step by step and do the task. \n\n',
         'model_params': TASK_MODEL_PARAMS_LLAMA
     }

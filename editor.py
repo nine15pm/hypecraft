@@ -2,6 +2,7 @@ import promptconfigs
 import requests
 import json
 import utils
+from datetime import datetime
 from openai import OpenAI
 
 #CONFIGS
@@ -282,15 +283,34 @@ def generateStorySummary(storyposts: list, topic_prompt_params: dict, prompt_con
         posts_summarized = [post['post_id'] for post in selected_posts]
     return summary, posts_summarized
 
-#write a short summary of the news within the theme
-def generateThemeSummary(stories: list, topic_prompt_params: dict, prompt_config='default') -> str:
+def rewriteStorySummaryPastContext(story, past_stories: list, topic_prompt_params: dict, prompt_config='default') -> str:
+    prompt_config = promptconfigs.SUMMARIZER_PROMPTS['story_rewrite_summary_news_fn'](topic_prompt_params) if prompt_config == 'default' else prompt_config
+    content = ''
+
+    #add current story
+    content += f'DRAFT SUMMARY:\n\nDate: {datetime.strftime(story['created_at'], "%A, %B %m")}\nHeadline: {story['headline_ml']}\nText: {story['summary_ml']}\n\n'
+    
+    #add past stories
+    content += 'PAST POSTS:\n\n'
+    for i, past_story in enumerate(past_stories):
+        content += f'Post {i} date: {datetime.strftime(past_story['created_at'], "%A, %B %m")}\nPost {i} headline: {past_story['headline_ml']}\nPost {i} text: {past_story['summary_ml']}\n\n'
+    
+    response = getResponseLLAMA(content, prompt_config)
+    summary = extractResponseJSON(response, step_label = 'rewrite story summary w past context')[0]['summary']
+    return summary
+
+#write a short summary of the remaining non-top news organized by theme
+def generateRadarSummary(stories: list, topic_prompt_params: dict, prompt_config='default') -> list[dict]:
     prompt_config = promptconfigs.SUMMARIZER_PROMPTS['theme_summary_news_fn'](topic_prompt_params) if prompt_config == 'default' else prompt_config
     #construct string combining all story summaries
     content = ''
-    for idx, story in enumerate(stories):
-        story_str = f'Story {idx} (i_score: {story['daily_i_score_ml']}) - {story['summary_ml']} \n\n'
+    for story in stories:
+        story_str = f'{{"story_id": {story['story_id']}, "i_score": {story['daily_i_score_ml']}), "text": {story['summary_ml']}}}\n'
         content = content + story_str
-    return getResponseLLAMA(content, prompt_config)
+    
+    response = getResponseLLAMA(content, prompt_config)
+    summary_phrase_list = extractResponseJSON(response, step_label = 'rewrite story summary w past context')
+    return summary_phrase_list
 
 #write a set of highlight bullets for the topic
 def generateTopicSummary(stories: list, topic_prompt_params: dict, prompt_config='default') -> str:

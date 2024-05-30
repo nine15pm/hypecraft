@@ -5,6 +5,7 @@ import editor
 import configs
 import RAG
 import trendscoring
+import json
 from pytz import timezone
 from datetime import datetime, time, timedelta
 
@@ -276,6 +277,7 @@ def filterRepeatStories(topic, min_datetime, max_datetime=MAX_DATETIME_DEFAULT, 
                     {
                         'story_id': story['story_id'],
                         'past_newsletter_repeat': True,
+                        'has_past_common_stories': True,
                         'past_common_stories': [story['story_id'] for story in RAG_stories]
                     }
                 )
@@ -285,12 +287,33 @@ def filterRepeatStories(topic, min_datetime, max_datetime=MAX_DATETIME_DEFAULT, 
                     {
                         'story_id': story['story_id'],
                         'past_newsletter_repeat': False,
+                        'has_past_common_stories': True,
                         'past_common_stories': [story['story_id'] for story in RAG_stories]
                     }
                 )
     if story_updates != []:
         db.updateStories(story_updates)
     print(f'Stories checked for repeat vs past newsletters, {repeat_count} out of {len(stories)} repeats')
+
+#rewrite summaries of stories with past related stories to continue the narrative
+def rewriteStoriesWithPastContext(topic, min_datetime, max_datetime=MAX_DATETIME_DEFAULT):
+    stories = db.getStories(min_datetime=min_datetime, max_datetime=max_datetime, filters={'past_newsletter_repeat': False, 'has_past_common_stories': True})
+    story_updates = []
+
+    #get past common stories and generate new summary
+    for story in stories:
+        past_stories = db.getStories(filters={'story_id': story['past_common_stories']})
+        new_summary = editor.rewriteStorySummaryPastContext(story=story, past_stories=past_stories, topic_prompt_params=topic['topic_prompt_params'])
+        story_updates.append(
+            {
+                'story_id': story['story_id'],
+                'summary_ml': new_summary
+            }
+        )
+
+    if story_updates != []:
+        db.updateStories(story_updates)
+    print(f'Stories with past context rewritten')
 
 #get context for ranking = currently just calc trend score
 def getStoryRankingContext(topic, min_datetime, max_datetime=MAX_DATETIME_DEFAULT):
@@ -344,54 +367,69 @@ def embedStories(topic, min_datetime, max_datetime=MAX_DATETIME_DEFAULT):
     RAG.embedAndUpsertStories(stories)
     print(f'Stories embedded and saved to vector DB')
 
-#load stories, generate theme
-def summarizeThemes(topic, min_datetime, top_k_stories, max_datetime=MAX_DATETIME_DEFAULT):
-    themes = db.getNewsThemes(topic['topic_id'], min_datetime=min_datetime)
-    for theme in themes:
-        #check if theme has no posts
-        if theme['posts'] == []:
-            continue
-        stories = db.getFilteredStoriesForTheme(theme['theme_id'], min_datetime=min_datetime, max_datetime=max_datetime)
-        stories = sorted(stories, key=lambda story: story['daily_i_score_ml'], reverse=True)
-        stories = stories[:top_k_stories] if len(stories) > top_k_stories else stories
-    
-        theme_updates = [{
-            'theme_id': theme['theme_id'],
-            'summary_ml': editor.generateThemeSummary(stories, topic_prompt_params=topic['topic_prompt_params'])
-        }]
-        db.updateThemes(theme_updates)
-    print(f'Theme summaries saved to DB')
-
-#logic to pick out the top stories to be used in topic summary
-def selectTopStories(topic, top_k_stories, min_trend_score, min_datetime, max_datetime=MAX_DATETIME_DEFAULT):
+#logic to pick out the stories to be used in each part of the news section (highlights, top stories)
+def selectStories(topic, num_highlight_stories, num_top_stories, min_trend_score, min_datetime, max_datetime=MAX_DATETIME_DEFAULT):
     stories = db.getFilteredStoriesForTopic(topic_id=topic['topic_id'], min_datetime=min_datetime, max_datetime=max_datetime)
 
     #first sort stories by model given score, get top candidates
     stories = sorted(stories, key=lambda story: story['daily_i_score_ml'], reverse=True)
-    if len(stories) > top_k_stories:
-        candidates = stories[:top_k_stories]
-        stories = stories[top_k_stories:]
+    if len(stories) > num_highlight_stories:
+        highlight_candidates = stories[:num_highlight_stories]
+        stories = stories[num_highlight_stories:]
+
+        #assign highest i_scores to top stories
+        top_stories = stories[:num_top_stories] if len(stories) > num_top_stories else stories
 
         #then check if any high trend score stories are not included, add them to candidates
-        candidates += [story for story in stories if story['trend_score'] >= min_trend_score]
+        highlight_candidates += [story for story in stories if story['trend_score'] >= min_trend_score]
 
         #then sort by trend score and filter down to desired number
-        candidates = sorted(candidates, key=lambda story: story['trend_score'], reverse=True)
-        if len(candidates) > top_k_stories:
-            candidates = candidates[:top_k_stories]
+        highlight_candidates = sorted(highlight_candidates, key=lambda story: story['trend_score'], reverse=True)
+        if len(highlight_candidates) > num_highlight_stories:
+            highlight_candidates = highlight_candidates[:num_highlight_stories]
     else:
-        candidates = stories
+        highlight_candidates = stories
+        top_stories = stories[:num_top_stories] if len(stories) > num_top_stories else stories
 
-    topic_highlights = [{
+    news_sections = [{
         'topic_id': topic['topic_id'],
-        'top_stories': [story['story_id'] for story in candidates]
+        'highlight_stories': [story['story_id'] for story in highlight_candidates],
+        'top_stories': [story['story_id'] for story in top_stories]
     }]
-    db.createTopicHighlights(topic_highlights)
+    db.createNewsSections(news_sections)
+    print(f'Highlight and top stories selected and saved to DB')
+
+#load stories, generate radar summaries
+def summarizeRadar(topic, min_datetime, max_stories, max_datetime=MAX_DATETIME_DEFAULT):
+    themes = db.getNewsThemes(topic['topic_id'], min_datetime=min_datetime)
+
+    #get posts that have already appeared in highlights and top stories
+    news_section = db.getNewsSections(min_datetime=min_datetime, max_datetime=max_datetime, filters={'topic_id': topic['topic_id']})[0]
+    already_shown_stories = news_section['highlight_stories'] + news_section['top_stories']
+
+    for theme in themes:
+        stories = db.getFilteredStoriesForTheme(theme['theme_id'], min_datetime=min_datetime, max_datetime=max_datetime)
+        stories = [story for story in stories if story['story_id'] not in already_shown_stories]
+        #check if no stories
+        if stories == [] or None:
+            continue
+        stories = sorted(stories, key=lambda story: story['daily_i_score_ml'], reverse=True)
+        stories = stories[:max_stories] if len(stories) > max_stories else stories
+
+        summary_phrase_list = editor.generateRadarSummary(stories, topic_prompt_params=topic['topic_prompt_params'])
+
+        theme_updates = [{
+            'theme_id': theme['theme_id'],
+            'radar_summary_ml': json.dumps(summary_phrase_list),
+            'radar_stories': [story['story_id'] for story in stories]
+        }]
+        db.updateThemes(theme_updates)
+    print(f'Radar summaries saved to DB')
 
 #load stories, generate topic summary bullets, save sorted bullet list
 def summarizeTopic(topic, min_datetime, max_datetime=MAX_DATETIME_DEFAULT):
-    topic_highlight = db.getTopicHighlights(min_datetime=min_datetime, max_datetime=max_datetime, filters={'topic_id': topic['topic_id']})[0]
-    top_story_ids = topic_highlight['top_stories']
+    news_section = db.getNewsSections(min_datetime=min_datetime, max_datetime=max_datetime, filters={'topic_id': topic['topic_id']})[0]
+    top_story_ids = news_section['highlight_stories']
     top_stories = db.getStories(min_datetime=min_datetime, max_datetime=max_datetime, filters={'story_id': top_story_ids})
     
     bullets_list = editor.generateTopicSummary(top_stories, topic_prompt_params=topic['topic_prompt_params'])
@@ -405,11 +443,12 @@ def summarizeTopic(topic, min_datetime, max_datetime=MAX_DATETIME_DEFAULT):
     bullets_list = sorted(bullets_list, key=lambda story: story['daily_i_score_ml'], reverse=True)
 
     topic_highlights = [{
-        'topic_highlight_id': topic_highlight['topic_highlight_id'],
-        'summary_bullets_ml': bullets_list
+        'topic_id': topic['topic_id'],
+        'stories': top_story_ids,
+        'summary_bullets_ml': json.dumps(bullets_list)
     }]
 
-    db.updateTopicHighlights(topic_highlights)
+    db.createTopicHighlights(topic_highlights)
     print(f'Topic summary bullets saved to DB')
 
 #CSV dump for checking theme and story mapping
@@ -473,10 +512,12 @@ def storyQAToCSV(topic, min_datetime, max_datetime=MAX_DATETIME_DEFAULT):
 ##############################################################################################
 def main():
     #Pipeline params
-    topic_id = 2
+    topic_id = 1
     max_posts_reddit = 100
     brainstorm_loops = 3
-    top_k_stories = 5
+    num_highlight_stories = 4
+    num_top_stories = 1
+    max_radar_stories = 4
     min_trend_score = 2500
     RAG_search_limit = 5
     topic = db.getTopics(filters={'topic_id': topic_id})[0]
@@ -497,18 +538,18 @@ def main():
     #except:
     #    db.deleteStories(min_datetime=DATETIME_TODAY_START, filters={'topic_id': topic_id})
     #    raise
-    #mappingToCSV(topic, min_datetime=DATETIME_TODAY_START)
     #summarizeStories(topic, min_datetime=DATETIME_TODAY_START)
     #filterRepeatStories(topic, min_datetime=DATETIME_TODAY_START, search_limit=RAG_search_limit)
     #getStoryRankingContext(topic, min_datetime=DATETIME_TODAY_START)
-    rankStories(topic, min_datetime=DATETIME_TODAY_START)
-    embedStories(topic=topic, min_datetime=DATETIME_TODAY_START)
-    selectTopStories(topic, top_k_stories=top_k_stories, min_trend_score=min_trend_score, min_datetime=DATETIME_TODAY_START)
-    summarizeTopic(topic, min_datetime=DATETIME_TODAY_START)
-    storyQAToCSV(topic, min_datetime=DATETIME_TODAY_START)
+    #rankStories(topic, min_datetime=DATETIME_TODAY_START)
+    #embedStories(topic=topic, min_datetime=DATETIME_TODAY_START)
+    #selectStories(topic, num_highlight_stories=num_highlight_stories, num_top_stories=num_top_stories, min_trend_score=min_trend_score, min_datetime=DATETIME_TODAY_START)
+    summarizeRadar(topic, min_datetime=DATETIME_TODAY_START, max_stories=max_radar_stories, max_datetime=MAX_DATETIME_DEFAULT)
+    #summarizeTopic(topic, min_datetime=DATETIME_TODAY_START)
 
 if __name__ == '__main__':
     main()
+
 
 #TEMP ARCHIVE AND REMAPPING
 ##############################################################################################

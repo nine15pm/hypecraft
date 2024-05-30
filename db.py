@@ -16,6 +16,7 @@ STORY_TABLE = 'story'
 FEED_TABLE = 'feed'
 TOPIC_HIGHLIGHT_TABLE = 'topic_highlight'
 TOPIC_TABLE = 'topic'
+NEWS_SECTION_TABLE = 'news_section'
 MIN_DATETIME_DEFAULT = datetime.fromtimestamp(0)
 MAX_DATETIME_DEFAULT = datetime.fromtimestamp(datetime.now().timestamp() + 1e9)
 
@@ -174,6 +175,14 @@ def updateStories(stories: list[dict]):
     table = STORY_TABLE
     updateEntries(table, stories)
 
+def createNewsSections(news_sections: list[dict]):
+    table = NEWS_SECTION_TABLE
+    writeEntries(table, news_sections)
+
+def updateNewsSections(news_sections: list[dict]):
+    table = NEWS_SECTION_TABLE
+    updateEntries(table, news_sections)
+
 def createTopicHighlights(topic_highlights: list[dict]):
     table = TOPIC_HIGHLIGHT_TABLE
     writeEntries(table, topic_highlights)
@@ -196,6 +205,12 @@ def getStories(min_datetime=MIN_DATETIME_DEFAULT, max_datetime=MAX_DATETIME_DEFA
 
 def getTopicHighlights(min_datetime=MIN_DATETIME_DEFAULT, max_datetime=MAX_DATETIME_DEFAULT, filters={}):
     table = TOPIC_HIGHLIGHT_TABLE
+    sort_field = 'updated_at'
+    sort_order = 'DESC'
+    return readEntries(table=table, min_datetime=min_datetime, max_datetime=max_datetime, filters=filters, sort_field=sort_field, sort_order=sort_order)
+
+def getNewsSections(min_datetime=MIN_DATETIME_DEFAULT, max_datetime=MAX_DATETIME_DEFAULT, filters={}):
+    table = NEWS_SECTION_TABLE
     sort_field = 'updated_at'
     sort_order = 'DESC'
     return readEntries(table=table, min_datetime=min_datetime, max_datetime=max_datetime, filters=filters, sort_field=sort_field, sort_order=sort_order)
@@ -402,7 +417,10 @@ def getStoriesForTopic(topic_id, min_datetime=MIN_DATETIME_DEFAULT, max_datetime
         'headline_ml',
         'posts_summarized',
         'daily_i_score_ml',
-        'theme_id'
+        'theme_id',
+        'trend_score',
+        'past_newsletter_repeat',
+        'newsletter_date'
     ]
     filters = {
         'topic_id': topic_id,
@@ -488,7 +506,8 @@ def getThemesForTopic(topic_id, min_datetime=MIN_DATETIME_DEFAULT, max_datetime=
         'theme_id',
         'posts',
         'theme_name_ml',
-        'summary_ml'
+        'radar_summary_ml',
+        'radar_stories'
     ]
     filters = {
         'topic_id': topic_id,
