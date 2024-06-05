@@ -34,10 +34,34 @@ def recordUsage(stories:list[dict], newsletter_date):
     db.updateStories(story_updates)
     db.updatePosts(post_updates)
 
+#Get single link for story based on post with most text
 def getTopPostLink(post_ids):
     posts = db.getPosts(filters={'post_id': post_ids})
     most_text = max(posts, key=lambda post:len(post['external_parsed_text'] if post['external_parsed_text'] is not None else post['post_text']))
     return most_text['external_link'] if most_text['external_link'] is not None else most_text['post_link']
+
+#Get single image URL for story from associated posts, fall back to generic URL
+def getStoryImageURL(story):
+    posts = db.getPosts(filters={'post_id': story['posts']})
+    
+    #first check if summarized posts have images
+    image_urls = []
+    for post in posts:
+        if post['post_id'] in story['posts_summarized']:
+            image_urls += post['image_urls']
+
+    if image_urls != []:
+        return image_urls[0]
+
+    #if not, then check remaining posts - if still none, then return fallback image url
+    image_urls = []
+    for post in posts:
+        image_urls += post['image_urls']
+
+    if image_urls != []:
+        return image_urls[0]
+    else:
+        return db.getTopics(filters={'topic_id': story['topic_id']})[0]['fallback_img_url']
 
 #HTML UNIT CONSTRUCTORS
 ##############################################################################################
@@ -78,7 +102,7 @@ def storyUnit(tag:str, headline:str, body:str, links:list, rag=False, rag_items=
     '''
     return output_html
 
-def topStoryUnit(tag:str, headline:str, body:str, links:list, rag=False, rag_items=[]):
+def topStoryUnit(tag:str, headline:str, body:str, image_url:str, links:list, rag=False, rag_items=[]):
     links_html = ''
     for i, link in enumerate(links):
         links_html = links_html + ampLink(text=f'Link {i}', url=link)
@@ -93,9 +117,9 @@ def topStoryUnit(tag:str, headline:str, body:str, links:list, rag=False, rag_ite
 
     output_html = f'''
     <div class="featured-img-wrapper">
-        <amp-img class="cover" layout="fill" src="https://www.si.com/.image/t_share/MjAzMDkyNTkyODk0NzQ4MjI3/max-verstappen-red-bull-47.jpg">
+        <amp-img class="cover" layout="fill" src="{image_url}">
         </amp-img>
-        <span class="featured-tag">TOP STORY</span>
+        <span class="featured-tag">{tag}</span>
     </div>
     <div class="featured-content">
         <h4 class="heading-unit-light"><b>{headline}</b></h4>
@@ -144,9 +168,8 @@ def ampAccordion(units:list[tuple]):
     
 #BLOCK CONSTRUCTORS
 ##############################################################################################
-#Prep a news themes/stories block within a topic section
+#Prep top story card within a topic section
 def constructTopStoriesBlock(topic_id, min_datetime, newsletter_date):
-    themes = db.getThemesForTopic(topic_id, min_datetime=min_datetime)
     top_story_ids = db.getNewsSections(min_datetime=min_datetime, filters={'topic_id': topic_id})[0]['top_stories']
     top_stories = db.getStories(filters={'story_id': top_story_ids})
     top_stories_html = ''
@@ -172,9 +195,10 @@ def constructTopStoriesBlock(topic_id, min_datetime, newsletter_date):
         rag_list = db.getStories(filters={'story_id': story['past_common_stories']})
 
         headline = story['headline_ml'] + ml_score + trend_score + past_newsletter
-        tag = [theme['theme_name_ml'] for theme in themes if theme['theme_id'] == story['theme_id']][0]
+        tag = 'TOP STORY'
+        image_url = getStoryImageURL(story)
 
-        top_stories_html += topStoryUnit(tag=tag, headline=headline, body=story['summary_ml'], links=links, rag=rag, rag_items=rag_list)
+        top_stories_html += topStoryUnit(tag=tag, headline=headline, body=story['summary_ml'], image_url=image_url, links=links, rag=rag, rag_items=rag_list)
     
     output_html = f'''
     <div class="block-featured">
