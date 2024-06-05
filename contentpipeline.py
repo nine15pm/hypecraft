@@ -410,7 +410,8 @@ def selectStories(topic, num_highlight_stories, num_top_stories, trend_score_mul
         radar_theme_ids.append(theme['theme_id'])
         theme_updates = [{
             'theme_id': theme['theme_id'],
-            'radar_stories': [story['story_id'] for story in stories]
+            'radar_stories': [story['story_id'] for story in stories],
+            'max_rank_score': max([story['rank_score'] for story in stories])
         }]
         db.updateThemes(theme_updates)
 
