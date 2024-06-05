@@ -507,7 +507,8 @@ def getThemesForTopic(topic_id, min_datetime=MIN_DATETIME_DEFAULT, max_datetime=
         'posts',
         'theme_name_ml',
         'radar_summary_ml',
-        'radar_stories'
+        'radar_stories',
+        'max_rank_score'
     ]
     filters = {
         'topic_id': topic_id,
