@@ -42,12 +42,16 @@ def calcTrendScore(queries_list, sample_size, min_datetime):
     top_tweets = []
     #iterate through queries list and try search
     for query in queries_list:
-        results = searchTwitter(search_text=query['query'], min_date=min_datetime.strftime('%Y-%m-%d'))
-        if len(results) > sample_size:
-            top_tweets += results[:sample_size]
-            break
-        else:
-            top_tweets += results
+        try:
+            results = searchTwitter(search_text=query['query'], min_date=min_datetime.strftime('%Y-%m-%d'))
+            if len(results) > sample_size:
+                top_tweets += results[:sample_size]
+                break
+            else:
+                top_tweets += results
+        except requests.exceptions.JSONDecodeError:
+            print('error in Tweet API response')
+            return -1
 
     #check if no results, return -1 to indicate no valid score
     if len(top_tweets) == 0:

@@ -278,7 +278,7 @@ def select_theme_news(topic_prompt_params:dict):
                 - Posts about same story assigned to different sections \n\
                 - Section is empty \n\
             5. Fix the issues, add or remove sections if needed. Provide a final list of sections, do NOT exceed 5 sections. \n\
-            6. Format the sections as a JSON list. For example: [{{"id": 1, "name": "Section A", "scope": "Covers x, y, z types of stories"}}, {{"id": 2, "name": "Section B", "scope": "Covers x, y, z types of stories"}}, {{"id": 3, "name": "Section C", "scope": "Covers x, y, z types of stories"}}] \n\n',
+            6. Format the sections as a JSON list, with id labeled 1 to N. For example: [{{"id": 1, "name": "Section A", "scope": "Covers x, y, z types of stories"}}, {{"id": 2, "name": "Section B", "scope": "Covers x, y, z types of stories"}}, {{"id": 3, "name": "Section C", "scope": "Covers x, y, z types of stories"}}] \n\n',
         'model_params': TASK_MODEL_PARAMS_OPENAI
     }
     return prompt
