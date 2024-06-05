@@ -6,40 +6,129 @@
         <script async custom-element="amp-accordion" src="https://cdn.ampproject.org/v0/amp-accordion-0.1.js"></script>
         <style amp4email-boilerplate>body{visibility:hidden}</style>
         <style amp-custom>
-            .email-body {
+            .email-container {
             font-family: system-ui, sans-serif;
-            color: #333;
-            padding: 20px;
-            background-color: #f9f9f9;
+            background-color: #ffffff;
+            padding: 0;
+            }
+            .email-content{
+            max-width: 750px;
+            margin: auto;
             }
             .section-topheader {
-            background-color: #f0fbff; /* Lightened pastel blue */
-            padding: 10px;
+            background-color: #6744F4;
+            padding-top: 10px;
+            padding-bottom: 16px;
+            padding-left: 16px;
+            padding-right: 16px;
+            margin-bottom: 16px;
+            }
+            .main-title {
+            color: #ffffff;
+            letter-spacing: 0.1em;
+            margin-top: 0px;
+            margin-bottom: 0px;
             }
             .date-div {
-            padding: 5px; /* Reduced height */
-            background-color: #f5f5ff; /* Lightened pastel purple for debugging */
+            color: #ffffff;
+            font-size: 10px;
+            margin-top: 0px;
+            margin-bottom: 0px;
             }
             .section-changelog {
-            background-color: #eaffea; /* Lightened pastel green */
-            padding: 10px;
+            background-color: #dddddd;
+            padding-top: 16px;
+            padding-bottom: 16px;
+            padding-left: 16px;
+            padding-right: 16px;
+            margin-top: 16px;
+            margin-bottom: 8px;
+            margin-left: 16px;
+            margin-right: 16px;
+
             }
             .section-topic {
-            margin-bottom: 20px;
-            background-color: #faebff; /* Lightened pastel purple */
-            padding: 10px;
+            margin-top: 16px;
+            margin-bottom: 16px;
             }
             .section-footer {
-            background-color: #f5f5ff; /* Lightened pastel purple */
+            background-color: #f5f5ff;
             padding: 10px;
             }
-            .block-spotlight {
-            background-color: #fffbf0; /* Lightened pastel yellow */
-            padding: 10px;
+            .block-highlights {
+            position: relative;
+            margin-top: 16px;
+            margin-bottom: 24px;
+            margin-left: 16px;
+            margin-right: 16px;
+            padding-left: 16px;
+            padding-right: 16px;
+            }
+            .block-featured {
+            position: relative;
+            margin-top: 16px;
+            margin-bottom: 30px;
+            margin-left: 16px;
+            margin-right: 16px;
+            border-radius: 12px;
+            background-color: #6744f4;
+            }
+            .featured-img-wrapper {
+            position: relative;
+            height: 150px;
+            border-top-left-radius: 12px; 
+            border-top-right-radius: 12px;
+            overflow: hidden;
+            }
+            amp-img.cover img {
+            object-fit: cover;
+            }
+            .featured-tag {
+            position: absolute;
+            top: 12px;
+            left: 12px;
+            display: inline-block;
+            background-color: #6744f4;
+            color: #ffffff;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: bold;
+            width: fit-content;
+            }
+            .featured-content {
+            padding: 16px;
+            }
+            .block-radar {
+            margin-top: 16px;
+            margin-bottom: 16px;
+            background-color: #e4e4e4;
+            padding: 16px;
+            }
+            .radar-card {
+            display: flex;
+            flex-direction: row;
+            margin-top: 16px;
+            margin-bottom: 16px;
+            background-color: #ffffff;
+            padding: 12px;
+            border-radius: 12px;
+            }
+            .radar-img-wrapper {
+            border-radius: 12px;
+            overflow: hidden;
+            }
+            .radar-img {
+            display: block;
+            width: 100%;
+            height: auto;
+            object-fit: cover;
+            }
+            .radar-card-content {
+            flex: 1;
             }
             .block-stories {
-            background-color: #ffefef; /* Lightened pastel red */
-            padding: 10px;
+            background-color: #dbdbdb;
             }
             .story-card-links {
             display: flex;
@@ -49,44 +138,88 @@
             gap: 10px;
             }
             .heading-section {
-            margin-top: 10px;
-            margin-bottom: 10px;
+            margin-top: 0px;
+            margin-bottom: 0px;
+            margin-left: 16px;
+            margin-right: 16px;
+            font-size: 26px;
+            font-weight: 600;
             }
             .heading-block {
-            margin-top: 10px;
+            margin-top: 0px;
+            margin-bottom: 0px;
+            font-size: 20px;
+            font-weight: 600;
+            color: #5a5a5a;
+            }
+            .heading-featured {
+            margin-top: 0px;
+            margin-bottom: 0px;
+            font-size: 16px;
+            font-weight: bold;
+            color: #ffffff;
+            }
+            .heading-unit-light {
+            margin-top: 4px;
             margin-bottom: 10px;
+            color: #ffffff;
             }
             .heading-unit {
             margin-top: 4px;
             margin-bottom: 10px;
             }
-            .paragraph {
-            font-size: 12px; /* Smaller paragraph text */
-            margin-top: 10px;
-            margin-bottom: 10px;
+            .highlights-text {
+            margin: 0px;
+            }
+            .story-text-light {
+            font-size: 14px;
+            margin: 0px;
+            font-weight: normal;
+            color: #ffffff;
+            }
+            .story-text {
+            font-size: 14px;
+            margin: 0px;
             font-weight: normal;
             }
+            .paragraph {
+            font-size: 12px;
+            margin: 0px;
+            font-weight: normal;
+            }
+            ol {
+            padding:0;
+            font-size: 16px;
+            }
+            li {
+            font-size: 16px;
+            }
             .link {
-            color: #1a73e8;
+            color: #6744f4;
             text-decoration: none;
-            font-size: 10px; /* Smaller link text */
+            font-size: 12px; /* Smaller link text */
             }
             .link:hover {
             text-decoration: underline;
             }
+            .small-text-light {
+            color: #ffffff;
+            font-size: 10px;
+            }
             .small-text {
             color: #777;
-            font-size: 10px; /* Much smaller footer text */
+            font-size: 10px;
             }
             .tag {
             display: inline-block;
-            background-color: #007BFF;
+            background-color: #6744f4;
             color: white;
             padding: 2px 6px;
-            border-radius: 4px;
-            font-size: 10px;
+            border-radius: 12px;
+            font-size: 12px;
             font-weight: bold;
             width: fit-content;
+            margin-bottom: 8px;
             }
             .accordion-title {
             display: flex;
@@ -116,6 +249,6 @@
             }
         </style>
     </head>
-    <body class="email-body">
+    <body class="email-container">
     </body>
 </html>

@@ -1,0 +1,472 @@
+<!doctype html>
+<html ⚡4email lang="en" data-css-strict>
+    <head>
+        <meta charset="utf-8">
+        <script async src="https://cdn.ampproject.org/v0.js"></script>
+        <script async custom-element="amp-accordion" src="https://cdn.ampproject.org/v0/amp-accordion-0.1.js"></script>
+        <style amp4email-boilerplate>body{visibility:hidden}</style>
+        <style amp-custom>
+            .email-container {
+            font-family: system-ui, sans-serif;
+            background-color: #ffffff;
+            padding: 0;
+            }
+            .email-content{
+            max-width: 750px;
+            margin: auto;
+            }
+            .section-topheader {
+            background-color: #6744F4;
+            padding-top: 10px;
+            padding-bottom: 16px;
+            padding-left: 16px;
+            padding-right: 16px;
+            margin-bottom: 16px;
+            }
+            .main-title {
+            color: #ffffff;
+            letter-spacing: 0.1em;
+            margin-top: 0px;
+            margin-bottom: 0px;
+            }
+            .date-div {
+            color: #ffffff;
+            font-size: 10px;
+            margin-top: 0px;
+            margin-bottom: 0px;
+            }
+            .section-changelog {
+            background-color: #dddddd;
+            padding-top: 16px;
+            padding-bottom: 16px;
+            padding-left: 16px;
+            padding-right: 16px;
+            margin-top: 16px;
+            margin-bottom: 8px;
+            margin-left: 16px;
+            margin-right: 16px;
+
+            }
+            .section-topic {
+            margin-top: 16px;
+            margin-bottom: 16px;
+            }
+            .section-footer {
+            background-color: #f5f5ff;
+            padding: 10px;
+            }
+            .block-highlights {
+            position: relative;
+            margin-top: 16px;
+            margin-bottom: 24px;
+            margin-left: 16px;
+            margin-right: 16px;
+            padding-left: 16px;
+            padding-right: 16px;
+            }
+            .block-featured {
+            position: relative;
+            margin-top: 16px;
+            margin-bottom: 30px;
+            margin-left: 16px;
+            margin-right: 16px;
+            border-radius: 12px;
+            background-color: #6744f4;
+            }
+            .featured-img-wrapper {
+            position: relative;
+            height: 150px;
+            border-top-left-radius: 12px; 
+            border-top-right-radius: 12px;
+            overflow: hidden;
+            }
+            amp-img.cover img {
+            object-fit: cover;
+            }
+            .featured-tag {
+            position: absolute;
+            top: 12px;
+            left: 12px;
+            display: inline-block;
+            background-color: #6744f4;
+            color: #ffffff;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: bold;
+            width: fit-content;
+            }
+            .featured-content {
+            padding: 16px;
+            }
+            .block-radar {
+            margin-top: 16px;
+            margin-bottom: 16px;
+            background-color: #e4e4e4;
+            padding: 16px;
+            }
+            .radar-card {
+            display: flex;
+            flex-direction: row;
+            margin-top: 16px;
+            margin-bottom: 16px;
+            background-color: #ffffff;
+            padding: 12px;
+            border-radius: 12px;
+            }
+            .radar-img-wrapper {
+            border-radius: 12px;
+            overflow: hidden;
+            }
+            .radar-img {
+            display: block;
+            width: 100%;
+            height: auto;
+            object-fit: cover;
+            }
+            .radar-card-content {
+            flex: 1;
+            }
+            .block-stories {
+            background-color: #dbdbdb;
+            }
+            .story-card-links {
+            display: flex;
+            flex-direction: row;
+            padding: 5px;
+            background-color: #fffff0;
+            gap: 10px;
+            }
+            .heading-section {
+            margin-top: 0px;
+            margin-bottom: 0px;
+            margin-left: 16px;
+            margin-right: 16px;
+            font-size: 26px;
+            font-weight: 600;
+            }
+            .heading-block {
+            margin-top: 0px;
+            margin-bottom: 0px;
+            font-size: 20px;
+            font-weight: 600;
+            color: #5a5a5a;
+            }
+            .heading-featured {
+            margin-top: 0px;
+            margin-bottom: 0px;
+            font-size: 16px;
+            font-weight: bold;
+            color: #ffffff;
+            }
+            .heading-unit-light {
+            margin-top: 4px;
+            margin-bottom: 10px;
+            color: #ffffff;
+            }
+            .heading-unit {
+            margin-top: 4px;
+            margin-bottom: 10px;
+            }
+            .highlights-text {
+            margin: 0px;
+            }
+            .story-text-light {
+            font-size: 14px;
+            margin: 0px;
+            font-weight: normal;
+            color: #ffffff;
+            }
+            .story-text {
+            font-size: 14px;
+            margin: 0px;
+            font-weight: normal;
+            }
+            .paragraph {
+            font-size: 12px;
+            margin: 0px;
+            font-weight: normal;
+            }
+            ol {
+            padding:0;
+            font-size: 16px;
+            }
+            li {
+            font-size: 16px;
+            }
+            .link {
+            color: #6744f4;
+            text-decoration: none;
+            font-size: 12px; /* Smaller link text */
+            }
+            .link:hover {
+            text-decoration: underline;
+            }
+            .small-text-light {
+            color: #ffffff;
+            font-size: 10px;
+            }
+            .small-text {
+            color: #777;
+            font-size: 10px;
+            }
+            .tag {
+            display: inline-block;
+            background-color: #6744f4;
+            color: white;
+            padding: 2px 6px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: bold;
+            width: fit-content;
+            margin-bottom: 8px;
+            }
+            .accordion-title {
+            display: flex;
+            flex-direction: column;
+            padding: 10px;
+            }
+            .accordion-title:hover {
+            padding: 10px;
+            background-color: #f5f5ff; /* Lightened pastel purple hover effect for accordion header */
+            cursor: pointer;
+            }
+            .story-card {
+            background: #f9f9f9;
+            border-radius: 5px;
+            box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1), 0 2px 3px rgba(0, 0, 0, 0.1);
+            margin: 20px;
+            padding: 0 10px;
+            }
+            .story-card-wrapper {
+            display: inline-flex;
+            flex-wrap: nowrap;
+            align-items: center;
+            width: 100%;
+            }
+            .story-card-content {
+            width: 80%;
+            }
+        </style>
+    </head>
+    <body class="email-container">
+    <div class="email-content">
+    <header class="section-topheader">
+        <h1 class="main-title">HYPECRAFT V004</h1>
+        <div class="date-div">
+            <i>2024-05-30 03:53</i>
+        </div>
+    </header>
+    <div class="section-changelog">
+        <p class="paragraph">Changelog <br>--------------------------------<br>- Reworked news section blocks to more traditional newsletter form to account for AMP being shit and largely unuseable <br>- Added first version of contextual summary writing - i.e. get model to write summary that continues narrative from past stories<br>- Adjusted logic and prompt for checking past newsletters to try get it to dedup stories that are basically repetitive but contain different info (e.g. new approach would have filtered out the top 2 F1 stories from 5-28 test newsletter) <br>--------------------------------</p>
+    </div>
+    <div class="section-topic">
+        <h2 class="heading-section">Formula 1</h2>
+    <div class="block-highlights">
+      <p class="highlights-text"><ol><li>Red Bull needs Sergio Perez to regain form amidst Ferrari and McLaren threats.</li><li>Lewis Hamilton struggles in final Mercedes season, eighth in drivers' championship.</li><li>Renault CEO considers abandoning F1 engine project, selling team, and seeking 2026 engine supply.</li><li>Max Verstappen frustrated with Red Bull's ongoing bump weakness, says team 'doesn't understand' issue.</li></ol></p>
+    </div>
+    <div class="block-featured">
+        <div class="featured-img-wrapper">
+            
+            <amp-img class="cover" layout="fill" src="https://www.si.com/.image/t_share/MjAzMDkyNTkyODk0NzQ4MjI3/max-verstappen-red-bull-47.jpg">
+            </amp-img>
+            <span class="featured-tag">TOP STORY</span>
+        </div>
+        
+        <div class="featured-content">
+                <h4 class="heading-unit-light"><b>Red Bull Urgently Needs Perez to Rebound Amid Ferrari and McLaren Threat (ML score: 85) (Trend score: 7187) (Past repeat: False)</b></h4>
+                <p class="story-text-light">Red Bull team principal Christian Horner has acknowledged that the team needs Sergio Perez to regain his form amidst the growing threat from Ferrari and McLaren. Perez has struggled in recent races, including a "brutal" Monaco GP weekend where he qualified 16th and crashed on the first lap. Horner emphasized that Red Bull needs both cars scoring points, as Ferrari and McLaren are closing in on the Constructors' Championship. "We just need to get him back into that position of confidence and not see a dip," Horner said. The team's lead over Ferrari has been reduced to 24 points, and Perez has dropped to fifth in the Drivers' Championship.</p>
+                <div class="story-card-links">
+                    <a href="https://www.skysports.com/f1/news/12433/13144640/f1-red-bull-admit-they-need-sergio-perez-back-on-form-with-ferrari-mclaren-upping-pressure-for-wins" class="link">Link 0</a>
+                </div>
+                <div>
+                    <p class="small-text-light">
+                        - [[Past newsletter: 2024-05-26] Pérez Slams "Dangerous" Magnussen After Monaco Crash, Demands Steward Inquiry<br>- [[Past newsletter: 2024-05-27] Perez's Monaco Crash to Cost Red Bull $3 Million, Extension Still Likely<br>
+                    </p>
+                </div>
+        </div>
+    </div>
+    <div class="block-radar">
+      <h3 class="heading-block">Your Radar</h3>
+
+        <div class="radar-card">
+            <div class="radar-card-content">
+                <span class="tag">Race Analysis</span>
+                <p class="story-text">Fernando Alonso is worried that Aston Martin is falling back into the midfield after failing to score points in Monaco, but remains optimistic that a good car upgrade can quickly turn things around. [<a href="https://www.formula1.com/en/latest/article/alonso-concerned-aston-martin-are-back-in-the-midfield-after-team-fail-to.5wjqe4p59X8ZPmSp2kgijW" class="link">link</a>] Formula 1 drivers, including Max Verstappen and Fernando Alonso, want to change the red-flag tyre rule to bring back strategic excitement, with suggestions including not changing tyres or using the same tyre under a red flag. [<a href="https://www.speedweek.com/formel1/news/223022/Dr-Helmut-Marko-ueber-Monaco-Man-muss-etwas-machen.html" class="link">link</a>] </p>
+            </div>
+        </div>
+    <div class="story-card">
+        <div class="story-card-wrapper">
+            <div class="story-card-content">
+                <h4 class="heading-unit"><b>Technical Insights</b></h4>
+                <p class="paragraph">Alex Albon says using older spec parts in Monaco hindered teammate Logan Sargeant's performance, with Sargeant likely to have made Q2 if he had the updated rear wing like Albon. [<a href="https://www.motorsportweek.com/2024/05/29/albon-admits-old-williams-f1-parts-cost-sargeant-in-monaco/" class="link">link</a>] </p>
+            </div>
+        </div>
+    </div>
+    <div class="story-card">
+        <div class="story-card-wrapper">
+            <div class="story-card-content">
+                <h4 class="heading-unit"><b>Team News</b></h4>
+                <p class="paragraph">Aston Martin's Fernando Alonso says the team's recent struggles are a 'big wake-up call', but valuable lessons are being learned for the rest of the year and beyond. [<a href="https://www.autosport.com/f1/news/alonso-last-two-f1-races-a-big-wake-up-call-for-aston-martin/10617146/" class="link">link</a>] Mercedes F1 boss Toto Wolff denies favoritism towards Lewis Hamilton, saying the team treats both Hamilton and George Russell equally, with a new front wing upgrade coming for both drivers at the Canadian GP. [<a href="https://www.the-race.com/formula-1/lewis-hamilton-george-russell-f1-qualifying-claim-paranoia/" class="link">link</a>] </p>
+            </div>
+        </div>
+    </div>
+    <div class="story-card">
+        <div class="story-card-wrapper">
+            <div class="story-card-content">
+                <h4 class="heading-unit"><b>Other F1 News</b></h4>
+                <p class="paragraph">Lewis Hamilton is thrilled to see his former team McLaren competing at the front of the field again, praising Lando Norris and Oscar Piastri for their performances. [<a href="https://racingnews365.com/hamilton-proclaims-former-team-resurgence-warms-my-heart" class="link">link</a>] IndyCar winner Josef Newgarden believes IndyCar drivers could succeed in Formula 1, citing adaptability and performances in FP1 outings, but acknowledges the challenges of making it to F1. [<a href="https://www.the-race.com/indycar/indycar-drivers-to-f1-josef-newgarden-claim-assessed/" class="link">link</a>] EA Sports has revealed the driver ratings for the new F1 24 game, with Max Verstappen taking the top spot, while Lando Norris and Alex Albon react to their own ratings. [<a href="https://www.autosport.com/f1/news/f1-24-ea-sports-reveals-driver-ratings-hamilton-norris-more/10617242/" class="link">link</a>] </p>
+            </div>
+        </div>
+    </div>
+    <div class="story-card">
+        <div class="story-card-wrapper">
+            <div class="story-card-content">
+                <h4 class="heading-unit"><b>Driver Market</b></h4>
+                <p class="paragraph">Red Bull Racing is unlikely to replace Daniel Ricciardo or Yuki Tsunoda with Liam Lawson anytime soon, as the team is'very happy' with their current driver lineup, which has seen Tsunoda make significant improvements and become the team's leading points-scorer. [<a href="https://www.racefans.net/2024/05/29/lawsons-hopes-of-return-dwindle-as-rb-are-very-happy-with-both-drivers/" class="link">link</a>] </p>
+            </div>
+        </div>
+    </div>
+    </div>
+    <div class="block-stories">
+      <h3 class="heading-block"><b>QA</b></h3>
+    <amp-accordion animate>
+        <section>
+    <h4 class="accordion-title">
+        <b>[QA: Top ranked stories]</b>
+    </h4>
+        <div>
+    <div class="story-card">
+        <div class="story-card-wrapper">
+            <div class="story-card-content">
+                <span class="tag">Team News</span>
+                <h4 class="heading-unit"><b>Red Bull Urgently Needs Perez to Rebound Amid Ferrari and McLaren Threat (ML score: 85) (Trend score: 7187) (Past repeat: False)</b></h4>
+                <p class="paragraph">Red Bull team principal Christian Horner has acknowledged that the team needs Sergio Perez to regain his form amidst the growing threat from Ferrari and McLaren. Perez has struggled in recent races, including a "brutal" Monaco GP weekend where he qualified 16th and crashed on the first lap. Horner emphasized that Red Bull needs both cars scoring points, as Ferrari and McLaren are closing in on the Constructors' Championship. "We just need to get him back into that position of confidence and not see a dip," Horner said. The team's lead over Ferrari has been reduced to 24 points, and Perez has dropped to fifth in the Drivers' Championship.</p>
+                <div class="story-card-links">
+                    <a href="https://www.skysports.com/f1/news/12433/13144640/f1-red-bull-admit-they-need-sergio-perez-back-on-form-with-ferrari-mclaren-upping-pressure-for-wins" class="link">Link 0</a>
+                </div>
+                <div>
+                    <p class="small-text">
+                        - [[Past newsletter: 2024-05-26] Pérez Slams "Dangerous" Magnussen After Monaco Crash, Demands Steward Inquiry<br>- [[Past newsletter: 2024-05-27] Perez's Monaco Crash to Cost Red Bull $3 Million, Extension Still Likely<br>
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="story-card">
+        <div class="story-card-wrapper">
+            <div class="story-card-content">
+                <span class="tag">Race Analysis</span>
+                <h4 class="heading-unit"><b>Hamilton's Title Hopes in Jeopardy Amid Worst Season Start in F1 Career (ML score: 85) (Trend score: -1) (Past repeat: False)</b></h4>
+                <p class="paragraph">Lewis Hamilton's final season with Mercedes has not gone as planned, with the seven-time world champion currently eighth in the drivers' championship behind teammate George Russell. Hamilton has failed to finish in the top five in a race and hasn't won since the Saudi Arabian Grand Prix in December 2021. He has only outqualified Russell once and beaten him once when both drivers have seen the chequered flag. Hamilton has expressed frustration with his one-lap pace, saying "I don't understand... I'm just lacking" and "I don't anticipate being ahead of George in Qualifying this year." Team principal Toto Wolff has acknowledged Hamilton's frustration, saying "All drivers are a bit sceptical at times" and that the team is "trying to maximise the results for Hamilton's final season." With 16 events remaining, there is still time for Hamilton to turn his season around.</p>
+                <div class="story-card-links">
+                    <a href="https://www.skysports.com/f1/news/12433/13144087/lewis-hamilton-do-mercedes-driver-and-silver-arrows-still-see-eye-to-eye-in-2024-f1-season" class="link">Link 0</a>
+                </div>
+                <div>
+                    <p class="small-text">
+                        - [[Past newsletter: 2024-05-26] Mercedes Boss Toto Wolff Admits Blunder Cost Lewis Hamilton Monaco GP Victory<br>
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="story-card">
+        <div class="story-card-wrapper">
+            <div class="story-card-content">
+                <span class="tag">Team News</span>
+                <h4 class="heading-unit"><b>Renault's F1 Future in Jeopardy as CEO Considers Engine Sale and Briatore's Return (ML score: 80) (Trend score: -1) (Past repeat: False)</b></h4>
+                <p class="paragraph">Renault CEO Luca de Meo is considering abandoning the company's F1 engine project, potentially selling the team, and is reportedly shopping for an engine supply for 2026. This could lead to the Alpine brand being retained through a naming and livery rights deal. De Meo is also linked to appointing Flavio Briatore, a controversial figure in F1, as a special advisor to the team, sparking concerns due to his past involvement in the 2008 'Crashgate' scandal. Meanwhile, Carlos Sainz's future is uncertain, with Williams potentially offering him a better deal.</p>
+                <div class="story-card-links">
+                    <a href="https://joesaward.wordpress.com/2024/05/29/green-notebook-from-saint-doulchard/" class="link">Link 0</a><a href="https://www.autosport.com/f1/news/briatore-tipped-for-alpine-f1-role-amid-renault-frustration/10617259/" class="link">Link 1</a>
+                </div>
+                <div>
+                    <p class="small-text">
+                        - [[Past newsletter: 2024-05-24] Sainz Eyes Shock Williams Switch Amid Ferrari Uncertainty and Mercedes Engine Boost<br>
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="story-card">
+        <div class="story-card-wrapper">
+            <div class="story-card-content">
+                <span class="tag">Technical Insights</span>
+                <h4 class="heading-unit"><b>Verstappen Slams Red Bull's Bump Weakness, Warns of Tough Races Ahead (ML score: 75) (Trend score: 368) (Past repeat: False)</b></h4>
+                <p class="paragraph">Max Verstappen has expressed frustration with Red Bull's ongoing struggles with bump weakness, stating that the team "clearly doesn't understand" the issue that has plagued them since last season. Despite dominating in previous years, the RB19's weakness on kerbs and bumps has been exposed in recent races, including Monaco, Miami, and Melbourne. Verstappen believes it's a fundamental problem that won't be fixed quickly, saying "we need to understand what it is, because we clearly don't understand it." He warns that upcoming races, such as the Canadian Grand Prix, may be challenging for the team, but is hopeful that they can make progress and improve their performance by next year.</p>
+                <div class="story-card-links">
+                    <a href="https://www.motorsport.com/f1/news/verstappen-red-bull-clearly-doesnt-understand-f1-bump-weakness/10617076/" class="link">Link 0</a>
+                </div>
+                <div>
+                    <p class="small-text">
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+    </div>
+        </section>
+        <section>
+        <h4 class="accordion-title">
+            <b>[QA: Lower ranked stories in Radar section]</b>
+        </h4>
+        <div>
+    <div class="story-card">
+        <div class="story-card-wrapper">
+            <div class="story-card-content">
+                <span class="tag">Team News</span>
+                <h4 class="heading-unit"><b>Wolff Dismisses Favoritism Claims, Insists Equal Treatment for Hamilton and Russell (ML score: 50) (Trend score: 552) (Past repeat: False)</b></h4>
+                <p class="paragraph">Mercedes F1 boss Toto Wolff has denied favoritism towards Lewis Hamilton over George Russell, saying the team treats both drivers equally and transparently. This comes after Hamilton expressed doubts about outqualifying Russell for the rest of the season, citing a performance drop-off in qualifying. However, Wolff attributes Hamilton's comments to a competitive mindset, and both drivers will receive a new front wing upgrade at the next race in Canada. As Wolff stated, 'We are trying to always balance it right, and be transparent and fair.'</p>
+                <div class="story-card-links">
+                    <a href="https://www.motorsport.com/f1/news/mercedes-equal-driver-treatment-hamilton-skepticism/10617042/" class="link">Link 0</a><a href="https://www.the-race.com/formula-1/lewis-hamilton-george-russell-f1-qualifying-claim-paranoia/" class="link">Link 1</a>
+                </div>
+                <div>
+                    <p class="small-text">
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="story-card">
+        <div class="story-card-wrapper">
+            <div class="story-card-content">
+                <span class="tag">Other F1 News</span>
+                <h4 class="heading-unit"><b>IndyCar Champ Newgarden: Indy Drivers Could Dominate Formula 1 with Right Opportunity (ML score: 25) (Trend score: 383) (Past repeat: False)</b></h4>
+                <p class="paragraph">Josef Newgarden, the Indianapolis 500 winner, claims that IndyCar drivers could "rock" Formula 1, stating "any of us could, and we would rock it." While he likely means the championship's frontrunners, Newgarden acknowledges the immense pressure and challenge of making it to F1, citing the need to indoctrinate oneself into the system, secure funding, and overcome political hurdles. The article assesses the arguments for and against IndyCar drivers succeeding in F1, including their potential to adapt to different cars and tracks, as well as the differences in competition and spotlight intensity between the two series. Newgarden's claim is supported by the performances of Alex Palou and Pato O'Ward in FP1 outings, but countered by the struggles of IndyCar drivers in support series and the specialized nature of F1.</p>
+                <div class="story-card-links">
+                    <a href="https://www.the-race.com/indycar/indycar-drivers-to-f1-josef-newgarden-claim-assessed/" class="link">Link 0</a>
+                </div>
+                <div>
+                    <p class="small-text">
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="story-card">
+        <div class="story-card-wrapper">
+            <div class="story-card-content">
+                <span class="tag">Race Analysis</span>
+                <h4 class="heading-unit"><b>F1 Drivers Demand Rule Change to Restore Strategic Excitement to Racing (ML score: 65) (Trend score: 603) (Past repeat: False)</b></h4>
+                <p class="paragraph">Formula 1 drivers, including Max Verstappen and Fernando Alonso, are calling for a change to the red-flag tyre rule, which they feel eliminated strategic excitement at the Monaco Grand Prix. The rule allows drivers to change tyres under a red flag, making mandatory pitstops and strategic plays unnecessary. Verstappen and Alonso suggest alternatives, such as not changing tyres or being obliged to use the same tyre under a red flag. Meanwhile, Red Bull's advisor Helmut Marko is pushing for Monaco circuit improvements, including possible mandatory pit stops or required use of all three tyre compounds to increase strategy and overtaking opportunities.</p>
+                <div class="story-card-links">
+                    <a href="https://www.autosport.com/f1/news/f1-drivers-want-to-revisit-red-flag-tyre-rule-that-ruined-monaco-gp/10617189/" class="link">Link 0</a><a href="https://www.speedweek.com/formel1/news/223022/Dr-Helmut-Marko-ueber-Monaco-Man-muss-etwas-machen.html" class="link">Link 1</a>
+                </div>
+                <div>
+                    <p class="small-text">
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+    </div>
+        </section>
+    </amp-accordion>
+    </div>
+    </div>
+    
+    <footer class="section-footer">
+        <p class="paragraph small-text">🫶 Written for you with love by Hypecraft on Thursday, May 30. Powered by Lllama 3.</p>
+    </footer>
+    </div>
+    </body>
+</html>
