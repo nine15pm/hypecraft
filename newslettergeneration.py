@@ -5,8 +5,7 @@ import emailer
 import changelog
 import RAG
 from pytz import timezone
-from datetime import datetime, time
-
+from datetime import datetime, time, timedelta
 #HELPER FUNCTIONS
 ##############################################################################################
 #Record usage of story and posts in newsletter
@@ -79,14 +78,46 @@ def storyUnit(tag:str, headline:str, body:str, links:list, rag=False, rag_items=
     '''
     return output_html
 
-def themeUnit(headline:str, body:str):
+def topStoryUnit(tag:str, headline:str, body:str, links:list, rag=False, rag_items=[]):
+    links_html = ''
+    for i, link in enumerate(links):
+        links_html = links_html + ampLink(text=f'Link {i}', url=link)
+    
+    #Show RAG results for QA
+    if rag:
+        rag_string = ''
+        for item in rag_items:
+            rag_string = rag_string + f'- [[Past newsletter: {item['newsletter_date']}] {item['headline_ml']}\n'
+    else:
+        rag_string=''
+
     output_html = f'''
-    <div class="story-card">
-        <div class="story-card-wrapper">
-            <div class="story-card-content">
-                <h4 class="heading-unit"><b>{headline}</b></h4>
-                <p class="paragraph">{body}</p>
-            </div>
+    <div class="featured-img-wrapper">
+        <amp-img class="cover" layout="fill" src="https://www.si.com/.image/t_share/MjAzMDkyNTkyODk0NzQ4MjI3/max-verstappen-red-bull-47.jpg">
+        </amp-img>
+        <span class="featured-tag">TOP STORY</span>
+    </div>
+    <div class="featured-content">
+        <h4 class="heading-unit-light"><b>{headline}</b></h4>
+        <p class="story-text-light">{body}</p>
+        <div class="story-card-links">
+            {links_html}
+        </div>
+        <div>
+            <p class="small-text-light">
+                {utils.linebreaksHTML(rag_string)}
+            </p>
+        </div>
+    </div>
+    '''
+    return output_html
+
+def themeUnit(tag:str, body:str):
+    output_html = f'''
+    <div class="radar-card">
+        <div class="radar-card-content">
+            <span class="tag">{tag}</span>
+            <p class="story-text">{body}</p>
         </div>
     </div>
     '''
@@ -143,12 +174,11 @@ def constructTopStoriesBlock(topic_id, min_datetime, newsletter_date):
         headline = story['headline_ml'] + ml_score + trend_score + past_newsletter
         tag = [theme['theme_name_ml'] for theme in themes if theme['theme_id'] == story['theme_id']][0]
 
-        top_stories_html += storyUnit(tag=tag, headline=headline, body=story['summary_ml'], links=links, rag=rag, rag_items=rag_list)
+        top_stories_html += topStoryUnit(tag=tag, headline=headline, body=story['summary_ml'], links=links, rag=rag, rag_items=rag_list)
     
     output_html = f'''
-    <div class="block-stories">
-      <h3 class="heading-block"><b>Radar</b></h3>
-      {top_stories_html}
+    <div class="block-featured">
+        {top_stories_html}
     </div>
     '''
     #record usage of stories and posts in newsletter
@@ -161,8 +191,17 @@ def constructRadarBlock(topic_id, min_datetime, newsletter_date):
     themes = db.getThemesForTopic(topic_id, min_datetime=min_datetime)
     radar_html = ''
 
+    #order themes by max rank score
+    themes = sorted(themes, key=lambda theme: theme['max_rank_score'], reverse=True)
+
+    #move "other" theme to be last if it exists
+    theme_other_idx = [theme[0] for theme in enumerate(themes) if 'Other' in theme[1]['theme_name_ml']]
+    if theme_other_idx != []:
+        themes.append(themes.pop(theme_other_idx))
+    
     for theme in themes:
         if theme['radar_summary_ml'] is not None:
+
             assembled_summary = ''
             for part in theme['radar_summary_ml']:
                 story = db.getStories(filters={'story_id': part['story_id']})[0]
@@ -170,11 +209,11 @@ def constructRadarBlock(topic_id, min_datetime, newsletter_date):
                 recordUsage(stories=[story], newsletter_date=newsletter_date)
                 assembled_summary += part['part'] + f' [{ampLink('link', url=getTopPostLink(story['posts_summarized']))}] '
             
-            radar_html += themeUnit(headline=theme['theme_name_ml'], body=assembled_summary)
+            radar_html += themeUnit(tag=theme['theme_name_ml'], body=assembled_summary)
     
     output_html = f'''
-    <div class="block-stories">
-      <h3 class="heading-block"><b>Radar</b></h3>
+    <div class="block-radar">
+      <h3 class="heading-block">Your Radar</h3>
       {radar_html}
     </div>
     '''
@@ -227,8 +266,8 @@ def constructNewsQABlock(topic_id, min_datetime):
         tag = [theme['theme_name_ml'] for theme in themes if theme['theme_id'] == story['theme_id']][0]
 
         child = child + storyUnit(tag=tag, headline=headline, body=story['summary_ml'], links=links, rag=rag, rag_items=rag_list)
-        child = f'<div>{child}</div>'
-            
+    
+    child = f'<div>{child}</div>'    
     units.append((parent, child))
 
     #add unused stories accordion section if applicable
@@ -258,14 +297,15 @@ def constructNewsQABlock(topic_id, min_datetime):
             headline = story['headline_ml'] + ml_score + trend_score + past_newsletter
             tag = [theme['theme_name_ml'] for theme in themes if theme['theme_id'] == story['theme_id']][0]
             child = child + storyUnit(tag=tag, headline=headline, body=story['summary_ml'], links=links)
-            child = f'<div>{child}</div>'
+        
+        child = f'<div>{child}</div>'
         units.append((parent, child))
     
     #construct accordion and output
     accordion_html = ampAccordion(units)
     output_html = f'''
     <div class="block-stories">
-      <h3 class="heading-block"><b>Top Stories</b></h3>
+      <h3 class="heading-block"><b>QA</b></h3>
       {accordion_html}
     </div>
     '''
@@ -281,9 +321,8 @@ def constructHighlightBlock(topic_id, min_datetime, newsletter_date):
         bullets_html += f'<li>{bullet['bullet']}</li>'
 
     output_html = f'''
-    <div class="block-spotlight">
-      <h3 class="heading-block"><b>Highlights</b></h3>
-      <p class="paragraph"><ol>{bullets_html}</ol></p>
+    <div class="block-highlights">
+      <p class="highlights-text"><ol>{bullets_html}</ol></p>
     </div>
     '''
     #record usage of stories and posts in newsletter
@@ -300,9 +339,9 @@ def constructTopHeaderSection(newsletter_title):
     n_date = datetime.strftime(datetime.now(), "%Y-%m-%d %I:%M")
     output_html = f'''
     <header class="section-topheader">
-        <h1><b>{newsletter_title}</b></h1>
+        <h1 class="main-title">{newsletter_title}</h1>
         <div class="date-div">
-            <p class="paragraph"><i>{n_date}</i></p>
+            <i>{n_date}</i>
         </div>
     </header>
     '''
@@ -311,7 +350,6 @@ def constructTopHeaderSection(newsletter_title):
 def constructChangelogSection(changelog):
     output_html = f'''
     <div class="section-changelog">
-        <h2 class="heading-section">Changelog</h2>
         <p class="paragraph">{utils.linebreaksHTML(changelog)}</p>
     </div>
     '''
@@ -329,7 +367,7 @@ def constructFooterSection(footer_text):
 def constructTopicSection(topic_id, min_datetime, newsletter_date, has_highlight=True, has_top_stories=True, has_radar=True, has_news_QA=True):
     #get topic heading
     topic = db.getTopics(filters={'topic_id': topic_id})[0]
-    topic_heading = f'''<h2>{topic['topic_email_name']}</h2>'''
+    topic_heading = f'''{topic['topic_email_name']}'''
 
     #construct topic highlights block
     highlight_block = constructHighlightBlock(topic_id, min_datetime, newsletter_date) if has_highlight else ''
@@ -360,17 +398,18 @@ def wrapEncodeHTML(body_html, template_path):
         template_html = file.read()
     template_html = template_html.decode("utf-8")
     body_end_idx = template_html.index('</body>')
-    output_html = template_html[:body_end_idx] + body_html + template_html[body_end_idx:]
+    output_html = template_html[:body_end_idx] + '<div class="email-content">' + body_html + '</div>' + template_html[body_end_idx:]
     return output_html
 
 #GENERATE NEWSLETTER AND SEND
 ##############################################################################################
+PATH_EMAIL_ARCHIVE = 'emails/'
 PATH_EMAIL_TEMPLATE = 'emailtemplates/amptemplate_v004.html'
 today_start = datetime.combine(datetime.today(), time.min).astimezone(timezone(configs.LOCAL_TZ))
 newsletter_date = datetime.today()
-topics = [{'topic_id': 1}]
-title = 'HYPECRAFT V0.0.4 TEST'
-footer_text = f'''🫶 Written for you with love by Hypecraft on {datetime.strftime(newsletter_date, "%A, %B %m")}. Powered by Lllama 3.'''
+topics = [{'topic_id': 1}, {'topic_id': 2}]
+title = 'HYPECRAFT V0.0.4'
+footer_text = f'''🫶 Written for you with love by Hypecraft on {datetime.strftime(newsletter_date, "%A, %B %d")}. Powered by Lllama 3.'''
 recipients1 = ['maintainer@example.com']
 recipients2 = ['maintainer@example.com', 'contributor@example.com']
 
@@ -381,5 +420,6 @@ for topic in topics:
     main_content = main_content + constructTopicSection(topic_id=topic['topic_id'], min_datetime=today_start, newsletter_date=newsletter_date)
 footer = constructFooterSection(footer_text=footer_text)
 newsletter_html = wrapEncodeHTML(body_html=header + log + main_content + footer, template_path=PATH_EMAIL_TEMPLATE)
-#print(newsletter_html)
+with open(PATH_EMAIL_ARCHIVE + f'email{datetime.strftime(newsletter_date, "%A, %B %d")}.html', 'w', encoding='utf-8') as outfile:
+    outfile.write(newsletter_html)
 emailer.sendNewsletter(subject=title, recipients=recipients1, content_html=newsletter_html)
