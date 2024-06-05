@@ -403,7 +403,7 @@ def selectStories(topic, num_highlight_stories, num_top_stories, trend_score_mul
         #filter out already used stories in top and highlights
         theme_stories = [story for story in theme_stories if story['story_id'] not in highlight_candidates]
         #sort by rank score
-        theme_stories = sorted(stories, key=lambda story: story['rank_score'], reverse=True)
+        theme_stories = sorted(theme_stories, key=lambda story: story['rank_score'], reverse=True)
         #remove if exceeds max number of stories
         stories = stories[:max_radar_stories] if len(stories) > max_radar_stories else stories
 
