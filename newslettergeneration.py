@@ -221,7 +221,7 @@ def constructRadarBlock(topic_id, min_datetime, newsletter_date):
     #move "other" theme to be last if it exists
     theme_other_idx = [theme[0] for theme in enumerate(themes) if 'Other' in theme[1]['theme_name_ml']]
     if theme_other_idx != []:
-        themes.append(themes.pop(theme_other_idx))
+        themes.append(themes.pop(theme_other_idx[0]))
     
     for theme in themes:
         if theme['radar_summary_ml'] is not None:
@@ -339,10 +339,19 @@ def constructNewsQABlock(topic_id, min_datetime):
 def constructHighlightBlock(topic_id, min_datetime, newsletter_date):
     bullets_list_sorted = db.getTopicHighlights(min_datetime=min_datetime, filters={'topic_id':topic_id})[0]['summary_bullets_ml']
 
+    #get highlight stories
+    highlight_stories_ids = db.getNewsSections(min_datetime=min_datetime, filters={'topic_id': topic_id})[0]['highlight_stories']
+    links = []
+
+    #get links for each story
+    for story_id in highlight_stories_ids:
+        story = db.getStories(filters={'story_id': story_id})[0]
+        links.append(getTopPostLink(story['posts_summarized']))
+
     #construct bullets html
     bullets_html = ''
-    for bullet in bullets_list_sorted:
-        bullets_html += f'<li>{bullet['bullet']}</li>'
+    for idx, bullet in enumerate(bullets_list_sorted):
+        bullets_html += f'<li>{bullet['bullet']}&ensp;<a class="highlights-button" href="{links[idx]}">Read&nbsp;<i class="arrow-right"></i></a></li>'
 
     output_html = f'''
     <div class="block-highlights">
@@ -350,8 +359,7 @@ def constructHighlightBlock(topic_id, min_datetime, newsletter_date):
     </div>
     '''
     #record usage of stories and posts in newsletter
-    stories_used_ids = db.getNewsSections(min_datetime=min_datetime, filters={'topic_id': topic_id})[0]['highlight_stories']
-    stories_used = db.getStories(filters={'story_id': stories_used_ids})
+    stories_used = db.getStories(filters={'story_id': highlight_stories_ids})
     recordUsage(stories=stories_used, newsletter_date=newsletter_date)
 
     return output_html
