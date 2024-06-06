@@ -400,7 +400,8 @@ def getNewsThemes(topic_id, min_datetime=MIN_DATETIME_DEFAULT, max_datetime=MAX_
     fields = [
         'theme_id',
         'theme_name_ml',
-        'posts'
+        'posts',
+        'radar_stories'
     ]
     filters = {
         'topic_id': topic_id,

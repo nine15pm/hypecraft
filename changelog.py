@@ -2,12 +2,19 @@
 ####################
 changelog_current = 'Changelog \n\
 --------------------------------\n\
-- Started updating email formatting in preparation for v0.1 (first alpha) \n\
-- Fixed story selection logic to not return different highlights vs. top story based on differing trend score vs. i_score rankings\n\
+- Updated ordering logic for "Radar" section to be based on story rank score \n\
+- Updated top story image to be dynamic \n\
+- Added read more links to highlights bullets \n\
 --------------------------------'
 
 #ARCHIVE
 ####################
+changelog_05_30 = 'Changelog \n\
+--------------------------------\n\
+- Started updating email formatting in preparation for v0.1 (first alpha) \n\
+- Fixed story selection logic to not return different highlights vs. top story based on differing trend score vs. i_score rankings\n\
+--------------------------------'
+
 changelog_05_29 = 'Changelog \n\
 --------------------------------\n\
 - Reworked news section blocks to more traditional newsletter form to account for AMP being shit and largely unuseable \n\

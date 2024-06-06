@@ -374,7 +374,7 @@ def selectStories(topic, num_highlight_stories, num_top_stories, trend_score_mul
     themes = db.getNewsThemes(topic['topic_id'], min_datetime=min_datetime)
 
     #filter out stories that don't meet either min trend score or min i score
-    stories = [story for story in stories if story['daily_i_score_ml'] < min_i_score and story['trend_score'] < min_trend_score]
+    stories = [story for story in stories if story['daily_i_score_ml'] >= min_i_score or story['trend_score'] >= min_trend_score]
 
     #calculate blended rank score using base of i_score + boost from trend score
     for idx, story in enumerate(stories):
@@ -405,16 +405,17 @@ def selectStories(topic, num_highlight_stories, num_top_stories, trend_score_mul
         #sort by rank score
         theme_stories = sorted(theme_stories, key=lambda story: story['rank_score'], reverse=True)
         #remove if exceeds max number of stories
-        stories = stories[:max_radar_stories] if len(stories) > max_radar_stories else stories
+        theme_stories = theme_stories[:max_radar_stories] if len(theme_stories) > max_radar_stories else theme_stories
 
         radar_theme_ids.append(theme['theme_id'])
         theme_updates = [{
             'theme_id': theme['theme_id'],
-            'radar_stories': [story['story_id'] for story in stories],
-            'max_rank_score': max([story['rank_score'] for story in stories])
+            'radar_stories': [story['story_id'] for story in theme_stories],
+            'max_rank_score': max([story['rank_score'] for story in theme_stories])
         }]
         db.updateThemes(theme_updates)
 
+    #save selected stories
     news_sections = [{
         'topic_id': topic['topic_id'],
         'highlight_stories': [story['story_id'] for story in highlight_candidates],
@@ -536,10 +537,10 @@ def main():
     max_past_context = 2 #number of past newsletter stories to give when rewriting summary
     min_trend_score = 1500 #minimum score to not get filtered out
     min_i_score = 40 #minimum score to not get filtered out
-    num_highlight_stories = 4 #number of top stories in highlights block
+    num_highlight_stories = 3 #number of top stories in highlights block
     num_top_stories = 1 #number of top stories in top stories block
-    max_radar_stories = 4 #number of stories per theme in radar block
-    trend_score_mult = 0.002 #multiplier for weighting trend score in ranking
+    max_radar_stories = 3 #number of stories per theme in radar block
+    trend_score_mult = 0.01 #multiplier for weighting trend score in ranking
     RAG_search_limit = 5 #top N results to return from RAG search
     topic = db.getTopics(filters={'topic_id': topic_id})[0]
     topic['topic_prompt_params']['topic_name'] = topic['topic_name']

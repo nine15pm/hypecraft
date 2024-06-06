@@ -168,7 +168,7 @@ def topic_summary_news(topic_prompt_params:dict):
         'user_prompt': f'Your task is to summarize top {topic_prompt_params['topic_name']} news stories into a bulleted list of highlights that a reader can quickly skim. \n\n\
         Your steps are as follows:\n\
             1. Read the content of all the stories. Understand the main point of each story, the info a {topic_prompt_params['topic_name']} enthusiast cares about most.\n\
-            2. Write 1 summary bullet for each story, less than 20 words. Make the language simple, casual, direct, and easy to understand. \n\
+            2. Write 1 summary bullet for each story, max of 15 words. Make the language simple, casual, direct, and easy to understand. \n\
             3. Format the bullets into a JSON list, follow this example: [{{"story_id":121, "bullet": "example text bullet 1"}}, {{"story_id":95, "bullet": "example text bullet 2"}}]\n\n\
         Summarize the following stories:\n\n',
         'model_params': WRITING_MODEL_PARAMS
@@ -348,8 +348,8 @@ RANKING_PROMPTS = {
 #Prompts for writing headlines
 HEADLINE_PROMPTS = {
     'news_headline':{
-        'system_prompt': 'You are an email newsletter writer. The user will provide news content and ask you to write a headline. Respond ONLY with the headline, do NOT respond with chat.',
-        'user_prompt': 'Your task is to write a short, descriptive headline for a piece of trending news to attract the attention of readers. Do not include quotes in the headline. Write an engaging headline for the following news, in 15 words or less:\n\n',
+        'system_prompt': 'You are an email newsletter writer. The user will provide news content for you to describe. Respond ONLY with the 1-line summary, do NOT respond with chat.',
+        'user_prompt': 'Your task is to write a 1-line summary of the main news story discussed in the post below. Do NOT exceed 15 words. Use simple, direct, engaging language that will stand out to readers. \n\n',
         'model_params': WRITING_MODEL_PARAMS
     },
     'news_post_retitle':{
