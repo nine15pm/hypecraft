@@ -397,11 +397,11 @@ def selectStories(topic, num_highlight_stories, num_top_stories, trend_score_mul
     for theme in themes:
         #get theme stories
         theme_stories = [story for story in stories if story['theme_id'] == theme['theme_id']]
+        #filter out already used stories in top and highlights
+        theme_stories = [story for story in theme_stories if story not in highlight_candidates]
         #check if no stories
         if theme_stories == [] or None:
             continue
-        #filter out already used stories in top and highlights
-        theme_stories = [story for story in theme_stories if story['story_id'] not in highlight_candidates]
         #sort by rank score
         theme_stories = sorted(theme_stories, key=lambda story: story['rank_score'], reverse=True)
         #remove if exceeds max number of stories
@@ -423,6 +423,18 @@ def selectStories(topic, num_highlight_stories, num_top_stories, trend_score_mul
         'radar_themes': radar_theme_ids
     }]
     db.createNewsSections(news_sections)
+
+    #save rank scores for selected stories
+    story_updates = []
+    for story in highlight_candidates:
+        story_updates.append(
+            {
+                'story_id': story['story_id'],
+                'rank_score': story['rank_score']
+            }
+        )
+    db.updateStories(story_updates)
+
     print(f'Highlight, top, and radar stories selected and saved to DB')
 
 #load stories, generate radar summaries
@@ -545,30 +557,34 @@ def main():
     topic = db.getTopics(filters={'topic_id': topic_id})[0]
     topic['topic_prompt_params']['topic_name'] = topic['topic_name']
 
-    pullPosts(topic, max_posts_reddit, min_timestamp=DATETIME_TODAY_START.timestamp())
-    categorizePosts(topic, min_datetime=DATETIME_TODAY_START)
-    summarizeNewsPosts(topic, min_datetime=DATETIME_TODAY_START)
-    embedNewsPosts(topic=topic, min_datetime=DATETIME_TODAY_START)
-    filterNewsPosts(topic, min_datetime=DATETIME_TODAY_START)
-    try:
-        draftAndMapThemes(topic, brainstorm_loops=brainstorm_loops, min_datetime=DATETIME_TODAY_START)
-    except:
-        db.deleteThemes(min_datetime=DATETIME_TODAY_START, filters={'topic_id': topic_id})
-        raise
-    try:
-        groupStories(topic, min_datetime=DATETIME_TODAY_START)
-    except:
-        db.deleteStories(min_datetime=DATETIME_TODAY_START, filters={'topic_id': topic_id})
-        raise
-    summarizeStories(topic, min_datetime=DATETIME_TODAY_START)
-    filterRepeatStories(topic, min_datetime=DATETIME_TODAY_START, search_limit=RAG_search_limit)
-    rewriteStoriesWithPastContext(topic, max_past_context=max_past_context, min_datetime=DATETIME_TODAY_START)
-    getStoryRankingContext(topic, min_datetime=DATETIME_TODAY_START)
-    rankStories(topic, min_datetime=DATETIME_TODAY_START)
-    embedStories(topic=topic, min_datetime=DATETIME_TODAY_START)
-    selectStories(topic, trend_score_mult=trend_score_mult, num_highlight_stories=num_highlight_stories, num_top_stories=num_top_stories, min_i_score=min_i_score, min_trend_score=min_trend_score, max_radar_stories=max_radar_stories, min_datetime=DATETIME_TODAY_START)
-    summarizeRadar(topic, min_datetime=DATETIME_TODAY_START, max_datetime=MAX_DATETIME_DEFAULT)
-    summarizeTopic(topic, min_datetime=DATETIME_TODAY_START)
+    #pullPosts(topic, max_posts_reddit, min_timestamp=DATETIME_TODAY_START.timestamp())
+    #categorizePosts(topic, min_datetime=DATETIME_TODAY_START)
+    #summarizeNewsPosts(topic, min_datetime=DATETIME_TODAY_START)
+    #embedNewsPosts(topic=topic, min_datetime=DATETIME_TODAY_START)
+    #filterNewsPosts(topic, min_datetime=DATETIME_TODAY_START)
+    #try:
+    #    draftAndMapThemes(topic, brainstorm_loops=brainstorm_loops, min_datetime=DATETIME_TODAY_START)
+    #except:
+    #    db.deleteThemes(min_datetime=DATETIME_TODAY_START, filters={'topic_id': topic_id})
+    #    raise
+    #try:
+    #    groupStories(topic, min_datetime=DATETIME_TODAY_START)
+    #except:
+    #    db.deleteStories(min_datetime=DATETIME_TODAY_START, filters={'topic_id': topic_id})
+    #    raise
+    #summarizeStories(topic, min_datetime=DATETIME_TODAY_START)
+    #filterRepeatStories(topic, min_datetime=DATETIME_TODAY_START, search_limit=RAG_search_limit)
+    #rewriteStoriesWithPastContext(topic, max_past_context=max_past_context, min_datetime=DATETIME_TODAY_START)
+    #getStoryRankingContext(topic, min_datetime=DATETIME_TODAY_START)
+    #rankStories(topic, min_datetime=DATETIME_TODAY_START)
+    #embedStories(topic=topic, min_datetime=DATETIME_TODAY_START)
+    #selectStories(topic, trend_score_mult=trend_score_mult, num_highlight_stories=num_highlight_stories, num_top_stories=num_top_stories, min_i_score=min_i_score, min_trend_score=min_trend_score, max_radar_stories=max_radar_stories, min_datetime=DATETIME_TODAY_START)
+    #summarizeRadar(topic, min_datetime=DATETIME_TODAY_START, max_datetime=MAX_DATETIME_DEFAULT)
+    #summarizeTopic(topic, min_datetime=DATETIME_TODAY_START)
+
+    selectStories(topic, trend_score_mult=trend_score_mult, num_highlight_stories=num_highlight_stories, num_top_stories=num_top_stories, min_i_score=min_i_score, min_trend_score=min_trend_score, max_radar_stories=max_radar_stories, min_datetime=DATETIME_TODAY_START-timedelta(days=1))
+    summarizeRadar(topic, min_datetime=DATETIME_TODAY_START-timedelta(days=1), max_datetime=MAX_DATETIME_DEFAULT)
+    summarizeTopic(topic, min_datetime=DATETIME_TODAY_START-timedelta(days=1))
 
 if __name__ == '__main__':
     main()
