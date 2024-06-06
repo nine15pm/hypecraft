@@ -341,14 +341,14 @@ def constructNewsQABlock(topic_id, min_datetime):
 
 #Prep a topic highlight block within a topic section
 def constructHighlightBlock(topic_id, min_datetime, newsletter_date):
-    bullets_list_sorted = db.getTopicHighlights(min_datetime=min_datetime, filters={'topic_id':topic_id})[0]['summary_bullets_ml']
+    bullets_list = db.getTopicHighlights(min_datetime=min_datetime, filters={'topic_id':topic_id})[0]['summary_bullets_ml']
 
     #get highlight stories
     highlight_stories_ids = db.getNewsSections(min_datetime=min_datetime, filters={'topic_id': topic_id})[0]['highlight_stories']
 
     #construct bullets html
     bullets_html = ''
-    for bullet in bullets_list_sorted:
+    for bullet in bullets_list:
         story = db.getStories(filters={'story_id': bullet['story_id']})[0]
         link = getTopPostLink(story['posts_summarized'])
         bullets_html += f'<li>{bullet['bullet']}&ensp;<a class="highlights-button" href="{link}">Read&nbsp;<i class="arrow-right"></i></a></li>'

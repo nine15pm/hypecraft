@@ -468,10 +468,10 @@ def summarizeTopic(topic, min_datetime, max_datetime=MAX_DATETIME_DEFAULT):
     #get the i_score for each bullet
     for story in top_stories:
         idx = utils.getDictIndex(bullets_list, 'story_id', story['story_id'])
-        bullets_list[idx]['daily_i_score_ml'] = story['daily_i_score_ml']
+        bullets_list[idx]['rank_score'] = story['rank_score']
     
     #sort bullets list
-    bullets_list = sorted(bullets_list, key=lambda story: story['daily_i_score_ml'], reverse=True)
+    bullets_list = sorted(bullets_list, key=lambda story: story['rank_score'], reverse=True)
 
     topic_highlights = [{
         'topic_id': topic['topic_id'],

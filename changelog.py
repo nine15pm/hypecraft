@@ -2,13 +2,21 @@
 ####################
 changelog_current = 'Changelog \n\
 --------------------------------\n\
+-  \n\
+- Fixed bug with Reddit image urls not showing properly \n\
+- Fixed bug with duplicate stories being shown in Radar \n\
+- Fixed bug with ordering of highlight bullets not matching ranking order \n\
+--------------------------------'
+
+#ARCHIVE
+####################
+changelog_06_05 = 'Changelog \n\
+--------------------------------\n\
 - Updated ordering logic for "Radar" section to be based on story rank score \n\
 - Updated top story image to be dynamic \n\
 - Added read more links to highlights bullets \n\
 --------------------------------'
 
-#ARCHIVE
-####################
 changelog_05_30 = 'Changelog \n\
 --------------------------------\n\
 - Started updating email formatting in preparation for v0.1 (first alpha) \n\
