@@ -212,8 +212,12 @@ def constructTopStoriesBlock(topic_id, min_datetime, newsletter_date):
 
 #Prep a Radar block of lower ranked news stories grouped by theme
 def constructRadarBlock(topic_id, min_datetime, newsletter_date):
+    radar_theme_ids = db.getNewsSections(min_datetime=min_datetime, filters={'topic_id': topic_id})[0]['radar_themes']
     themes = db.getThemesForTopic(topic_id, min_datetime=min_datetime)
     radar_html = ''
+
+    #filter themes to just radar themes
+    themes = [theme for theme in themes if theme['theme_id'] in radar_theme_ids]
 
     #order themes by max rank score
     themes = sorted(themes, key=lambda theme: theme['max_rank_score'], reverse=True)
@@ -341,17 +345,13 @@ def constructHighlightBlock(topic_id, min_datetime, newsletter_date):
 
     #get highlight stories
     highlight_stories_ids = db.getNewsSections(min_datetime=min_datetime, filters={'topic_id': topic_id})[0]['highlight_stories']
-    links = []
-
-    #get links for each story
-    for story_id in highlight_stories_ids:
-        story = db.getStories(filters={'story_id': story_id})[0]
-        links.append(getTopPostLink(story['posts_summarized']))
 
     #construct bullets html
     bullets_html = ''
-    for idx, bullet in enumerate(bullets_list_sorted):
-        bullets_html += f'<li>{bullet['bullet']}&ensp;<a class="highlights-button" href="{links[idx]}">Read&nbsp;<i class="arrow-right"></i></a></li>'
+    for bullet in bullets_list_sorted:
+        story = db.getStories(filters={'story_id': bullet['story_id']})[0]
+        link = getTopPostLink(story['posts_summarized'])
+        bullets_html += f'<li>{bullet['bullet']}&ensp;<a class="highlights-button" href="{link}">Read&nbsp;<i class="arrow-right"></i></a></li>'
 
     output_html = f'''
     <div class="block-highlights">
@@ -454,4 +454,4 @@ footer = constructFooterSection(footer_text=footer_text)
 newsletter_html = wrapEncodeHTML(body_html=header + log + main_content + footer, template_path=PATH_EMAIL_TEMPLATE)
 with open(PATH_EMAIL_ARCHIVE + f'email{datetime.strftime(newsletter_date, "%A, %B %d")}.html', 'w', encoding='utf-8') as outfile:
     outfile.write(newsletter_html)
-emailer.sendNewsletter(subject=title, recipients=recipients1, content_html=newsletter_html)
+emailer.sendNewsletter(subject=title, recipients=recipients2, content_html=newsletter_html)
