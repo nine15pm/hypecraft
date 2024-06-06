@@ -295,7 +295,7 @@ def parseFeedReddit(topic_id, feed_id, min_timestamp=0, max_posts=10, endpoint='
                 total_success_count += 1
             
             #check if fields exist
-            image_url = [utils.standardizeURL(url['source']['url']) for url in listing['data']['preview']['images']] if 'preview' in listing['data'] else None
+            image_url = [url['source']['url'] for url in listing['data']['preview']['images']] if 'preview' in listing['data'] else None
 
             #process link flair
             post_tags = [listing['data']['link_flair_text']]
