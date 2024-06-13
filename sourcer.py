@@ -11,6 +11,7 @@ import ua_generator
 import undetected_chromedriver as uc
 import trafilatura
 from haystack.components.fetchers import LinkContentFetcher
+import re
 
 #SHARED FUNCTIONS
 ###################################################################
@@ -210,7 +211,7 @@ POST_AUTH_REDDIT = {'grant_type':'client_credentials'}
 #Reddit pipeline configs
 MIN_TEXT_LEN_EXTERNAL_REDDIT = 600 #min characters in scraped external text
 MIN_TEXT_LEN_SELF_REDDIT = 200 #min characters for post self text
-MIN_TEXT_LEN_TWEET_REDDIT = 10 #min characters for linked tweets
+MIN_TEXT_LEN_TWEET_REDDIT = 50 #min characters for linked tweets
 
 #Reddit - get OAUTH2 token and add to header
 client_auth_reddit = requests.auth.HTTPBasicAuth(CLIENT_ID_REDDIT, CLIENT_SEC_REDDIT)
@@ -243,6 +244,13 @@ def whitelistListingReddit(listing):
     if 'AI' in listing['data']['link_flair_text']:
         return True
     return False
+
+#Reddit - find and extract first link from selftext if it exists
+def extractSelftextLinkReddit(text):
+    pattern = r'\[(.*?)\]\((.*?)\)'
+    m = re.search(pattern, text)
+    link = m.group(2) if m is not None else None
+    return link
 
 #Reddit - parse out fields from returned json and reformat into clean data structure
 def parseFeedReddit(topic_id, feed_id, min_timestamp=0, max_posts=10, endpoint='top', region='US', printstats=False) -> list[dict]:
@@ -284,6 +292,10 @@ def parseFeedReddit(topic_id, feed_id, min_timestamp=0, max_posts=10, endpoint='
 
             #set link to provided link if available
             external_content_link = utils.standardizeURL(listing['data']['url_overridden_by_dest']) if 'url_overridden_by_dest' in listing['data'] and listing['data']['url_overridden_by_dest'] is not None else None
+            
+            #if no explicit external content link, check self text for link
+            if external_content_link is None and listing['data']['selftext'] is not None:
+                external_content_link = extractSelftextLinkReddit(listing['data']['selftext'])
 
             #check if link is a reddit domain
             reddit_hostnames = configs.REDDIT_HOSTNAMES
