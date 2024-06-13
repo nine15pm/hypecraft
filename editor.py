@@ -105,7 +105,6 @@ def classifyPost(post, feed, prompt_config='default') -> str:
         content = content_long
     else:
         content = content_short
-        print(content_long)
 
     return getResponseLLAMA(content, prompt_config).strip('#')
 

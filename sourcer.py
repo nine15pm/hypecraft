@@ -40,10 +40,10 @@ def isDuplicateText(title=None, post_text=None, external_text=None):
     if title is not None:
         if db.getFilteredPostIDs(filters=filters_title) != []:
             return True
-    if post_text is not None:
+    if post_text is not None and post_text != '':
         if db.getFilteredPostIDs(filters=filters_post_text) != []:
             return True
-    if external_text is not None:
+    if external_text is not None and external_text != '':
         if db.getPosts(filters=filters_external_text) != []:
             return True
     return False
@@ -181,7 +181,7 @@ def getLinkedTweetText(url):
         raise Exception(response.status_code, response.text)
     response_json = response.json()
     #assemble main tweet text and quoted tweet text if applicable
-    if response_json['quoted']:
+    if 'quoted' in response_json.keys() and response_json['quoted']:
         tweet_text = f'{response_json['text']}\n\n"@{response_json['quoted']['author']['screen_name']}: {response_json['quoted']['text']}"'
     else:
         tweet_text = f'{response_json['text']}'
@@ -220,6 +220,7 @@ HEADERS_REDDIT['Authorization'] = auth_json_reddit['token_type'] + ' ' + auth_js
 
 #Reddit - pull posts from reddit API
 def getSubredditPosts(subreddit, max_posts=10, endpoint='top', region='US') -> list[dict]:
+    print(f'SUBREDDIT: {subreddit}')
     if endpoint == 'top':
         params = {'t': 'day', 'g':region, 'limit':max_posts, 'raw_json':1}
     else:
@@ -230,13 +231,16 @@ def getSubredditPosts(subreddit, max_posts=10, endpoint='top', region='US') -> l
         return output
     except Exception as error:
         print("Error:", type(error).__name__, "-", error)
-        print(response.json())
+        print(response)
         raise
 
 #Reddit - define logic for whitelisting certain posts that don't meet min text criteria
 def whitelistListingReddit(listing):
     #whitelist posts that have a flair indicating news (short breaking news posts)
     if 'news' in listing['data']['link_flair_text'].lower():
+        return True
+    #whitelist AI flair posts
+    if 'AI' in listing['data']['link_flair_text']:
         return True
     return False
 
@@ -278,25 +282,27 @@ def parseFeedReddit(topic_id, feed_id, min_timestamp=0, max_posts=10, endpoint='
 
             has_text_count += 1
 
+            #set link to provided link if available
+            external_content_link = utils.standardizeURL(listing['data']['url_overridden_by_dest']) if 'url_overridden_by_dest' in listing['data'] and listing['data']['url_overridden_by_dest'] is not None else None
+
+            #check if link is a reddit domain
+            reddit_hostnames = configs.REDDIT_HOSTNAMES
+            if external_content_link:
+                isRedditLink = True if listing['data']['is_reddit_media_domain'] == True or any(hostname in external_content_link for hostname in reddit_hostnames) else False
+            else:
+                isRedditLink = False
+
             #CASE 1: HAS EXTERNAL LINK
-            if 'url_overridden_by_dest' in listing['data'] and listing['data']['url_overridden_by_dest'] is not None:
-                #set link to provided link
-                external_content_link = utils.standardizeURL(listing['data']['url_overridden_by_dest'])
-                
+            if external_content_link is not None and isRedditLink == False:
                 #check if link is valid
                 isValid = True if 'http' in external_content_link else False
-
-                #check if link is a reddit domain
-                reddit_hostnames = configs.REDDIT_HOSTNAMES
-                isRedditLink = True if listing['data']['is_reddit_media_domain'] == True or any(hostname in external_content_link for hostname in reddit_hostnames) else False
+                #skip if link is not valid
+                if isValid == False:
+                    continue
 
                 #check if duplicate external link
                 if isDuplicateLink(external_content_link) or any(post['external_link'] == external_content_link for post in posts):
                     print('Skipped duplicate (external link)')
-                    continue
-
-                #skip if link is not external or not valid
-                if isRedditLink == True or isValid == False:
                     continue
 
                 #check if link is twitter domain
@@ -364,7 +370,7 @@ def parseFeedReddit(topic_id, feed_id, min_timestamp=0, max_posts=10, endpoint='
             image_url = [url['source']['url'] for url in listing['data']['preview']['images']] if 'preview' in listing['data'] else None
 
             #process link flair
-            post_tags = [listing['data']['link_flair_text']]
+            post_tags = [listing['data']['link_flair_text']] if listing['data']['link_flair_text'] is not None else None
 
             #package extracted post
             parsed_post = {

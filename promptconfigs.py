@@ -97,7 +97,7 @@ CLASSIFIER_PROMPTS = {
     'categorize':{
         'system_prompt': 'Your job is to categorize web content based on the source and extracted text. For example, a Reddit post, a blog post, or a tweet. Categories will be provided by the user. Respond only with the label of the category and format your response as "#category#"',
         'user_prompt': 'Here are the possible categories:\n\
-            - news: sharing or reporting current events\n\
+            - news: updates and info about current events, product launches, advancements, team drama, etc.\n\
             - insights: analysis, research, or educational article\n\
             - opinion: editorial pieces or personal opinions\n\
             - discussions: community conversations, debates, or Q&A\n\

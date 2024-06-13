@@ -259,10 +259,14 @@ def filterRepeatStories(topic, min_datetime, max_datetime=MAX_DATETIME_DEFAULT, 
             'used_in_newsletter': True
         }
         results = RAG.searchStories(text=f'{story['headline_ml']}\n{story['summary_ml']}', max_results=search_limit, max_datetime=min_datetime, match_filters=match_filters)
-        RAG_stories = db.getStories(filters={'story_id': [result['id'] for result in results]})
         
-        #filter out any unrelated stories from search results
-        filtered_results = editor.filterStoryRAGResults(target_story=story, RAG_stories=RAG_stories, topic_prompt_params=topic['topic_prompt_params'])
+        if results != []:
+            RAG_stories = db.getStories(filters={'story_id': [result['id'] for result in results]})
+        
+            #filter out any unrelated stories from search results
+            filtered_results = editor.filterStoryRAGResults(target_story=story, RAG_stories=RAG_stories, topic_prompt_params=topic['topic_prompt_params'])
+        else:
+            filtered_results = [{}]
 
         if filtered_results != [{}]:
             filtered_results = [item['id'] for item in filtered_results]
@@ -543,7 +547,8 @@ def storyQAToCSV(topic, min_datetime, max_datetime=MAX_DATETIME_DEFAULT):
 ##############################################################################################
 def main():
     #Pipeline params
-    topic_id = 2
+    topic_id = 3
+    min_timestamp = DATETIME_TODAY_START.timestamp()
     max_retries = 3 # number of times to retry pipeline step if error
     max_posts_reddit = 100
     brainstorm_loops = 3
@@ -558,22 +563,22 @@ def main():
     topic = db.getTopics(filters={'topic_id': topic_id})[0]
     topic['topic_prompt_params']['topic_name'] = topic['topic_name']
 
-    pullPosts(topic, max_posts_reddit, min_timestamp=DATETIME_TODAY_START.timestamp())
-    categorizePosts(topic, min_datetime=DATETIME_TODAY_START)
-    summarizeNewsPosts(topic, min_datetime=DATETIME_TODAY_START)
-    embedNewsPosts(topic=topic, min_datetime=DATETIME_TODAY_START)
-    filterNewsPosts(topic, min_datetime=DATETIME_TODAY_START)
-    try:
-        draftAndMapThemes(topic, brainstorm_loops=brainstorm_loops, min_datetime=DATETIME_TODAY_START)
-    except:
-        db.deleteThemes(min_datetime=DATETIME_TODAY_START, filters={'topic_id': topic_id})
-        raise
-    try:
-        groupStories(topic, min_datetime=DATETIME_TODAY_START)
-    except:
-        db.deleteStories(min_datetime=DATETIME_TODAY_START, filters={'topic_id': topic_id})
-        raise
-    summarizeStories(topic, min_datetime=DATETIME_TODAY_START)
+    #pullPosts(topic, max_posts_reddit, min_timestamp=min_timestamp)
+    #categorizePosts(topic, min_datetime=DATETIME_TODAY_START)
+    #summarizeNewsPosts(topic, min_datetime=DATETIME_TODAY_START)
+    #embedNewsPosts(topic=topic, min_datetime=DATETIME_TODAY_START)
+    #filterNewsPosts(topic, min_datetime=DATETIME_TODAY_START)
+    #try:
+    #    draftAndMapThemes(topic, brainstorm_loops=brainstorm_loops, min_datetime=DATETIME_TODAY_START)
+    #except:
+    #    db.deleteThemes(min_datetime=DATETIME_TODAY_START, filters={'topic_id': topic_id})
+    #    raise
+    #try:
+    #    groupStories(topic, min_datetime=DATETIME_TODAY_START)
+    #except:
+    #    db.deleteStories(min_datetime=DATETIME_TODAY_START, filters={'topic_id': topic_id})
+    #    raise
+    #summarizeStories(topic, min_datetime=DATETIME_TODAY_START)
     filterRepeatStories(topic, min_datetime=DATETIME_TODAY_START, search_limit=RAG_search_limit)
     rewriteStoriesWithPastContext(topic, max_past_context=max_past_context, min_datetime=DATETIME_TODAY_START)
     getStoryRankingContext(topic, min_datetime=DATETIME_TODAY_START)
@@ -589,32 +594,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-
-
-#TEMP ARCHIVE AND REMAPPING
-##############################################################################################
-
-#CSV dumps for overall data
-def dailyPipelineToCSV(topic, min_datetime, max_datetime=MAX_DATETIME_DEFAULT):
-    topic_name = db.getTopics(filters={'topic_id': topic['topic_id']})[0]['topic_name']
-    #general data dump
-    posts = db.getPosts(min_datetime=min_datetime, max_datetime=max_datetime)
-    stories = db.getStories(min_datetime=min_datetime, max_datetime=max_datetime)
-    topic_highlights = db.getTopicHighlights(min_datetime=min_datetime, max_datetime=max_datetime)
-    end_daterange = f'to{max_datetime.strftime('%m-%d')}' if max_datetime != MAX_DATETIME_DEFAULT else ''
-    utils.JSONtoCSV(posts, 'data/posts_' + topic_name + '_' + min_datetime.strftime('%m-%d') + end_daterange + '.csv')
-    utils.JSONtoCSV(stories, 'data/stories_' + topic_name + '_' + min_datetime.strftime('%m-%d') + end_daterange + '.csv')
-    utils.JSONtoCSV(topic_highlights, 'data/topic_highlights_' + topic_name + '_' + min_datetime.strftime('%m-%d') + end_daterange + '.csv')
-    print('Overall data output to CSV')
-
-#topic_id = 1
-#topic = db.getTopics(filters={'topic_id': topic_id})[0]
-#topic['topic_prompt_params']['topic_name'] = topic['topic_name']
-#custom_min = DATETIME_TODAY_START - timedelta(days = 1)
-#custom_max = DATETIME_TODAY_START
-#reMapStories(topic, min_datetime=custom_min, max_datetime=custom_max)
-#storyMappingToCSV(topic, min_datetime=custom_min, max_datetime=custom_max)
-#summarizeNewsPosts(topic, min_datetime=custom_min, max_datetime=custom_max)
-
-#mapStories(topic, min_datetime=custom_min, max_datetime=custom_max)
-#mappingToCSV(topic, min_datetime=custom_min)

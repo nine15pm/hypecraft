@@ -48,7 +48,8 @@ def getStoryImageURL(story):
     image_urls = []
     for post in posts:
         if post['post_id'] in story['posts_summarized']:
-            image_urls += post['image_urls']
+            if post['image_urls'] is not None:
+                image_urls += post['image_urls']
 
     if image_urls != []:
         return image_urls[0]
@@ -56,7 +57,8 @@ def getStoryImageURL(story):
     #if not, then check remaining posts - if still none, then return fallback image url
     image_urls = []
     for post in posts:
-        image_urls += post['image_urls']
+        if post['image_urls'] is not None:
+            image_urls += post['image_urls']
 
     if image_urls != []:
         return image_urls[0]
@@ -439,7 +441,7 @@ PATH_EMAIL_ARCHIVE = 'emails/'
 PATH_EMAIL_TEMPLATE = 'emailtemplates/amptemplate_v004.html'
 today_start = datetime.combine(datetime.today(), time.min).astimezone(timezone(configs.LOCAL_TZ))
 newsletter_date = datetime.today()
-topics = [{'topic_id': 1}, {'topic_id': 2}]
+topics = [{'topic_id': 1}, {'topic_id': 2}, {'topic_id': 3}]
 title = 'HYPECRAFT V0.0.4'
 footer_text = f'''🫶 Written for you with love by Hypecraft on {datetime.strftime(newsletter_date, "%A, %B %d")}. Powered by Lllama 3.'''
 recipients1 = ['maintainer@example.com']
