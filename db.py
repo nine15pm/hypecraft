@@ -531,3 +531,8 @@ def deletePosts(min_datetime=MIN_DATETIME_DEFAULT, max_datetime=MAX_DATETIME_DEF
     table = POST_TABLE
     deleteEntries(table=table, min_datetime=min_datetime, filters=filters, max_datetime=max_datetime)
     print(f'Posts from {min_datetime} to {max_datetime} deleted')
+
+def deleteNewsSection(min_datetime=MIN_DATETIME_DEFAULT, max_datetime=MAX_DATETIME_DEFAULT, filters={}):
+    table = NEWS_SECTION_TABLE
+    deleteEntries(table=table, min_datetime=min_datetime, filters=filters, max_datetime=max_datetime)
+    print(f'News sections from {min_datetime} to {max_datetime} deleted')

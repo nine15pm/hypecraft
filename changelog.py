@@ -2,7 +2,8 @@
 ####################
 changelog_current = 'Changelog \n\
 --------------------------------\n\
--  \n\
+- Added AI as 3rd test topic \n\
+- Updated reddit content pull to support short news posts (e.g. title w/ no text) and posts with linked tweets, added tweet text parser \n\
 - Fixed bug with Reddit image urls not showing properly \n\
 - Fixed bug with duplicate stories being shown in Radar \n\
 - Fixed bug with ordering of highlight bullets not matching ranking order \n\

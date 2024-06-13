@@ -48,7 +48,7 @@ def isDuplicateText(title=None, post_text=None, external_text=None):
             return True
     return False
 
-#TEXT EXTRACTION FROM LINKS
+#TEXT EXTRACTION AND HELPER FUNCTIONS
 ###################################################################
 
 def generateHeaders():
@@ -69,6 +69,10 @@ def generateHeaders():
     headers = additional_headers.update(ua.headers.get()) #combine generated headers with additional fixed headers
     return headers
 
+#unshorten links if applicable, otherwise return original url
+def unshortenURL(url):
+    response = requests.get(url)
+    return response.url
 
 #logic for scraping external links
 def getWebText(url, min_text_length, unsupported_hosts=[]):
@@ -139,12 +143,57 @@ def getWebText(url, min_text_length, unsupported_hosts=[]):
     #do final check and return text
     return extracted_text if extracted_text and len(extracted_text) > min_text_length else ''
 
-def getLinkedTweetContent(url):
-    #generate request headers
-    response = json.loads(requests.get(url=configs.TWITTER_OEMBED_URL + url, headers=headers).text)
-    tweet_body_html = response['html'][response['html'].find('<p'):response['html'].find('/p>')+3]
-    tweet_text = trafilatura.extract(tweet_body_html, url=url, deduplicate=True, include_comments=False)
+#TWITTER
+###################################################################
+#API CONFIGS
+TW_HOST = 'twitter-api45.p.rapidapi.com'
+TW_TWEET_ENDPOINT = 'https://twitter-api45.p.rapidapi.com/tweet.php'
+TW_THREAD_ENDPOINT = 'https://twitter-api45.p.rapidapi.com/tweet_thread.php'
+TW_TOKEN = utils.read_secrets('RAPID_API_TW_TOKEN')
+TW_HEADERS = headers = {
+	'X-RapidAPI-Key': TW_TOKEN,
+	'X-RapidAPI-Host': TW_HOST
+}
+TW_DATE_FORMAT = "%a %b %d %H:%M:%S %z %Y"
+
+#PIPELINE CONFIGS
+
+def tweetIDFromURL(url):
+    start_substr = '/status/'
+    start_idx = url.find(start_substr) + len(start_substr)
+    #get substring starting from start_idx
+    tid = url[start_idx:]
+    #if there is cruff after tweet id, remove it
+    if '/' in tid:
+        end_idx = tid.find('/')
+        tid = tid[:end_idx]
+    return tid
+
+def getLinkedTweetText(url):
+    #extract tweet id from url
+    tid = tweetIDFromURL(unshortenURL(url))
+    params = {
+        'id': tid,
+    }
+    #call API
+    response = requests.get(TW_TWEET_ENDPOINT, headers=TW_HEADERS, params=params)
+    if response.status_code != 200:
+        raise Exception(response.status_code, response.text)
+    response_json = response.json()
+    #assemble main tweet text and quoted tweet text if applicable
+    if response_json['quoted']:
+        tweet_text = f'{response_json['text']}\n\n"@{response_json['quoted']['author']['screen_name']}: {response_json['quoted']['text']}"'
+    else:
+        tweet_text = f'{response_json['text']}'
     return tweet_text
+
+#Parse the text of a multi-tweet thread from the same original author
+def parseTweetThreadText(tweet_url):
+    pass
+
+#Pull latest posts from twitter list's timeline
+def getTwitterTimelinePosts(timeline_url):
+    pass
 
 #REDDIT
 ###################################################################
@@ -161,7 +210,7 @@ POST_AUTH_REDDIT = {'grant_type':'client_credentials'}
 #Reddit pipeline configs
 MIN_TEXT_LEN_EXTERNAL_REDDIT = 600 #min characters in scraped external text
 MIN_TEXT_LEN_SELF_REDDIT = 200 #min characters for post self text
-MIN_TEXT_LEN_TWEET_REDDIT = 50 #min characters for linked tweets
+MIN_TEXT_LEN_TWEET_REDDIT = 10 #min characters for linked tweets
 
 #Reddit - get OAUTH2 token and add to header
 client_auth_reddit = requests.auth.HTTPBasicAuth(CLIENT_ID_REDDIT, CLIENT_SEC_REDDIT)
@@ -170,7 +219,7 @@ auth_json_reddit = auth_response_reddit.json()
 HEADERS_REDDIT['Authorization'] = auth_json_reddit['token_type'] + ' ' + auth_json_reddit['access_token']
 
 #Reddit - pull posts from reddit API
-def getRedditPosts(subreddit, max_posts=10, endpoint='top', region='US') -> list[dict]:
+def getSubredditPosts(subreddit, max_posts=10, endpoint='top', region='US') -> list[dict]:
     if endpoint == 'top':
         params = {'t': 'day', 'g':region, 'limit':max_posts, 'raw_json':1}
     else:
@@ -184,10 +233,17 @@ def getRedditPosts(subreddit, max_posts=10, endpoint='top', region='US') -> list
         print(response.json())
         raise
 
+#Reddit - define logic for whitelisting certain posts that don't meet min text criteria
+def whitelistListingReddit(listing):
+    #whitelist posts that have a flair indicating news (short breaking news posts)
+    if 'news' in listing['data']['link_flair_text'].lower():
+        return True
+    return False
+
 #Reddit - parse out fields from returned json and reformat into clean data structure
 def parseFeedReddit(topic_id, feed_id, min_timestamp=0, max_posts=10, endpoint='top', region='US', printstats=False) -> list[dict]:
     subreddit = db.getFeedURL(feed_id)
-    raw_listings_json = getRedditPosts(subreddit, max_posts, endpoint, region)
+    raw_listings_json = getSubredditPosts(subreddit, max_posts, endpoint, region)
     posts = []
 
     #logging for tracking success of processing
@@ -227,13 +283,13 @@ def parseFeedReddit(topic_id, feed_id, min_timestamp=0, max_posts=10, endpoint='
                 #set link to provided link
                 external_content_link = utils.standardizeURL(listing['data']['url_overridden_by_dest'])
                 
+                #check if link is valid
+                isValid = True if 'http' in external_content_link else False
+
                 #check if link is a reddit domain
                 reddit_hostnames = configs.REDDIT_HOSTNAMES
                 isRedditLink = True if listing['data']['is_reddit_media_domain'] == True or any(hostname in external_content_link for hostname in reddit_hostnames) else False
 
-                #check if link is valid
-                isValid = True if 'http' in external_content_link else False
-                
                 #check if duplicate external link
                 if isDuplicateLink(external_content_link) or any(post['external_link'] == external_content_link for post in posts):
                     print('Skipped duplicate (external link)')
@@ -243,15 +299,25 @@ def parseFeedReddit(topic_id, feed_id, min_timestamp=0, max_posts=10, endpoint='
                 if isRedditLink == True or isValid == False:
                     continue
 
+                #check if link is twitter domain
+                twitter_hostnames = configs.TWITTER_HOSTNAMES
+                isTwitter = True if any(hostname in external_content_link for hostname in twitter_hostnames) else False
+
                 has_external_link_count += 1
 
-                #scrape the text
-                #scrape using general web scraper
-                external_scraped_text = getWebText(listing['data']['url'], min_text_length=MIN_TEXT_LEN_EXTERNAL_REDDIT, unsupported_hosts=configs.WEB_SCRAPE_UNSUPPORTED_HOSTS)
-                
-                #skip if external scraped text shorter than min characters
-                if len(external_scraped_text) < MIN_TEXT_LEN_EXTERNAL_REDDIT:
-                    continue
+                #CASE 1A: TWITTER LINK
+                if isTwitter:
+                    external_scraped_text = getLinkedTweetText(external_content_link)
+                    #skip if external scraped text is empty
+                    if external_scraped_text is None or len(external_scraped_text) < MIN_TEXT_LEN_TWEET_REDDIT:
+                        continue
+                #CASE 1B: OTHER WEBSITE LINK
+                else:
+                    #scrape using general web scraper
+                    external_scraped_text = getWebText(external_content_link, min_text_length=MIN_TEXT_LEN_EXTERNAL_REDDIT, unsupported_hosts=configs.WEB_SCRAPE_UNSUPPORTED_HOSTS)
+                    #skip if external scraped text shorter than min characters
+                    if len(external_scraped_text) < MIN_TEXT_LEN_EXTERNAL_REDDIT:
+                        continue
 
                 #final check for duplicate post based on extracted text
                 if isDuplicateText(title=listing['data']['title'], external_text=external_scraped_text):
@@ -275,8 +341,8 @@ def parseFeedReddit(topic_id, feed_id, min_timestamp=0, max_posts=10, endpoint='
                 external_content_link = None
                 external_scraped_text = None
 
-                #skip if self text shorter than min characters
-                if len(listing['data']['selftext']) < MIN_TEXT_LEN_SELF_REDDIT:
+                #skip if self text shorter than min characters and does not meet any post whitelist criteria
+                if len(listing['data']['selftext']) < MIN_TEXT_LEN_SELF_REDDIT and whitelistListingReddit(listing) == False:
                     continue
 
                 #final check for duplicate post based on extracted text

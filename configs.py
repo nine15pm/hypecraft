@@ -3,7 +3,6 @@ LOCAL_TZ = 'America/Los_Angeles'
 
 #Web scrape
 WEBCACHE_URL = 'http://webcache.googleusercontent.com/search?q=cache:'
-TWITTER_OEMBED_URL = 'https://publish.twitter.com/oembed?url='
 REDDIT_HOSTNAMES = [
     '.reddit.com',
     '//reddit.com',
