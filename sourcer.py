@@ -16,6 +16,15 @@ import re
 #SHARED FUNCTIONS
 ###################################################################
 #Functions to check if duplicate post already exists in DB
+def isDuplicateContentID(content_id):
+    filters = {
+        'content_unique_id': content_id
+    }
+    if db.getFilteredPostIDs(filters=filters) != []:
+        return True
+    else:
+        return False
+
 def isDuplicateLink(link):
     filters_self = {
         'post_link': link
@@ -149,6 +158,7 @@ def getWebText(url, min_text_length, unsupported_hosts=[]):
 #API CONFIGS
 TW_HOST = 'twitter-api45.p.rapidapi.com'
 TW_TWEET_ENDPOINT = 'https://twitter-api45.p.rapidapi.com/tweet.php'
+TW_LIST_TIMELINE_ENDPOINT = 'https://twitter-api45.p.rapidapi.com/listtimeline.php'
 TW_THREAD_ENDPOINT = 'https://twitter-api45.p.rapidapi.com/tweet_thread.php'
 TW_TOKEN = utils.read_secrets('RAPID_API_TW_TOKEN')
 TW_HEADERS = headers = {
@@ -158,6 +168,8 @@ TW_HEADERS = headers = {
 TW_DATE_FORMAT = "%a %b %d %H:%M:%S %z %Y"
 
 #PIPELINE CONFIGS
+TWITTER_POST_LINK_CONSTRUCTOR = 'https://x.com/i/web/status/'
+MIN_TEXT_LEN_TOTAL_TWITTER = 200
 
 def tweetIDFromURL(url):
     start_substr = '/status/'
@@ -189,12 +201,187 @@ def getLinkedTweetText(url):
     return tweet_text
 
 #Parse the text of a multi-tweet thread from the same original author
-def parseTweetThreadText(tweet_url):
-    pass
+def parseTweetThreadText(tweet_thread):
+    anchor_text = tweet_thread['text']
+    #if conversation anchor tweet has quote tweet, get quote tweet text
+    quote_text = f'[Quoted Tweet]\n----{tweet_thread['quoted']['text']}\n----' if 'quoted' in tweet_thread.keys() else ''
+    #if there are thread replies, go through and find any continuations from original author
+    reply_text = ''
+    if tweet_thread['thread'] != []:
+        orig_author_id = tweet_thread['author']['rest_id']
+        for reply in tweet_thread['thread']:
+            if ['author']['rest_id'] != orig_author_id:
+                break
+            reply_text += f'{reply['text']}\n\n'
+    #assemble full text
+    full_text = f'{anchor_text}\n\n{quote_text}\n\n{reply_text}'
+    return full_text
+
+#Parse out first external link from tweet thread text
+def extractTweetTextLink(text):
+    pattern = 'http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\(\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+'
+    urls = re.findall(pattern, text)
+    if urls != []:
+        return urls[0]
+    else:
+        return None
+
+#Parse out image urls from tweet thread
+def parseTweetThreadImgs(tweet_thread):
+    img_urls = []
+
+    #check anchor tweet for imgs
+    if tweet_thread['media'] is not None:
+        if 'photo' in tweet_thread['media'].keys():
+            for img in tweet_thread['media']['photo']:
+                img_urls.append(img['media_url_https'])
+
+    #check thread continuations from original author for imgs
+    if tweet_thread['thread'] != []:
+        orig_author_id = tweet_thread['author']['rest_id']
+        for reply in tweet_thread['thread']:
+            if ['author']['rest_id'] != orig_author_id:
+                break
+            if reply['media'] is not None:
+                if 'photo' in reply['media'].keys():
+                    for img in reply['media']['photo']:
+                        img_urls.append(img['media_url_https'])
+
+    if img_urls != []:
+        return img_urls
+    else:
+        return None
 
 #Pull latest posts from twitter list's timeline
-def getTwitterTimelinePosts(timeline_url):
-    pass
+def getTwitterListTweets(list_id):
+    params = {
+        'id': list_id,
+    }
+    response = requests.get(TW_LIST_TIMELINE_ENDPOINT, headers=TW_HEADERS, params=params)
+    if response.status_code != 200:
+        raise Exception(response.status_code, response.text)
+    try:
+        return response.json()['timeline']
+    except Exception as error:
+        print("Error:", type(error).__name__, "-", error)
+        print(response)
+        raise
+
+#Pull full tweet thread
+def getTweetThread(tweet_id):
+    params = {
+        'id': tweet_id,
+    }
+    response = requests.get(TW_THREAD_ENDPOINT, headers=TW_HEADERS, params=params)
+    if response.status_code != 200:
+        raise Exception(response.status_code, response.text)
+    try:
+        return response.json()
+    except Exception as error:
+        print("Error:", type(error).__name__, "-", error)
+        print(response)
+        raise
+
+def parseFeedTwitter(topic_id, feed_id, min_timestamp=0, printstats=False) -> list[dict]:
+    #logging for tracking success of processing
+    total = 0
+    has_external_link_count = 0
+    total_success_count = 0
+    
+    #get raw timeline
+    twitterlist_id = db.getFeedURL(feed_id)
+    raw_timeline_json = getTwitterListTweets(twitterlist_id)
+
+    #process retweets, get all tweet ids from timeline, deduplicate
+    tweet_ids = []
+    for tweet in raw_timeline_json:
+        if 'retweeted' in tweet.keys():
+            if tweet['retweeted']['id'] not in tweet_ids:
+                tweet_ids.append(tweet['retweeted']['id'])
+        else:
+            if tweet['tweet_id'] not in tweet_ids:
+                tweet_ids.append(tweet['tweet_id'])
+    
+    #get full tweet thread for each tweet, filter out tweets that are not start of conversation, parse out text and metadata
+    posts = []
+    for tid in tweet_ids:
+        tweet_thread = getTweetThread(tid)
+        if tweet_thread['conversation_id'] == tid:
+
+            #check if duplicate tweet already in DB
+            if isDuplicateContentID(tid):
+                print('Skipped duplicate (content unique id)')
+                continue
+
+            #check if tweet is new enough, if not then skip
+            publish_timestamp = datetime.strptime(tweet_thread['created_at'], TW_DATE_FORMAT).timestamp()
+            if publish_timestamp < min_timestamp:
+                print('Skipped tweet too old')
+                continue
+            
+            total += 1
+
+            #parse out tweet thread text
+            post_text = parseTweetThreadText(tweet_thread)
+
+            #extract external link if there is one, then parse content from external link
+            external_content_link = extractTweetTextLink(post_text)
+            if external_content_link is not None:
+                has_external_link_count += 1
+                external_content_link = utils.standardizeURL(unshortenURL(external_content_link))
+                #scrape using general web scraper
+                external_scraped_text = getWebText(external_content_link, min_text_length=MIN_TEXT_LEN_EXTERNAL_REDDIT, unsupported_hosts=configs.WEB_SCRAPE_UNSUPPORTED_HOSTS)
+            else:
+                external_scraped_text = None
+
+            #skip if total tweet text + external text len shorter than min characters
+            if len(post_text) + len(external_scraped_text) < MIN_TEXT_LEN_TOTAL_TWITTER:
+                print('Skipped - total text too short')
+                continue
+            
+            total_success_count += 1
+
+            #parse out view/like counts, sum up quoted tweet if relevant
+            if 'quoted' in tweet_thread.keys():
+                views_score = int(tweet_thread['views']) + int(tweet_thread['quoted']['views'])
+                likes_score = tweet_thread['likes'] + tweet_thread['quoted']['favorites']
+            else:
+                views_score = int(tweet_thread['views'])
+                likes_score = tweet_thread['likes']
+
+            #parse out images
+            img_urls = parseTweetThreadImgs(tweet_thread)
+
+            #package up into post
+            parsed_post = {
+                #No post_id, id is created by DB
+                'feed_id': feed_id,
+                'story_id': None,
+                'topic_id': topic_id,
+                #no created_at, DB defaults to current time
+                #no updated_at, DB defaults to current time
+                'content_unique_id': tid,
+                'post_publish_time': datetime.fromtimestamp(publish_timestamp),
+                'post_link': f'{TWITTER_POST_LINK_CONSTRUCTOR}{tid}',
+                'post_title': '[N/A - Tweet]',
+                'post_tags': None,
+                'post_description': None,
+                'post_text': post_text,
+                'image_urls': json.dumps(img_urls),
+                'external_link': external_content_link,
+                'external_parsed_text': external_scraped_text,
+                'views_score': views_score,
+                'likes_score': likes_score,
+                'comments_score': None,
+                'category_ml': None,
+                'summary_ml': None
+            }
+            posts.append(parsed_post)
+
+    #print summary stats
+    if printstats:
+        print(f'Total tweets pulled: {total} \nTweets processed successfully: {total_success_count} \n\nTweets with external link: {has_external_link_count}')
+    return posts
 
 #REDDIT
 ###################################################################
@@ -209,7 +396,7 @@ CLIENT_SEC_REDDIT = utils.read_secrets('CLIENT_SEC_REDDIT')
 POST_AUTH_REDDIT = {'grant_type':'client_credentials'}
 
 #Reddit pipeline configs
-MIN_TEXT_LEN_EXTERNAL_REDDIT = 600 #min characters in scraped external text
+MIN_TEXT_LEN_EXTERNAL_REDDIT = 500 #min characters in scraped external text
 MIN_TEXT_LEN_SELF_REDDIT = 200 #min characters for post self text
 MIN_TEXT_LEN_TWEET_REDDIT = 50 #min characters for linked tweets
 
@@ -226,8 +413,8 @@ def getSubredditPosts(subreddit, max_posts=10, endpoint='top', region='US') -> l
         params = {'t': 'day', 'g':region, 'limit':max_posts, 'raw_json':1}
     else:
         params = {'g':region, 'limit':max_posts, 'raw_json':1}
-    response = requests.get(LISTINGS_URL_REDDIT + subreddit + '/' + endpoint, params=params, headers=HEADERS_REDDIT)
     try:
+        response = requests.get(LISTINGS_URL_REDDIT + subreddit + '/' + endpoint, params=params, headers=HEADERS_REDDIT)
         output = response.json()['data']['children']
         return output
     except Exception as error:
