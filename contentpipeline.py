@@ -3,6 +3,7 @@ import db
 import sourcer
 import editor
 import configs
+import eventlogger
 import RAG
 import trendscoring
 import json
@@ -19,20 +20,23 @@ MAX_DATETIME_DEFAULT = datetime.fromtimestamp(datetime.now().timestamp() + 1e9)
 ##############################################################################################
 
 #get posts, scrape/process external links, save to DB
-def pullPosts(topic, max_posts_reddit, min_timestamp):
-    #get topic feeds
+def pullPosts(topic, max_posts_reddit, min_timestamp, min_datetime):
+    #get topic feeds    
     feeds = db.getFeedsForTopic(topic['topic_id'])
     parsed_posts = []
 
     #pull and process posts for each feed
     for feed in feeds:
         if feed['feed_type'] == 'rss':
-            parsed_posts = parsed_posts + sourcer.parseFeedRSS(topic_id=topic['topic_id'], feed_id=feed['feed_id'], min_timestamp=min_timestamp)
+            parsed_posts += sourcer.parseFeedRSS(topic_id=topic['topic_id'], feed_id=feed['feed_id'], min_timestamp=min_timestamp)
         elif feed['feed_type'] == 'subreddit':
-            parsed_posts = parsed_posts + sourcer.parseFeedReddit(topic_id=topic['topic_id'], feed_id=feed['feed_id'], min_timestamp=min_timestamp, max_posts=max_posts_reddit, printstats=True)
+            parsed_posts += sourcer.parseFeedReddit(topic_id=topic['topic_id'], feed_id=feed['feed_id'], min_timestamp=min_timestamp, max_posts=max_posts_reddit, printstats=True)
+        elif feed['feed_type'] == 'twitterlist':
+            parsed_posts += sourcer.parseFeedTwitter(topic_id=topic['topic_id'], feed_id=feed['feed_id'], min_timestamp=min_timestamp, printstats=True)
 
     #save to DB
     db.createPosts(parsed_posts)
+
     print("Posts pulled and saved to DB")
 
 #load posts, classify category using model, update in DB
@@ -227,21 +231,16 @@ def summarizeStories(topic, min_datetime, max_datetime=MAX_DATETIME_DEFAULT):
     story_updates = []
 
     for idx, story in enumerate(stories):
-        try:
-            posts = db.getPostsForStorySummary(story['posts'])
-            summary, posts_summarized = editor.generateStorySummary(posts, topic_prompt_params=topic['topic_prompt_params'])
-            headline = editor.generateHeadlineFromSummary(summary)
-            story_updates.append({
-                'story_id': story['story_id'],
-                'posts_summarized': posts_summarized,
-                'summary_ml': summary,
-                'headline_ml': headline
-            })
-            print(f'SUMMARIZE STORY: {idx+1} of {len(stories)} processed')
-        except Exception as error:
-            print(f'Error summarizing story ID [{story['story_id']}]:', type(error).__name__, "-", error)
-            print(f'Linked posts: [{story['posts']}]')
-            raise
+        posts = db.getPostsForStorySummary(story['posts'])
+        summary, posts_summarized = editor.generateStorySummary(posts, topic_prompt_params=topic['topic_prompt_params'])
+        headline = editor.generateHeadlineFromSummary(summary)
+        story_updates.append({
+            'story_id': story['story_id'],
+            'posts_summarized': posts_summarized,
+            'summary_ml': summary,
+            'headline_ml': headline
+        })
+        print(f'SUMMARIZE STORY: {idx+1} of {len(stories)} processed')
 
     db.updateStories(story_updates)
     print(f'Story summaries updated in DB')
@@ -380,10 +379,13 @@ def selectStories(topic, num_highlight_stories, num_top_stories, trend_score_mul
     #filter out stories that don't meet either min trend score or min i score
     stories = [story for story in stories if story['daily_i_score_ml'] >= min_i_score or story['trend_score'] >= min_trend_score]
 
-    #calculate blended rank score using base of i_score + boost from trend score
-    for idx, story in enumerate(stories):
+    #calculate blended rank score using base of i_score + boost from trend score (only apply boost to stories that meet min i_score)
+    for story in stories:
         trend_score = story['trend_score'] if story['trend_score'] > 0 and story['trend_score'] is not None else -1
-        stories[idx]['rank_score'] = story['daily_i_score_ml'] + (trend_score * trend_score_mult)
+        if story['daily_i_score_ml'] >= min_i_score:
+            story['rank_score'] = story['daily_i_score_ml'] + (trend_score * trend_score_mult)
+        else:
+            story['rank_score'] = story['daily_i_score_ml']
 
     #sort stories by rank score
     stories = sorted(stories, key=lambda story: story['rank_score'], reverse=True)
@@ -442,7 +444,7 @@ def selectStories(topic, num_highlight_stories, num_top_stories, trend_score_mul
     print(f'Highlight, top, and radar stories selected and saved to DB')
 
 #load stories, generate radar summaries
-def summarizeRadar(topic, min_datetime, max_datetime=MAX_DATETIME_DEFAULT):
+def writeRadar(topic, min_datetime, max_datetime=MAX_DATETIME_DEFAULT):
     themes = db.getNewsThemes(topic['topic_id'], min_datetime=min_datetime)
 
     for theme in themes:
@@ -462,20 +464,20 @@ def summarizeRadar(topic, min_datetime, max_datetime=MAX_DATETIME_DEFAULT):
     print(f'Radar summaries saved to DB')
 
 #load stories, generate topic summary bullets, save sorted bullet list
-def summarizeTopic(topic, min_datetime, max_datetime=MAX_DATETIME_DEFAULT):
+def writeHighlights(topic, min_datetime, max_datetime=MAX_DATETIME_DEFAULT):
     news_section = db.getNewsSections(min_datetime=min_datetime, max_datetime=max_datetime, filters={'topic_id': topic['topic_id']})[0]
     top_story_ids = news_section['highlight_stories']
     top_stories = db.getStories(min_datetime=min_datetime, max_datetime=max_datetime, filters={'story_id': top_story_ids})
     
-    bullets_list = editor.generateTopicSummary(top_stories, topic_prompt_params=topic['topic_prompt_params'])
-
+    bullets_list = editor.generateTopicHighlights(top_stories, topic_prompt_params=topic['topic_prompt_params'])
+    
     #get the i_score for each bullet
     for story in top_stories:
         idx = utils.getDictIndex(bullets_list, 'story_id', story['story_id'])
         bullets_list[idx]['rank_score'] = story['rank_score']
     
     #sort bullets list
-    bullets_list = sorted(bullets_list, key=lambda story: story['rank_score'], reverse=True)
+    bullets_list = sorted(bullets_list, key=lambda bullet: bullet['rank_score'], reverse=True)
 
     topic_highlights = [{
         'topic_id': topic['topic_id'],
@@ -486,111 +488,421 @@ def summarizeTopic(topic, min_datetime, max_datetime=MAX_DATETIME_DEFAULT):
     db.createTopicHighlights(topic_highlights)
     print(f'Topic summary bullets saved to DB')
 
-#CSV dump for checking theme and story mapping
-def mappingToCSV(topic, min_datetime, max_datetime=MAX_DATETIME_DEFAULT):
-    mapping = []
-    themes = db.getThemesForTopic(topic['topic_id'], min_datetime=min_datetime, max_datetime=max_datetime)
-    for theme in themes:
-        stories = db.getFilteredStoriesForTheme(theme['theme_id'], min_datetime=min_datetime, max_datetime=max_datetime)
-        for story in stories:
-            posts = db.getPostsForStorySummary(story['posts'])
-            headlines_str = ''
-            post_id_str = ''
-            post_link_str = ''
-            for i, post in enumerate(posts):
-                post_id_str = post_id_str + f'{i}: "{post['post_id']}"\n'
-                post_link_str = post_link_str + f'{i}: "{post['post_link']}"\n'
-                headlines_str = headlines_str + f'{i}: "{post['post_title']}"\n'
-            mapping.append({
-                'theme': theme['theme_name_ml'],
-                'story_id': story['story_id'],
-                'post_ids': post_id_str,
-                'post_links': post_link_str,
-                'post_headlines': headlines_str
-            })
-    end_daterange = f'to{max_datetime.strftime('%m-%d')}' if max_datetime != MAX_DATETIME_DEFAULT else ''
-    utils.JSONtoCSV(mapping, 'data/story_mapping_' + topic['topic_name'] + '_' + min_datetime.strftime('%m-%d') + end_daterange + '.csv')
-    print('Mapping output to CSV')
-
-#CSV dump for QA story summary content
-def storyQAToCSV(topic, min_datetime, max_datetime=MAX_DATETIME_DEFAULT):
-    story_summary_qa = []
-    themes = db.getThemesForTopic(topic['topic_id'], min_datetime=min_datetime, max_datetime=max_datetime)
-    for theme in themes:
-        #skip the "other" theme - REFACTOR LOGIC LATER
-        if theme['theme_name_ml'] == 'Other':
-            continue
-
-        stories = db.getFilteredStoriesForTheme(theme['theme_id'], min_datetime=min_datetime, max_datetime=max_datetime)
-        for story in stories:
-            posts = db.getPostsForStoryQA(story['posts_summarized'])
-            QA_json = {
-                'story_id': story['story_id'],
-                'theme': theme['theme_name_ml'],
-                'daily_i_score': story['daily_i_score_ml'],
-                'story_headline': story['headline_ml'],
-                'story_summary': story['summary_ml']
-            }
-            for i, post in enumerate(posts):
-                QA_json[f'post_{i}'] = f'[POST TITLE] {post['post_title']} \n\n\
-                [ML SUMMARY] {post['summary_ml']} \n\n\
-                [POST LINK] {post['post_link']} \n\
-                [POST SELF TEXT] {post['post_text']} \n\n\
-                [EXTERNAL LINK] {post['external_link']} \n\
-                [EXTERNAL TEXT] {post['external_parsed_text']}'
-            story_summary_qa.append(QA_json)
-    end_daterange = f'to{max_datetime.strftime('%m-%d')}' if max_datetime != MAX_DATETIME_DEFAULT else ''
-    utils.JSONtoCSV(story_summary_qa, 'data/story_summary_QA_' + topic['topic_name'] + '_' + min_datetime.strftime('%m-%d') + end_daterange + '.csv')
-    print('Story QA output to CSV')
-
 #RUN PIPELINE
 ##############################################################################################
-def main():
-    #Pipeline params
-    topic_id = 3
-    min_timestamp = DATETIME_TODAY_START.timestamp()
-    max_retries = 3 # number of times to retry pipeline step if error
-    max_posts_reddit = 100
-    brainstorm_loops = 3
-    max_past_context = 2 #number of past newsletter stories to give when rewriting summary
-    min_trend_score = 1500 #minimum score to not get filtered out
-    min_i_score = 40 #minimum score to not get filtered out
-    num_highlight_stories = 3 #number of top stories in highlights block
-    num_top_stories = 1 #number of top stories in top stories block
-    max_radar_stories = 3 #number of stories per theme in radar block
-    trend_score_mult = 0.01 #multiplier for weighting trend score in ranking
-    RAG_search_limit = 5 #top N results to return from RAG search
+
+PIPELINE_STEPS = [
+    'pull_posts',
+    'categorize_posts',
+    'summarize_news_posts',
+    'embed_news_posts',
+    'filter_news_posts',
+    'draft_map_themes',
+    'group_stories',
+    'summarize_stories',
+    'filter_repeat_stories',
+    'rewrite_stories_past_context',
+    'get_story_ranking_context',
+    'rank_stories',
+    'embed_stories',
+    'select_stories',
+    'write_radar',
+    'write_highlights',
+]
+
+PIPELINE_PARAMS = {
+    'max_retries': 2, #number of times to retry pipeline step if error
+    'max_posts_reddit': 100, #limit to total number of posts pulled from 1 subreddit
+    'theme_brainstorm_loops': 3, #number of times to re-call model to brainstorm theme options
+    'max_past_context': 2, #number of past newsletter stories to give when rewriting summary
+    'min_trend_score': 1500, #minimum score to not get filtered out
+    'min_i_score': 40, #minimum score to not get filtered out
+    'num_highlight_stories': 3, #number of highlights bullets
+    'num_top_stories': 1, #number of top stories in top stories block
+    'max_radar_stories': 3, #max number of stories per theme in radar block
+    'trend_score_mult': 0.01, #multiplier for weighting trend score in ranking
+    'RAG_search_limit': 5, #top N results to return from RAG search
+}
+
+#get latest pipeline stats for date
+def getPipelineStats(topic_id, min_datetime, max_datetime=MAX_DATETIME_DEFAULT) -> list[dict]:
+    all_events = eventlogger.getPipelineEvents(topic_id, min_datetime=min_datetime, max_datetime=max_datetime)
+    pipeline_status = []
+    for step_name in PIPELINE_STEPS:
+        #filter to events for step
+        step_events = [event for event in all_events if event['pipeline_step'] == step_name]
+        if step_events == []:
+            #if no events for step, then set status to not started
+            status = 'not_started'
+            attempts = None
+            duration = None
+            detail = None
+        else:
+            #sort latest event first, then set status depending on event type
+            step_events = sorted(step_events, key=lambda event: event['created_at'], reverse=True)
+            if step_events[0]['event'] == 'start':
+                status = 'in_progress'
+            elif step_events[0]['event'] == 'error':
+                status = 'error'
+            elif step_events[0]['event'] == 'success':
+                status = 'success'
+
+            #filter to specific events
+            start_events = [event for event in all_events if event['event'] == 'start']
+            error_events = [event for event in all_events if event['event'] == 'error']
+
+            #calculate duration if end status
+            if status == 'success' or 'error':
+                end_event_datetime = step_events[0]['created_at']
+                start_event_datetime = start_events[0]['created_at']
+                #calculate run time in seconds
+                duration = (end_event_datetime - start_event_datetime).total_seconds()
+            else:
+                duration = None
+            
+            #count number of attempts if applicable
+            attempts = len(start_events) if start_events != [] else 0
+
+            #add error message if applicable
+            detail = f'[ERROR: {error_events[0]['payload']['type']}] {error_events[0]['payload']['error']}' if error_events != [] else None
+        
+        pipeline_status.append(
+            {
+                'step_name': step_name,
+                'status': status,
+                'attempts': attempts,
+                'duration': duration,
+                'detail': detail,
+            }
+        )
+    return pipeline_status
+
+#main function to run pipeline
+def runPipeline(topic_id, min_datetime=DATETIME_TODAY_START, max_datetime=MAX_DATETIME_DEFAULT, pipeline_params=PIPELINE_PARAMS, rerun=False):
+    #Set params
+    max_retries = pipeline_params['max_retries']
+    max_posts_reddit = pipeline_params['max_posts_reddit']
+    brainstorm_loops = pipeline_params['brainstorm_loops']
+    max_past_context = pipeline_params['max_past_context']
+    min_trend_score = pipeline_params['min_trend_score']
+    min_i_score = pipeline_params['min_i_score']
+    num_highlight_stories = pipeline_params['num_highlight_stories']
+    num_top_stories = pipeline_params['num_top_stories']
+    max_radar_stories = pipeline_params['max_radar_stories']
+    trend_score_mult = pipeline_params['trend_score_mult']
+    RAG_search_limit = pipeline_params['RAG_search_limit']
+    min_timestamp = min_datetime.timestamp()
     topic = db.getTopics(filters={'topic_id': topic_id})[0]
     topic['topic_prompt_params']['topic_name'] = topic['topic_name']
 
-    #pullPosts(topic, max_posts_reddit, min_timestamp=min_timestamp)
-    #categorizePosts(topic, min_datetime=DATETIME_TODAY_START)
-    #summarizeNewsPosts(topic, min_datetime=DATETIME_TODAY_START)
-    #embedNewsPosts(topic=topic, min_datetime=DATETIME_TODAY_START)
-    #filterNewsPosts(topic, min_datetime=DATETIME_TODAY_START)
-    #try:
-    #    draftAndMapThemes(topic, brainstorm_loops=brainstorm_loops, min_datetime=DATETIME_TODAY_START)
-    #except:
-    #    db.deleteThemes(min_datetime=DATETIME_TODAY_START, filters={'topic_id': topic_id})
-    #    raise
-    #try:
-    #    groupStories(topic, min_datetime=DATETIME_TODAY_START)
-    #except:
-    #    db.deleteStories(min_datetime=DATETIME_TODAY_START, filters={'topic_id': topic_id})
-    #    raise
-    #summarizeStories(topic, min_datetime=DATETIME_TODAY_START)
-    filterRepeatStories(topic, min_datetime=DATETIME_TODAY_START, search_limit=RAG_search_limit)
-    rewriteStoriesWithPastContext(topic, max_past_context=max_past_context, min_datetime=DATETIME_TODAY_START)
-    getStoryRankingContext(topic, min_datetime=DATETIME_TODAY_START)
-    rankStories(topic, min_datetime=DATETIME_TODAY_START)
-    embedStories(topic=topic, min_datetime=DATETIME_TODAY_START)
-    try:
-        selectStories(topic, trend_score_mult=trend_score_mult, num_highlight_stories=num_highlight_stories, num_top_stories=num_top_stories, min_i_score=min_i_score, min_trend_score=min_trend_score, max_radar_stories=max_radar_stories, min_datetime=DATETIME_TODAY_START)
-    except:
-        db.deleteNewsSection(min_datetime=DATETIME_TODAY_START, filters={'topic_id': topic_id})
-        raise
-    summarizeRadar(topic, min_datetime=DATETIME_TODAY_START, max_datetime=MAX_DATETIME_DEFAULT)
-    summarizeTopic(topic, min_datetime=DATETIME_TODAY_START)
+    #get pipeline stats to figure out which step to start from
+    stats = getPipelineStats(topic_id=topic_id, min_datetime=min_datetime, max_datetime=max_datetime)
+
+    #check if run is currently in progress
+    if any(step['status'] == 'in progress' for step in stats):
+        return 'Cannot start run, pipeline run is already in progress'
+    
+    #check if all steps are success status and rerun is false
+    if all(step['status'] == 'success' for step in stats) and rerun == False:
+        return 'Cannot start run, all pipeline steps already completed successfully'
+
+    #set which step to start from
+    run_status = {}
+    for step in stats:
+        should_run = True if step['status'] != 'success' else False
+        run_status[step['step_name']] = should_run
+    
+    #RUN STEP: Pull posts (no retries)
+    cur_step = 'pull_posts'
+    if run_status[cur_step]:
+        try:
+            eventlogger.logPipelineEvent(topic_id = topic_id, content_datetime = DATETIME_TODAY_START.date(), step_name = cur_step, event = 'start')
+            pullPosts(topic, max_posts_reddit, min_timestamp=min_timestamp, min_datetime=DATETIME_TODAY_START)
+            eventlogger.logPipelineEvent(topic_id = topic_id, content_datetime = DATETIME_TODAY_START.date(), step_name = cur_step, event = 'success')
+        except Exception as error:
+            error_log = json.dumps({'type': type(error).__name__, 'error': error})
+            eventlogger.logPipelineEvent(topic_id = topic_id, content_datetime = DATETIME_TODAY_START.date(), step_name = cur_step, event = 'error', payload = error_log)
+            raise
+
+    #RUN STEP: Categorize posts into news, discussion, insights, meme, junk, etc. (retry on error)
+    cur_step = 'categorize_posts'
+    if run_status[cur_step]:
+        retry = False
+        num_retries = 0
+        while retry:
+            try:
+                eventlogger.logPipelineEvent(topic_id = topic_id, content_datetime = DATETIME_TODAY_START.date(), step_name = cur_step, event = 'start')
+                categorizePosts(topic, min_datetime=DATETIME_TODAY_START)
+                eventlogger.logPipelineEvent(topic_id = topic_id, content_datetime = DATETIME_TODAY_START.date(), step_name = cur_step, event = 'success')
+            except Exception as error:
+                error_log = json.dumps({'type': type(error).__name__, 'error': error})
+                eventlogger.logPipelineEvent(topic_id = topic_id, content_datetime = DATETIME_TODAY_START.date(), step_name = cur_step, event = 'error', payload = error_log)
+                if num_retries <= max_retries:
+                    retry = True
+                    num_retries += 1
+                else:
+                    retry = False
+                    raise
+    
+    #RUN STEP: Summarize and retitle news posts (retry on error)
+    cur_step = 'summarize_news_posts'
+    if run_status[cur_step]:
+        retry = False
+        num_retries = 0
+        while retry:
+            try:
+                eventlogger.logPipelineEvent(topic_id = topic_id, content_datetime = DATETIME_TODAY_START.date(), step_name = cur_step, event = 'start')
+                summarizeNewsPosts(topic, min_datetime=DATETIME_TODAY_START)
+                eventlogger.logPipelineEvent(topic_id = topic_id, content_datetime = DATETIME_TODAY_START.date(), step_name = cur_step, event = 'success')
+            except Exception as error:
+                error_log = json.dumps({'type': type(error).__name__, 'error': error})
+                eventlogger.logPipelineEvent(topic_id = topic_id, content_datetime = DATETIME_TODAY_START.date(), step_name = cur_step, event = 'error', payload = error_log)
+                if num_retries <= max_retries:
+                    retry = True
+                    num_retries += 1
+                else:
+                    retry = False
+                    raise
+    
+    #RUN STEP: Store news posts in vector DB for RAG (no retry)
+    cur_step = 'embed_news_posts'
+    if run_status[cur_step]:
+        try:
+            eventlogger.logPipelineEvent(topic_id = topic_id, content_datetime = DATETIME_TODAY_START.date(), step_name = cur_step, event = 'start')
+            embedNewsPosts(topic=topic, min_datetime=DATETIME_TODAY_START)
+            eventlogger.logPipelineEvent(topic_id = topic_id, content_datetime = DATETIME_TODAY_START.date(), step_name = cur_step, event = 'success')
+        except Exception as error:
+            error_log = json.dumps({'type': type(error).__name__, 'error': error})
+            eventlogger.logPipelineEvent(topic_id = topic_id, content_datetime = DATETIME_TODAY_START.date(), step_name = cur_step, event = 'error', payload = error_log)
+            raise
+    
+    #RUN STEP: Filter outdated news posts (retry on error)
+    cur_step = 'filter_news_posts'
+    if run_status[cur_step]:
+        retry = False
+        num_retries = 0
+        while retry:
+            try:
+                eventlogger.logPipelineEvent(topic_id = topic_id, content_datetime = DATETIME_TODAY_START.date(), step_name = cur_step, event = 'start')
+                filterNewsPosts(topic, min_datetime=DATETIME_TODAY_START)
+                eventlogger.logPipelineEvent(topic_id = topic_id, content_datetime = DATETIME_TODAY_START.date(), step_name = cur_step, event = 'success')
+            except Exception as error:
+                error_log = json.dumps({'type': type(error).__name__, 'error': error})
+                eventlogger.logPipelineEvent(topic_id = topic_id, content_datetime = DATETIME_TODAY_START.date(), step_name = cur_step, event = 'error', payload = error_log)
+                if num_retries <= max_retries:
+                    retry = True
+                    num_retries += 1
+                else:
+                    retry = False
+                    raise
+    
+    #RUN STEP: Draft theme names and map posts to themes (retry on error)
+    cur_step = 'draft_map_themes'
+    if run_status[cur_step]:
+        retry = False
+        num_retries = 0
+        while retry:
+            try:
+                eventlogger.logPipelineEvent(topic_id = topic_id, content_datetime = DATETIME_TODAY_START.date(), step_name = cur_step, event = 'start')
+                draftAndMapThemes(topic, brainstorm_loops=brainstorm_loops, min_datetime=DATETIME_TODAY_START)
+                eventlogger.logPipelineEvent(topic_id = topic_id, content_datetime = DATETIME_TODAY_START.date(), step_name = cur_step, event = 'success')
+            except Exception as error:
+                error_log = json.dumps({'type': type(error).__name__, 'error': error})
+                eventlogger.logPipelineEvent(topic_id = topic_id, content_datetime = DATETIME_TODAY_START.date(), step_name = cur_step, event = 'error', payload = error_log)
+                db.deleteThemes(min_datetime=min_datetime, filters={'topic_id': topic_id})
+                if num_retries <= max_retries:
+                    retry = True
+                    num_retries += 1
+                else:
+                    retry = False
+                    raise
+    
+    #RUN STEP: Group related and same news posts into stories (retry on error)
+    cur_step = 'group_stories'
+    if run_status[cur_step]:
+        retry = False
+        num_retries = 0
+        while retry:
+            try:
+                eventlogger.logPipelineEvent(topic_id = topic_id, content_datetime = DATETIME_TODAY_START.date(), step_name = cur_step, event = 'start')
+                groupStories(topic, min_datetime=DATETIME_TODAY_START)
+                eventlogger.logPipelineEvent(topic_id = topic_id, content_datetime = DATETIME_TODAY_START.date(), step_name = cur_step, event = 'success')
+            except Exception as error:
+                error_log = json.dumps({'type': type(error).__name__, 'error': error})
+                eventlogger.logPipelineEvent(topic_id = topic_id, content_datetime = DATETIME_TODAY_START.date(), step_name = cur_step, event = 'error', payload = error_log)
+                db.deleteStories(min_datetime=min_datetime, filters={'topic_id': topic_id})
+                if num_retries <= max_retries:
+                    retry = True
+                    num_retries += 1
+                else:
+                    retry = False
+                    raise
+    
+    #RUN STEP: Summarize news stories (retry on error)
+    cur_step = 'summarize_stories'
+    if run_status[cur_step]:
+        retry = False
+        num_retries = 0
+        while retry:
+            try:
+                eventlogger.logPipelineEvent(topic_id = topic_id, content_datetime = DATETIME_TODAY_START.date(), step_name = cur_step, event = 'start')
+                summarizeStories(topic, min_datetime=DATETIME_TODAY_START)
+                eventlogger.logPipelineEvent(topic_id = topic_id, content_datetime = DATETIME_TODAY_START.date(), step_name = cur_step, event = 'success')
+            except Exception as error:
+                error_log = json.dumps({'type': type(error).__name__, 'error': error})
+                eventlogger.logPipelineEvent(topic_id = topic_id, content_datetime = DATETIME_TODAY_START.date(), step_name = cur_step, event = 'error', payload = error_log)
+                if num_retries <= max_retries:
+                    retry = True
+                    num_retries += 1
+                else:
+                    retry = False
+                    raise
+    
+    #RUN STEP: Filter out any news stories previously featured in newsletter (retry on error)
+    cur_step = 'filter_repeat_stories'
+    if run_status[cur_step]:
+        retry = False
+        num_retries = 0
+        while retry:
+            try:
+                eventlogger.logPipelineEvent(topic_id = topic_id, content_datetime = DATETIME_TODAY_START.date(), step_name = cur_step, event = 'start')
+                filterRepeatStories(topic, min_datetime=DATETIME_TODAY_START, search_limit=RAG_search_limit)
+                eventlogger.logPipelineEvent(topic_id = topic_id, content_datetime = DATETIME_TODAY_START.date(), step_name = cur_step, event = 'success')
+            except Exception as error:
+                error_log = json.dumps({'type': type(error).__name__, 'error': error})
+                eventlogger.logPipelineEvent(topic_id = topic_id, content_datetime = DATETIME_TODAY_START.date(), step_name = cur_step, event = 'error', payload = error_log)
+                if num_retries <= max_retries:
+                    retry = True
+                    num_retries += 1
+                else:
+                    retry = False
+                    raise
+    
+    #RUN STEP: Rewrite any story summaries that are continuations of prior stories to continue the narrative with past context (retry on error)
+    cur_step = 'rewrite_stories_past_context'
+    if run_status[cur_step]:
+        retry = False
+        num_retries = 0
+        while retry:
+            try:
+                eventlogger.logPipelineEvent(topic_id = topic_id, content_datetime = DATETIME_TODAY_START.date(), step_name = cur_step, event = 'start')
+                rewriteStoriesWithPastContext(topic, max_past_context=max_past_context, min_datetime=DATETIME_TODAY_START)
+                eventlogger.logPipelineEvent(topic_id = topic_id, content_datetime = DATETIME_TODAY_START.date(), step_name = cur_step, event = 'success')
+            except Exception as error:
+                error_log = json.dumps({'type': type(error).__name__, 'error': error})
+                eventlogger.logPipelineEvent(topic_id = topic_id, content_datetime = DATETIME_TODAY_START.date(), step_name = cur_step, event = 'error', payload = error_log)
+                if num_retries <= max_retries:
+                    retry = True
+                    num_retries += 1
+                else:
+                    retry = False
+                    raise
+    
+    #RUN STEP: Get data needed to calc trend score and rank stories (retry on error)
+    cur_step = 'get_story_ranking_context'
+    if run_status[cur_step]:
+        retry = False
+        num_retries = 0
+        while retry:
+            try:
+                eventlogger.logPipelineEvent(topic_id = topic_id, content_datetime = DATETIME_TODAY_START.date(), step_name = cur_step, event = 'start')
+                getStoryRankingContext(topic, min_datetime=DATETIME_TODAY_START)
+                eventlogger.logPipelineEvent(topic_id = topic_id, content_datetime = DATETIME_TODAY_START.date(), step_name = cur_step, event = 'success')
+            except Exception as error:
+                error_log = json.dumps({'type': type(error).__name__, 'error': error})
+                eventlogger.logPipelineEvent(topic_id = topic_id, content_datetime = DATETIME_TODAY_START.date(), step_name = cur_step, event = 'error', payload = error_log)
+                if num_retries <= max_retries:
+                    retry = True
+                    num_retries += 1
+                else:
+                    retry = False
+                    raise
+    
+    #RUN STEP: Score stories using model (retry on error)
+    cur_step = 'rank_stories'
+    if run_status[cur_step]:
+        retry = False
+        num_retries = 0
+        while retry:
+            try:
+                eventlogger.logPipelineEvent(topic_id = topic_id, content_datetime = DATETIME_TODAY_START.date(), step_name = cur_step, event = 'start')
+                rankStories(topic, min_datetime=DATETIME_TODAY_START)
+                eventlogger.logPipelineEvent(topic_id = topic_id, content_datetime = DATETIME_TODAY_START.date(), step_name = cur_step, event = 'success')
+            except Exception as error:
+                error_log = json.dumps({'type': type(error).__name__, 'error': error})
+                eventlogger.logPipelineEvent(topic_id = topic_id, content_datetime = DATETIME_TODAY_START.date(), step_name = cur_step, event = 'error', payload = error_log)
+                if num_retries <= max_retries:
+                    retry = True
+                    num_retries += 1
+                else:
+                    retry = False
+                    raise
+    
+    #RUN STEP: Embed news stories in vector DB for RAG (no retry)
+    cur_step = 'embed_stories'
+    if run_status[cur_step]:
+        try:
+            eventlogger.logPipelineEvent(topic_id = topic_id, content_datetime = DATETIME_TODAY_START.date(), step_name = cur_step, event = 'start')
+            embedStories(topic=topic, min_datetime=DATETIME_TODAY_START)
+            eventlogger.logPipelineEvent(topic_id = topic_id, content_datetime = DATETIME_TODAY_START.date(), step_name = cur_step, event = 'success')
+        except Exception as error:
+            error_log = json.dumps({'type': type(error).__name__, 'error': error})
+            eventlogger.logPipelineEvent(topic_id = topic_id, content_datetime = DATETIME_TODAY_START.date(), step_name = cur_step, event = 'error', payload = error_log)
+            raise
+    
+    #RUN STEP: Select and order stories for each section of newsletter (no retry)
+    cur_step = 'select_stories'
+    if run_status[cur_step]:
+        try:
+            eventlogger.logPipelineEvent(topic_id = topic_id, content_datetime = DATETIME_TODAY_START.date(), step_name = cur_step, event = 'start')
+            selectStories(topic, trend_score_mult=trend_score_mult, num_highlight_stories=num_highlight_stories, num_top_stories=num_top_stories, min_i_score=min_i_score, min_trend_score=min_trend_score, max_radar_stories=max_radar_stories, min_datetime=DATETIME_TODAY_START)
+            eventlogger.logPipelineEvent(topic_id = topic_id, content_datetime = DATETIME_TODAY_START.date(), step_name = cur_step, event = 'success')
+        except Exception as error:
+            error_log = json.dumps({'type': type(error).__name__, 'error': error})
+            eventlogger.logPipelineEvent(topic_id = topic_id, content_datetime = DATETIME_TODAY_START.date(), step_name = cur_step, event = 'error', payload = error_log)
+            db.deleteNewsSection(min_datetime=DATETIME_TODAY_START, filters={'topic_id': topic_id})
+            raise
+    
+    #RUN STEP: Write each theme summary for radar section (retry if error)
+    cur_step = 'write_radar'
+    if run_status[cur_step]:
+        retry = False
+        num_retries = 0
+        while retry:
+            try:
+                eventlogger.logPipelineEvent(topic_id = topic_id, content_datetime = DATETIME_TODAY_START.date(), step_name = cur_step, event = 'start')
+                writeRadar(topic, min_datetime=DATETIME_TODAY_START)
+                eventlogger.logPipelineEvent(topic_id = topic_id, content_datetime = DATETIME_TODAY_START.date(), step_name = cur_step, event = 'success')
+            except Exception as error:
+                error_log = json.dumps({'type': type(error).__name__, 'error': error})
+                eventlogger.logPipelineEvent(topic_id = topic_id, content_datetime = DATETIME_TODAY_START.date(), step_name = cur_step, event = 'error', payload = error_log)
+                if num_retries <= max_retries:
+                    retry = True
+                    num_retries += 1
+                else:
+                    retry = False
+                    raise
+
+    #RUN STEP: Write bullets for highlights section (retry if error)
+    cur_step = 'write_highlights'
+    if run_status[cur_step]:
+        retry = False
+        num_retries = 0
+        while retry:
+            try:
+                eventlogger.logPipelineEvent(topic_id = topic_id, content_datetime = DATETIME_TODAY_START.date(), step_name = cur_step, event = 'start')
+                writeHighlights(topic, min_datetime=DATETIME_TODAY_START)
+                eventlogger.logPipelineEvent(topic_id = topic_id, content_datetime = DATETIME_TODAY_START.date(), step_name = cur_step, event = 'success')
+            except Exception as error:
+                error_log = json.dumps({'type': type(error).__name__, 'error': error})
+                eventlogger.logPipelineEvent(topic_id = topic_id, content_datetime = DATETIME_TODAY_START.date(), step_name = cur_step, event = 'error', payload = error_log)
+                db.deleteTopicHighlights(min_datetime=min_datetime, filters={'topic_id': topic_id})
+                if num_retries <= max_retries:
+                    retry = True
+                    num_retries += 1
+                else:
+                    retry = False
+                    raise
 
 if __name__ == '__main__':
-    main()
+    runPipeline()

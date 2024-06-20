@@ -30,7 +30,6 @@ def getResponseLLAMA(content: str, prompt_config: dict, prior_chat: list[dict] =
     params = prompt_config['model_params']
     user_prompt = prompt_config['user_prompt'] + content
     inputs = promptconfigs.constructPromptLLAMA(user_prompt=user_prompt, prior_chat=prior_chat, system_prompt=prompt_config['system_prompt'])
-    utils.countTokensAndSaveLlama3(inputs)
     payload = {
         'inputs': inputs,
         'parameters': params,
@@ -60,7 +59,6 @@ def getResponseOPENAI(content: str, prompt_config: dict, prior_chat: list[dict] 
         top_p = params['top_p']
     )
     output = response.choices[0].message.content
-    utils.countTokensAndSaveOAI(response.usage.prompt_tokens, response.usage.completion_tokens)
     return (output, user_prompt) if return_user_prompt else output
 
 #PARSING RESPONSE
@@ -101,7 +99,7 @@ def classifyPost(post, feed, prompt_config='default') -> str:
     content_long = feed_source + feed_name + headline + post_tags + post_text + external_link + external_link_text
     content_short = feed_source + feed_name + headline + post_tags + external_link_text
     
-    if utils.tokenCountLlama3(content_long) <= prompt_config['model_params']['truncate']:
+    if utils.tokenCountEstimate(content_long) <= prompt_config['model_params']['truncate']:
         content = content_long
     else:
         content = content_short
@@ -141,14 +139,16 @@ def filterOutdatedNews(posts: list, topic_prompt_params: dict, prompt_config='de
 #Brainstorm and collect a set of potential theme options
 def brainstormNewsThemes(posts: list, topic_prompt_params: dict, prompt_config='default') -> list[dict]:
     prompt_config = promptconfigs.COLLATION_PROMPTS['brainstorm_theme_news_fn'](topic_prompt_params) if prompt_config == 'default' else prompt_config
-    content = ''
+    content_long = ''
+    content_short = ''
 
     #construct the string with all the posts
     for post in posts:
-        content = content + f'{{"pid": {post['post_id']}, "title": "{post['retitle_ml']}", "summary": "{post['summary_ml']}"}}\n'
+        content_long += f'{{"pid": {post['post_id']}, "title": "{post['retitle_ml']}", "summary": "{post['summary_ml']}"}}\n'
+        content_short += f'{{"pid": {post['post_id']}, "title": "{post['retitle_ml']}"}}\n'
 
     #check if tokens exceeds max input, if so, just use titles no summary text
-    #content = content_long if utils.tokenCountLlama3(content_long) <= prompt_config_init['model_params']['truncate'] else content_short
+    content = content_long if utils.tokenCountEstimate(content_long) < prompt_config['model_params']['truncate'] else content_short
 
     #first get initial themes from model with base prompt
     response = getResponseLLAMA(content, prompt_config)
@@ -312,13 +312,14 @@ def generateRadarSummary(stories: list, topic_prompt_params: dict, prompt_config
     return summary_phrase_list
 
 #write a set of highlight bullets for the topic
-def generateTopicSummary(stories: list, topic_prompt_params: dict, prompt_config='default') -> str:
+def generateTopicHighlights(stories: list, topic_prompt_params: dict, prompt_config='default') -> str:
     prompt_config = promptconfigs.SUMMARIZER_PROMPTS['topic_summary_news_fn'](topic_prompt_params) if prompt_config == 'default' else prompt_config
     #construct string combining all story summaries
     content = ''
     for story in stories:
         story_str = f'[story_id: {story['story_id']}] {story['summary_ml']} \n\n'
         content = content + story_str
+
     response = getResponseLLAMA(content, prompt_config)
 
     return extractResponseJSON(response, step_label = 'generate topic summary bullets')

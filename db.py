@@ -17,6 +17,7 @@ FEED_TABLE = 'feed'
 TOPIC_HIGHLIGHT_TABLE = 'topic_highlight'
 TOPIC_TABLE = 'topic'
 NEWS_SECTION_TABLE = 'news_section'
+PIPELINE_EVENT_TABLE = 'pipeline_event'
 MIN_DATETIME_DEFAULT = datetime.fromtimestamp(0)
 MAX_DATETIME_DEFAULT = datetime.fromtimestamp(datetime.now().timestamp() + 1e9)
 
@@ -191,6 +192,10 @@ def updateTopicHighlights(topic_highlights: list[dict]):
     table = TOPIC_HIGHLIGHT_TABLE
     updateEntries(table, topic_highlights)
 
+def createPipelineEvent(pipeline_events: list[dict]):
+    table = PIPELINE_EVENT_TABLE
+    writeEntries(table, pipeline_events)
+
 def getPosts(min_datetime=MIN_DATETIME_DEFAULT, max_datetime=MAX_DATETIME_DEFAULT, filters={}):
     table = POST_TABLE
     return readEntries(table=table, min_datetime=min_datetime, max_datetime=max_datetime, filters=filters)
@@ -218,6 +223,12 @@ def getNewsSections(min_datetime=MIN_DATETIME_DEFAULT, max_datetime=MAX_DATETIME
 def getTopics(filters={}):
     table = TOPIC_TABLE
     return readEntries(table=table, filters=filters)
+
+def getPipelineEvents(min_datetime=MIN_DATETIME_DEFAULT, max_datetime=MAX_DATETIME_DEFAULT, filters={}):
+    table = PIPELINE_EVENT_TABLE
+    sort_field = 'updated_at'
+    sort_order = 'DESC'
+    return readEntries(table=table, min_datetime=min_datetime, max_datetime=max_datetime, filters=filters, sort_field=sort_field, sort_order=sort_order)
 
 def getFilteredPostIDs(min_datetime=MIN_DATETIME_DEFAULT, filters={}):
     table = POST_TABLE
@@ -536,3 +547,8 @@ def deleteNewsSection(min_datetime=MIN_DATETIME_DEFAULT, max_datetime=MAX_DATETI
     table = NEWS_SECTION_TABLE
     deleteEntries(table=table, min_datetime=min_datetime, filters=filters, max_datetime=max_datetime)
     print(f'News sections from {min_datetime} to {max_datetime} deleted')
+
+def deleteTopicHighlights(min_datetime=MIN_DATETIME_DEFAULT, max_datetime=MAX_DATETIME_DEFAULT, filters={}):
+    table = TOPIC_HIGHLIGHT_TABLE
+    deleteEntries(table=table, min_datetime=min_datetime, filters=filters, max_datetime=max_datetime)
+    print(f'Topic highlights from {min_datetime} to {max_datetime} deleted')
