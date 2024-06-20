@@ -4,7 +4,6 @@ import json
 import csv
 from urllib.parse import urlparse, urlunparse
 from collections import namedtuple
-from transformers import AutoTokenizer
 
 #HELPER FUNCS
 #####################################################################################
@@ -112,20 +111,6 @@ def parseMapping(model_raw_text):
 
 #COUNT TOKENS
 ##############################################################################################
-#Count tokens using Lllama3 tokenizer
-PATH_TOKEN_COUNT_LLAMA3 = 'notes/tokencount_llama.json'
-PATH_TOKEN_COUNT_OAI = 'notes/tokencount_openai.json'
-def tokenCountLlama3(text):
-    tokenizer = AutoTokenizer.from_pretrained('meta-llama/Meta-Llama-3-70B-Instruct')
-    return len(tokenizer.encode(text))
-
-def countTokensAndSaveLlama3(text):
-    count = loadJSON(PATH_TOKEN_COUNT_LLAMA3)['count'] + tokenCountLlama3(text)
-    data = {'count': count}
-    saveJSON(data, PATH_TOKEN_COUNT_LLAMA3)
-
-def countTokensAndSaveOAI(prompt_tokens, completion_tokens):
-    count_prompt = loadJSON(PATH_TOKEN_COUNT_OAI)['count_prompt'] + prompt_tokens
-    count_completion = loadJSON(PATH_TOKEN_COUNT_OAI)['count_completion'] + completion_tokens
-    data = {'count_prompt': count_prompt, 'count_completion': count_completion}
-    saveJSON(data, PATH_TOKEN_COUNT_OAI)
+#Count tokens using rough estimate of 1 token to 4 chars
+def tokenCountEstimate(text):
+    return len(text) / 4
