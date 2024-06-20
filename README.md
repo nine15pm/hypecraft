@@ -1,2 +1,2 @@
-# ML newsletter
-Validation and testing for content pulling and LLAMA 3 newsletter generation
+# Hypecraft
+Hypecraft is an AI news editor that can end-to-end generate a daily news podcast and email newsletter for any interest. Features top trending/relevant stories sourced from Twitter, Reddit, and traditional media.

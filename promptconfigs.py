@@ -97,14 +97,14 @@ CLASSIFIER_PROMPTS = {
     'categorize':{
         'system_prompt': 'Your job is to categorize web content based on the source and extracted text. For example, a Reddit post, a blog post, or a tweet. Categories will be provided by the user. Respond only with the label of the category and format your response as "#category#"',
         'user_prompt': 'Here are the possible categories:\n\
-            - news: updates and info about current events, product launches, announcements, team drama, etc.\n\
+            - news: announcements, updates, new info, and rumors about current events, product launches, personnel, etc.\n\
             - insights: analysis, research, or educational article\n\
             - opinion: editorial pieces or personal opinions\n\
-            - discussions: community conversations, debates, or Q&A\n\
+            - discussions: community debates, or Q&A\n\
             - memes: jokes and other content meant to be funny\n\
-            - junk: advertisments, company promotions, website error pages, and other junk content\n\
+            - junk: advertisements, personal promotions, website error pages, and other junk content\n\
             - other: does not fit any category above\n\n\
-        Choose the most likely category based on the following info. If you do not have enough info or are very uncertain, return "#other#".\n\n',
+        Choose the most appropriate category based on the following info. If you do not have enough info to decide, return "#other#".\n\n',
         'model_params': TASK_MODEL_PARAMS_LLAMA
     },
 }
@@ -168,7 +168,7 @@ def topic_summary_news(topic_prompt_params:dict):
         'user_prompt': f'Your task is to summarize top {topic_prompt_params['topic_name']} news stories into a bulleted list of highlights that a reader can quickly skim. \n\n\
         Your steps are as follows:\n\
             1. Read the content of all the stories. Understand the main point of each story, the info a {topic_prompt_params['topic_name']} enthusiast cares about most.\n\
-            2. Write 1 summary bullet for each story, max of 15 words. Make the language simple, casual, direct, and easy to understand. \n\
+            2. Write 1 summary bullet for each story, max of 15 words. Each story can ONLY have 1 bullet. Make the language simple, casual, direct, and easy to understand. \n\
             3. Format the bullets into a JSON list, follow this example: [{{"story_id":121, "bullet": "example text bullet 1"}}, {{"story_id":95, "bullet": "example text bullet 2"}}]\n\n\
         Summarize the following stories:\n\n',
         'model_params': WRITING_MODEL_PARAMS
@@ -254,7 +254,7 @@ def brainstorm_theme_news(topic_prompt_params:dict):
     prompt = {
         'system_prompt': f'You are a {topic_prompt_params['topic_name']} newsletter editor. The user will provide posts and instructions. Your job is to come up with ideas for newsletter sections. Make sure to format the ideas in a JSON list',
         'user_prompt': f'Your task is to come up with ideas for sections for a {topic_prompt_params['topic_name']} newsletter:\n\
-            1. Draft a list of 10 ideas of well-defined section names. Each section idea should CLOSELY and DIRECTLY fit multiple news posts (the more the better). Section names should be short and catchy, e.g. {topic_prompt_params['theme_examples']}. One of the sections can be "Other" if there are posts that do not fit well. \n\
+            1. Draft a list of 10 ideas of well-defined section names. Each section idea should closely and directly fit multiple news posts. Section names should be short and catchy, e.g. {topic_prompt_params['theme_examples']}. One of the sections can be "Other" if there are posts that do not fit well. \n\
             2. Format the list of sections as a JSON list. For example: [{{"id": 1, "name": "Section A"}}, {{"id": 2, "name": "Section B"}}, {{"id": 3, "name": "Section C"}}] \n\n\
         Go step by step and come up with section ideas for the posts below: \n\n',
         'model_params': BRAINSTORM_MODEL_PARAMS_LLAMA

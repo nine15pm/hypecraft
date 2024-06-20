@@ -2,6 +2,22 @@
 ####################
 changelog_current = 'Changelog \n\
 --------------------------------\n\
+- Updated rank score logic to prevent stories with less than min ML score from appearing in top stories (fix issue where INDYCAR appears as top story) \n\
+- Implemented status tracking for each step of pipeline for Admin dashboard \n\
+- Added error handling to recurring issue where hacky twitter API returns none-type for view count \n\
+- Minor adjustments to grouping prompts to try to fix AI topic story grouping errors \n\
+--------------------------------'
+
+#ARCHIVE
+####################
+changelog_06_13 = 'Changelog \n\
+--------------------------------\n\
+- Implemented first version of direct Twitter feed pulls in content pipeline, added new Twitter feeds for AI topic \n\
+- Added post-text link extraction and parsing for Reddit posts to reduce lack of context issues with short news posts \n\
+--------------------------------'
+
+changelog_06_12 = 'Changelog \n\
+--------------------------------\n\
 - Added AI as 3rd test topic \n\
 - Updated reddit content pull to support short news posts (e.g. title w/ no text) and posts with linked tweets, added tweet text parser \n\
 - Fixed bug with Reddit image urls not showing properly \n\
@@ -9,8 +25,6 @@ changelog_current = 'Changelog \n\
 - Fixed bug with ordering of highlight bullets not matching ranking order \n\
 --------------------------------'
 
-#ARCHIVE
-####################
 changelog_06_05 = 'Changelog \n\
 --------------------------------\n\
 - Updated ordering logic for "Radar" section to be based on story rank score \n\
