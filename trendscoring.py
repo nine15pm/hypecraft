@@ -61,6 +61,7 @@ def calcTrendScore(queries_list, sample_size, min_datetime):
     for tweet in top_tweets:
         create_time = datetime.strptime(tweet['created_at'], TW_DATE_FORMAT)
         tweet_lifetime = (datetime.now(timezone.utc) - create_time).total_seconds() / 3600 #how many hours tweet has been up
+        tweet['views'] = 0 if tweet['views'] == None else tweet['views'] #prevent nonetype error
         trend_score += (VIEWS_WEIGHT*float(tweet['views']) + LIKES_WEIGHT*tweet['favorites']) / (tweet_lifetime * SCALING_FACTOR)
     #average trend score by num tweets
     trend_score = trend_score / len(top_tweets)
