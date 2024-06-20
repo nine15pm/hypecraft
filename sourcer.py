@@ -210,7 +210,7 @@ def parseTweetThreadText(tweet_thread):
     if tweet_thread['thread'] != []:
         orig_author_id = tweet_thread['author']['rest_id']
         for reply in tweet_thread['thread']:
-            if ['author']['rest_id'] != orig_author_id:
+            if reply['author']['rest_id'] != orig_author_id:
                 break
             reply_text += f'{reply['text']}\n\n'
     #assemble full text
@@ -219,7 +219,7 @@ def parseTweetThreadText(tweet_thread):
 
 #Parse out first external link from tweet thread text
 def extractTweetTextLink(text):
-    pattern = 'http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\(\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+'
+    pattern = r'http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\(\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+'
     urls = re.findall(pattern, text)
     if urls != []:
         return urls[0]
@@ -240,7 +240,7 @@ def parseTweetThreadImgs(tweet_thread):
     if tweet_thread['thread'] != []:
         orig_author_id = tweet_thread['author']['rest_id']
         for reply in tweet_thread['thread']:
-            if ['author']['rest_id'] != orig_author_id:
+            if reply['author']['rest_id'] != orig_author_id:
                 break
             if reply['media'] is not None:
                 if 'photo' in reply['media'].keys():
@@ -255,7 +255,7 @@ def parseTweetThreadImgs(tweet_thread):
 #Pull latest posts from twitter list's timeline
 def getTwitterListTweets(list_id):
     params = {
-        'id': list_id,
+        'list_id': list_id,
     }
     response = requests.get(TW_LIST_TIMELINE_ENDPOINT, headers=TW_HEADERS, params=params)
     if response.status_code != 200:
@@ -304,8 +304,15 @@ def parseFeedTwitter(topic_id, feed_id, min_timestamp=0, printstats=False) -> li
     
     #get full tweet thread for each tweet, filter out tweets that are not start of conversation, parse out text and metadata
     posts = []
+    max_retries = 5
     for tid in tweet_ids:
+        retries = 0
         tweet_thread = getTweetThread(tid)
+        while 'conversation_id' not in tweet_thread.keys() and retries < max_retries:
+            tweet_thread = getTweetThread(tid)
+            retries += 1
+            time.sleep(0.3)
+
         if tweet_thread['conversation_id'] == tid:
 
             #check if duplicate tweet already in DB
@@ -335,7 +342,8 @@ def parseFeedTwitter(topic_id, feed_id, min_timestamp=0, printstats=False) -> li
                 external_scraped_text = None
 
             #skip if total tweet text + external text len shorter than min characters
-            if len(post_text) + len(external_scraped_text) < MIN_TEXT_LEN_TOTAL_TWITTER:
+            external_text_len = len(external_scraped_text) if external_scraped_text is not None else 0
+            if len(post_text) + external_text_len < MIN_TEXT_LEN_TOTAL_TWITTER:
                 print('Skipped - total text too short')
                 continue
             
@@ -478,11 +486,23 @@ def parseFeedReddit(topic_id, feed_id, min_timestamp=0, max_posts=10, endpoint='
             has_text_count += 1
 
             #set link to provided link if available
-            external_content_link = utils.standardizeURL(listing['data']['url_overridden_by_dest']) if 'url_overridden_by_dest' in listing['data'] and listing['data']['url_overridden_by_dest'] is not None else None
-            
+            external_content_link = listing['data']['url_overridden_by_dest'] if 'url_overridden_by_dest' in listing['data'] and listing['data']['url_overridden_by_dest'] is not None else None
+
             #if no explicit external content link, check self text for link
             if external_content_link is None and listing['data']['selftext'] is not None:
                 external_content_link = extractSelftextLinkReddit(listing['data']['selftext'])
+
+            #check if link is valid
+            if external_content_link is not None:
+                isValid = True if 'http' in external_content_link else False
+                
+                if isValid == False:
+                    #check if link is subreddit link, if so complete it
+                    if external_content_link.find('/r/') == 0:
+                        external_content_link = 'https://www.reddit.com' + external_content_link
+                    #if not then skip
+                    else:
+                        continue
 
             #check if link is a reddit domain
             reddit_hostnames = configs.REDDIT_HOSTNAMES
@@ -493,11 +513,7 @@ def parseFeedReddit(topic_id, feed_id, min_timestamp=0, max_posts=10, endpoint='
 
             #CASE 1: HAS EXTERNAL LINK
             if external_content_link is not None and isRedditLink == False:
-                #check if link is valid
-                isValid = True if 'http' in external_content_link else False
-                #skip if link is not valid
-                if isValid == False:
-                    continue
+                external_content_link = utils.standardizeURL(external_content_link)
 
                 #check if duplicate external link
                 if isDuplicateLink(external_content_link) or any(post['external_link'] == external_content_link for post in posts):
