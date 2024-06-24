@@ -299,13 +299,26 @@ def assign_theme_news(themes:str, topic_prompt_params:dict):
     }
     return prompt
 
+def revise_theme_news(themes:str, topic_prompt_params:dict):
+    prompt = {
+        'system_prompt': f'You are a {topic_prompt_params['topic_name']} newsletter editor. The user will provide you a news story and instructions. Go step by step and write out each step.',
+        'user_prompt': f'You will be provided a {topic_prompt_params['topic_name']} news story assigned to a newsletter section. Your task is to determine whether the current assigned section is the best fit. Follow these steps:\n\
+            1. For each of the following sections, evaluate whether it is a better fit or worse fit for the news story than the current assigned section. Write out your rationale for each. "Other" can be a valid fit, if it is an available section and no alternative sections are a good fit. \n\
+                {themes} \
+            2. Based on your evaluation, identify the best fitting section for the news story. \n\
+            3. If the best fitting section is different than current, return the updated section. Otherwise, return the current assigned section. Return the section as a single item JSON list. Follow this format: [{{"section_id": 36, "section_name": "Example Name"}}] \n\n',
+        'model_params': TASK_MODEL_PARAMS_LLAMA
+    }
+    return prompt
+
 #Prompts for collation
 COLLATION_PROMPTS = {
     'filter_outdated_news_fn': filter_outdated_news,
     'group_story_news_fn': group_story_news,
     'brainstorm_theme_news_fn': brainstorm_theme_news,
     'select_theme_news_fn': select_theme_news,
-    'assign_theme_news_fn': assign_theme_news
+    'assign_theme_news_fn': assign_theme_news,
+    'revise_theme_news_fn': revise_theme_news
 }
 
 #Functions for dynamic ranking prompts

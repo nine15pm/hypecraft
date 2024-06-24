@@ -93,7 +93,7 @@ def filterNewsPosts(topic, min_datetime):
     print(f'Outdated news posts filtered and updated in DB')
 
 #load news posts, brainstorm themes, select themes, assign posts to themes, save themes to DB
-def draftAndMapThemes(topic, min_datetime, brainstorm_loops=3, batch_size=30):
+def draftAndMapThemes(topic, min_datetime, brainstorm_loops=3, batch_size=20):
     news_posts = db.getNewsPostsForMapping(topic['topic_id'], min_datetime=min_datetime)
 
     #brainstorm themes (loop through N times)
@@ -141,6 +141,7 @@ def draftAndMapThemes(topic, min_datetime, brainstorm_loops=3, batch_size=30):
             'topic_id': topic['topic_id'],
             'posts': theme['posts'],
             'theme_name_ml': theme['name'],
+            'theme_description_ml': theme['scope'],
             'category_ml': 'news'
         })
     db.createThemes(theme_updates)
@@ -318,6 +319,21 @@ def rewriteStoriesWithPastContext(topic, max_past_context, min_datetime, max_dat
     if story_updates != []:
         db.updateStories(story_updates)
     print(f'Stories with past context rewritten')
+
+#re-check assigned theme for each story, revise if there is a better fit
+def checkAndReviseStoryThemes(topic, min_datetime, max_datetime=MAX_DATETIME_DEFAULT):
+    stories = db.getFilteredStoriesForTopic(topic['topic_id'], min_datetime=min_datetime)
+
+    for story in stories:
+        current_theme_name = db.getThemes(filters={'theme_id':story['theme_id']})[0]['theme_name_ml']
+        revised_theme = editor.reviseStoryThemes(story=story, current_theme=current_theme_name)
+        story_update = {
+            'story_id': story['story_id'],
+            'theme_id': revised_theme['section_id']
+        }
+        db.updateStories(story_update)
+
+    print(f'Story theme assignments revised')
 
 #get context for ranking = currently just calc trend score
 def getStoryRankingContext(topic, min_datetime, max_datetime=MAX_DATETIME_DEFAULT):

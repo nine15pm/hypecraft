@@ -172,13 +172,11 @@ def selectNewsThemes(posts: list, theme_options:list, topic_prompt_params: dict,
     #first get initial themes from model with base prompt
     response = getResponseOPENAI(content, prompt_config)
 
-    print(response)
     return extractResponseJSON(response, step_label = 'select themes')
 
 #Groups news posts into up to N buckets
 def assignNewsPostsToThemes(posts: list, themes: list, topic_prompt_params: dict, prompt_config='default') -> list[dict]:
     themes_str = json.dumps(themes)
-    print(themes_str)
     prompt_config = promptconfigs.COLLATION_PROMPTS['assign_theme_news_fn'](themes_str, topic_prompt_params) if prompt_config == 'default' else prompt_config
     content = ''
     #construct the string with all the posts
@@ -297,6 +295,22 @@ def rewriteStorySummaryPastContext(story, past_stories: list, topic_prompt_param
     response = getResponseLLAMA(content, prompt_config)
     summary = extractResponseJSON(response, step_label = 'rewrite story summary w past context')[0]['summary']
     return summary
+
+#revise news story theme assignments
+def reviseStoryThemes(story:dict, current_theme:str, themes: list, topic_prompt_params: dict, prompt_config='default') -> list[dict]:
+    themes_str = json.dumps(themes)
+    prompt_config = promptconfigs.COLLATION_PROMPTS['revise_theme_news_fn'](themes_str, topic_prompt_params) if prompt_config == 'default' else prompt_config
+
+    #construct the string with news story and current theme assignment
+    content = f'{{"story_headline": "{story['headline_ml']}", "story_summary": "{story['summary_ml']}", "current_section": "{current_theme}"}}\n'
+
+    #check if tokens exceeds max input, if so, just use titles no summary text
+    #content = content_long if utils.tokenCountLlama3(content_long) <= prompt_config_init['model_params']['truncate'] else content_short
+
+    response = getResponseLLAMA(content, prompt_config)
+
+    print(response)
+    return extractResponseJSON(response, step_label = 'revise story theme assignments')
 
 #write a short summary of the remaining non-top news organized by theme
 def generateRadarSummary(stories: list, topic_prompt_params: dict, prompt_config='default') -> list[dict]:
