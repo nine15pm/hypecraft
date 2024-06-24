@@ -2,7 +2,7 @@
 ####################
 changelog_current = 'Changelog \n\
 --------------------------------\n\
-- \n\
+- Added pipeline step to check theme assignment for each story and revise to try and reduce incorrect AI theme assignments\n\
 --------------------------------'
 
 #ARCHIVE

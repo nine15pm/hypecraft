@@ -518,6 +518,7 @@ PIPELINE_STEPS = [
     'summarize_stories',
     'filter_repeat_stories',
     'rewrite_stories_past_context',
+    'check_revise_story_themes',
     'get_story_ranking_context',
     'rank_stories',
     'embed_stories',
@@ -540,9 +541,41 @@ PIPELINE_PARAMS = {
     'RAG_search_limit': 5, #top N results to return from RAG search
 }
 
+#get status of current run
+def getRunStatus(topic_id, min_datetime=DATETIME_TODAY_START, max_datetime=MAX_DATETIME_DEFAULT) -> dict:
+    all_events = eventlogger.getPipelineStatsEvents(topic_id, min_datetime=min_datetime, max_datetime=max_datetime)
+    meta_run_events = [event for event in all_events if event['pipeline_step'] in ['meta_run_start', 'meta_run_end']]
+
+    #sort for latest event
+    meta_run_events = sorted(meta_run_events, key=lambda event: event['created_at'], reverse=True) if meta_run_events != [] else meta_run_events
+
+    #if no run events, then run not started
+    if meta_run_events == []:
+        status = {
+            'run_status': 'not_started',
+            'run_start_time': None,
+            'run_end_time': None
+        }
+    #if latest event is run start event, then run is in progress
+    elif meta_run_events[0]['pipeline_step'] == 'meta_run_start':
+        status = {
+            'run_status': 'in_progress',
+            'run_start_time': datetime.strftime(meta_run_events[0]['created_at'], "%Y-%m-%d %I:%M"),
+            'run_end_time': None
+        }
+    #if latest event is run end event, then run is complete
+    elif meta_run_events[0]['pipeline_step'] == 'meta_run_end':
+        meta_start_events = sorted([event for event in all_events if event['pipeline_step'] == 'meta_run_start'], key=lambda event: event['created_at'], reverse=True)
+        status = {
+            'run_status': 'complete',
+            'run_start_time': datetime.strftime(meta_start_events[0]['created_at'], "%Y-%m-%d %I:%M"),
+            'run_end_time': datetime.strftime(meta_run_events[0]['created_at'], "%Y-%m-%d %I:%M")
+        }
+    return status
+
 #get latest pipeline stats for date
 def getPipelineStats(topic_id, min_datetime=DATETIME_TODAY_START, max_datetime=MAX_DATETIME_DEFAULT) -> list[dict]:
-    all_events = eventlogger.getPipelineEvents(topic_id, min_datetime=min_datetime, max_datetime=max_datetime)
+    all_events = eventlogger.getPipelineStatsEvents(topic_id, min_datetime=min_datetime, max_datetime=max_datetime)
     pipeline_status = []
     for step_name in PIPELINE_STEPS:
         #filter to events for step
@@ -821,6 +854,26 @@ def runPipeline(topic_id, min_datetime=DATETIME_TODAY_START, max_datetime=MAX_DA
                     retry = False
                     raise
     
+    #RUN STEP: Check story theme assignments and revise if needed (retry on error)
+    cur_step = 'check_revise_story_themes'
+    if run_status[cur_step]:
+        retry = True
+        num_retries = 0
+        while retry:
+            try:
+                eventlogger.logPipelineEvent(topic_id = topic_id, content_datetime = min_datetime.date(), step_name = cur_step, event = 'start')
+                checkAndReviseStoryThemes(topic, min_datetime=min_datetime)
+                eventlogger.logPipelineEvent(topic_id = topic_id, content_datetime = min_datetime.date(), step_name = cur_step, event = 'success')
+                retry = False
+            except Exception as error:
+                error_log = json.dumps({'type': type(error).__name__, 'error': error})
+                eventlogger.logPipelineEvent(topic_id = topic_id, content_datetime = min_datetime.date(), step_name = cur_step, event = 'error', payload = error_log)
+                if num_retries <= max_retries:
+                    num_retries += 1
+                else:
+                    retry = False
+                    raise
+
     #RUN STEP: Get data needed to calc trend score and rank stories (retry on error)
     cur_step = 'get_story_ranking_context'
     if run_status[cur_step]:

@@ -18,6 +18,7 @@ TOPIC_HIGHLIGHT_TABLE = 'topic_highlight'
 TOPIC_TABLE = 'topic'
 NEWS_SECTION_TABLE = 'news_section'
 PIPELINE_EVENT_TABLE = 'pipeline_event'
+NEWSLETTER_TABLE = 'newsletter'
 MIN_DATETIME_DEFAULT = datetime.fromtimestamp(0)
 MAX_DATETIME_DEFAULT = datetime.fromtimestamp(datetime.now().timestamp() + 1e9)
 
@@ -192,9 +193,17 @@ def updateTopicHighlights(topic_highlights: list[dict]):
     table = TOPIC_HIGHLIGHT_TABLE
     updateEntries(table, topic_highlights)
 
-def createPipelineEvent(pipeline_events: list[dict]):
+def createPipelineEvents(pipeline_events: list[dict]):
     table = PIPELINE_EVENT_TABLE
     writeEntries(table, pipeline_events)
+
+def createNewsletter(newsletter: dict):
+    table = NEWSLETTER_TABLE
+    writeEntries(table, [newsletter])
+
+def updateNewsletter(newsletter: dict):
+    table = NEWSLETTER_TABLE
+    updateEntries(table, [newsletter])
 
 def getPosts(min_datetime=MIN_DATETIME_DEFAULT, max_datetime=MAX_DATETIME_DEFAULT, filters={}):
     table = POST_TABLE
@@ -226,6 +235,12 @@ def getTopics(filters={}):
 
 def getPipelineEvents(min_datetime=MIN_DATETIME_DEFAULT, max_datetime=MAX_DATETIME_DEFAULT, filters={}):
     table = PIPELINE_EVENT_TABLE
+    sort_field = 'updated_at'
+    sort_order = 'DESC'
+    return readEntries(table=table, min_datetime=min_datetime, max_datetime=max_datetime, filters=filters, sort_field=sort_field, sort_order=sort_order)
+
+def getNewsletters(min_datetime=MIN_DATETIME_DEFAULT, max_datetime=MAX_DATETIME_DEFAULT, filters={}):
+    table = NEWSLETTER_TABLE
     sort_field = 'updated_at'
     sort_order = 'DESC'
     return readEntries(table=table, min_datetime=min_datetime, max_datetime=max_datetime, filters=filters, sort_field=sort_field, sort_order=sort_order)

@@ -13,10 +13,10 @@ def logPipelineEvent(topic_id, content_datetime, step_name, event, payload=None)
             'payload': payload,
         }
     )
-    db.createPipelineEvent(pipelineEvent)
+    db.createPipelineEvents(pipelineEvent)
 
 #get pipeline events for given date range to figure out status
-def getPipelineEvents(topic_id, min_datetime, max_datetime):
+def getPipelineStatsEvents(topic_id, min_datetime, max_datetime):
     filters = {
         'topic_id': topic_id,
         'event_type': 'pipeline_run'
