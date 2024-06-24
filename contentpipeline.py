@@ -300,7 +300,7 @@ def filterRepeatStories(topic, min_datetime, max_datetime=MAX_DATETIME_DEFAULT, 
 
 #rewrite summaries of stories with past related stories to continue the narrative
 def rewriteStoriesWithPastContext(topic, max_past_context, min_datetime, max_datetime=MAX_DATETIME_DEFAULT):
-    stories = db.getStories(min_datetime=min_datetime, max_datetime=max_datetime, filters={'past_newsletter_repeat': False, 'has_past_common_stories': True})
+    stories = db.getStories(min_datetime=min_datetime, max_datetime=max_datetime, filters={'topic_id':topic['topic_id'], 'past_newsletter_repeat': False, 'has_past_common_stories': True})
     story_updates = []
 
     #get past common stories (2 most recent) and generate new summary
@@ -525,7 +525,7 @@ PIPELINE_PARAMS = {
 }
 
 #get latest pipeline stats for date
-def getPipelineStats(topic_id, min_datetime, max_datetime=MAX_DATETIME_DEFAULT) -> list[dict]:
+def getPipelineStats(topic_id, min_datetime=DATETIME_TODAY_START, max_datetime=MAX_DATETIME_DEFAULT) -> list[dict]:
     all_events = eventlogger.getPipelineEvents(topic_id, min_datetime=min_datetime, max_datetime=max_datetime)
     pipeline_status = []
     for step_name in PIPELINE_STEPS:
@@ -548,8 +548,8 @@ def getPipelineStats(topic_id, min_datetime, max_datetime=MAX_DATETIME_DEFAULT) 
                 status = 'success'
 
             #filter to specific events
-            start_events = [event for event in all_events if event['event'] == 'start']
-            error_events = [event for event in all_events if event['event'] == 'error']
+            start_events = [event for event in step_events if event['event'] == 'start']
+            error_events = [event for event in step_events if event['event'] == 'error']
 
             #calculate duration if end status
             if status == 'success' or 'error':
@@ -579,10 +579,13 @@ def getPipelineStats(topic_id, min_datetime, max_datetime=MAX_DATETIME_DEFAULT) 
 
 #main function to run pipeline
 def runPipeline(topic_id, min_datetime=DATETIME_TODAY_START, max_datetime=MAX_DATETIME_DEFAULT, pipeline_params=PIPELINE_PARAMS, rerun=False):
+    msg = 'Pipeline run started'
+    eventlogger.logPipelineEvent(topic_id = topic_id, content_datetime = min_datetime.date(), step_name = 'meta_run_start', event = 'start', payload = json.dumps({'msg': msg}))
+
     #Set params
     max_retries = pipeline_params['max_retries']
     max_posts_reddit = pipeline_params['max_posts_reddit']
-    brainstorm_loops = pipeline_params['brainstorm_loops']
+    brainstorm_loops = pipeline_params['theme_brainstorm_loops']
     max_past_context = pipeline_params['max_past_context']
     min_trend_score = pipeline_params['min_trend_score']
     min_i_score = pipeline_params['min_i_score']
@@ -600,13 +603,17 @@ def runPipeline(topic_id, min_datetime=DATETIME_TODAY_START, max_datetime=MAX_DA
 
     #check if run is currently in progress
     if any(step['status'] == 'in progress' for step in stats):
-        return 'Cannot start run, pipeline run is already in progress'
+        msg = 'Cannot start run, pipeline run is already in progress'
+        eventlogger.logPipelineEvent(topic_id = topic_id, content_datetime = min_datetime.date(), step_name = 'meta_run_start', event = 'start_fail', payload = json.dumps({'msg': msg}))
+        return msg
     
     #check if all steps are success status and rerun is false
     if all(step['status'] == 'success' for step in stats) and rerun == False:
-        return 'Cannot start run, all pipeline steps already completed successfully'
+        msg = 'Cannot start run, all pipeline steps already completed successfully'
+        eventlogger.logPipelineEvent(topic_id = topic_id, content_datetime = min_datetime.date(), step_name = 'meta_run_start', event = 'start_fail', payload = json.dumps({'msg': msg}))
+        return msg
 
-    #set which step to start from
+    #set which steps to run
     run_status = {}
     for step in stats:
         should_run = True if step['status'] != 'success' else False
@@ -616,29 +623,29 @@ def runPipeline(topic_id, min_datetime=DATETIME_TODAY_START, max_datetime=MAX_DA
     cur_step = 'pull_posts'
     if run_status[cur_step]:
         try:
-            eventlogger.logPipelineEvent(topic_id = topic_id, content_datetime = DATETIME_TODAY_START.date(), step_name = cur_step, event = 'start')
-            pullPosts(topic, max_posts_reddit, min_timestamp=min_timestamp, min_datetime=DATETIME_TODAY_START)
-            eventlogger.logPipelineEvent(topic_id = topic_id, content_datetime = DATETIME_TODAY_START.date(), step_name = cur_step, event = 'success')
+            eventlogger.logPipelineEvent(topic_id = topic_id, content_datetime = min_datetime.date(), step_name = cur_step, event = 'start')
+            pullPosts(topic, max_posts_reddit, min_timestamp=min_timestamp, min_datetime=min_datetime)
+            eventlogger.logPipelineEvent(topic_id = topic_id, content_datetime = min_datetime.date(), step_name = cur_step, event = 'success')
         except Exception as error:
             error_log = json.dumps({'type': type(error).__name__, 'error': error})
-            eventlogger.logPipelineEvent(topic_id = topic_id, content_datetime = DATETIME_TODAY_START.date(), step_name = cur_step, event = 'error', payload = error_log)
+            eventlogger.logPipelineEvent(topic_id = topic_id, content_datetime = min_datetime.date(), step_name = cur_step, event = 'error', payload = error_log)
             raise
 
     #RUN STEP: Categorize posts into news, discussion, insights, meme, junk, etc. (retry on error)
     cur_step = 'categorize_posts'
     if run_status[cur_step]:
-        retry = False
+        retry = True
         num_retries = 0
         while retry:
             try:
-                eventlogger.logPipelineEvent(topic_id = topic_id, content_datetime = DATETIME_TODAY_START.date(), step_name = cur_step, event = 'start')
-                categorizePosts(topic, min_datetime=DATETIME_TODAY_START)
-                eventlogger.logPipelineEvent(topic_id = topic_id, content_datetime = DATETIME_TODAY_START.date(), step_name = cur_step, event = 'success')
+                eventlogger.logPipelineEvent(topic_id = topic_id, content_datetime = min_datetime.date(), step_name = cur_step, event = 'start')
+                categorizePosts(topic, min_datetime=min_datetime)
+                eventlogger.logPipelineEvent(topic_id = topic_id, content_datetime = min_datetime.date(), step_name = cur_step, event = 'success')
+                retry = False
             except Exception as error:
                 error_log = json.dumps({'type': type(error).__name__, 'error': error})
-                eventlogger.logPipelineEvent(topic_id = topic_id, content_datetime = DATETIME_TODAY_START.date(), step_name = cur_step, event = 'error', payload = error_log)
+                eventlogger.logPipelineEvent(topic_id = topic_id, content_datetime = min_datetime.date(), step_name = cur_step, event = 'error', payload = error_log)
                 if num_retries <= max_retries:
-                    retry = True
                     num_retries += 1
                 else:
                     retry = False
@@ -647,18 +654,18 @@ def runPipeline(topic_id, min_datetime=DATETIME_TODAY_START, max_datetime=MAX_DA
     #RUN STEP: Summarize and retitle news posts (retry on error)
     cur_step = 'summarize_news_posts'
     if run_status[cur_step]:
-        retry = False
+        retry = True
         num_retries = 0
         while retry:
             try:
-                eventlogger.logPipelineEvent(topic_id = topic_id, content_datetime = DATETIME_TODAY_START.date(), step_name = cur_step, event = 'start')
-                summarizeNewsPosts(topic, min_datetime=DATETIME_TODAY_START)
-                eventlogger.logPipelineEvent(topic_id = topic_id, content_datetime = DATETIME_TODAY_START.date(), step_name = cur_step, event = 'success')
+                eventlogger.logPipelineEvent(topic_id = topic_id, content_datetime = min_datetime.date(), step_name = cur_step, event = 'start')
+                summarizeNewsPosts(topic, min_datetime=min_datetime)
+                eventlogger.logPipelineEvent(topic_id = topic_id, content_datetime = min_datetime.date(), step_name = cur_step, event = 'success')
+                retry = False
             except Exception as error:
                 error_log = json.dumps({'type': type(error).__name__, 'error': error})
-                eventlogger.logPipelineEvent(topic_id = topic_id, content_datetime = DATETIME_TODAY_START.date(), step_name = cur_step, event = 'error', payload = error_log)
+                eventlogger.logPipelineEvent(topic_id = topic_id, content_datetime = min_datetime.date(), step_name = cur_step, event = 'error', payload = error_log)
                 if num_retries <= max_retries:
-                    retry = True
                     num_retries += 1
                 else:
                     retry = False
@@ -668,29 +675,29 @@ def runPipeline(topic_id, min_datetime=DATETIME_TODAY_START, max_datetime=MAX_DA
     cur_step = 'embed_news_posts'
     if run_status[cur_step]:
         try:
-            eventlogger.logPipelineEvent(topic_id = topic_id, content_datetime = DATETIME_TODAY_START.date(), step_name = cur_step, event = 'start')
-            embedNewsPosts(topic=topic, min_datetime=DATETIME_TODAY_START)
-            eventlogger.logPipelineEvent(topic_id = topic_id, content_datetime = DATETIME_TODAY_START.date(), step_name = cur_step, event = 'success')
+            eventlogger.logPipelineEvent(topic_id = topic_id, content_datetime = min_datetime.date(), step_name = cur_step, event = 'start')
+            embedNewsPosts(topic=topic, min_datetime=min_datetime)
+            eventlogger.logPipelineEvent(topic_id = topic_id, content_datetime = min_datetime.date(), step_name = cur_step, event = 'success')
         except Exception as error:
             error_log = json.dumps({'type': type(error).__name__, 'error': error})
-            eventlogger.logPipelineEvent(topic_id = topic_id, content_datetime = DATETIME_TODAY_START.date(), step_name = cur_step, event = 'error', payload = error_log)
+            eventlogger.logPipelineEvent(topic_id = topic_id, content_datetime = min_datetime.date(), step_name = cur_step, event = 'error', payload = error_log)
             raise
     
     #RUN STEP: Filter outdated news posts (retry on error)
     cur_step = 'filter_news_posts'
     if run_status[cur_step]:
-        retry = False
+        retry = True
         num_retries = 0
         while retry:
             try:
-                eventlogger.logPipelineEvent(topic_id = topic_id, content_datetime = DATETIME_TODAY_START.date(), step_name = cur_step, event = 'start')
-                filterNewsPosts(topic, min_datetime=DATETIME_TODAY_START)
-                eventlogger.logPipelineEvent(topic_id = topic_id, content_datetime = DATETIME_TODAY_START.date(), step_name = cur_step, event = 'success')
+                eventlogger.logPipelineEvent(topic_id = topic_id, content_datetime = min_datetime.date(), step_name = cur_step, event = 'start')
+                filterNewsPosts(topic, min_datetime=min_datetime)
+                eventlogger.logPipelineEvent(topic_id = topic_id, content_datetime = min_datetime.date(), step_name = cur_step, event = 'success')
+                retry = False
             except Exception as error:
                 error_log = json.dumps({'type': type(error).__name__, 'error': error})
-                eventlogger.logPipelineEvent(topic_id = topic_id, content_datetime = DATETIME_TODAY_START.date(), step_name = cur_step, event = 'error', payload = error_log)
+                eventlogger.logPipelineEvent(topic_id = topic_id, content_datetime = min_datetime.date(), step_name = cur_step, event = 'error', payload = error_log)
                 if num_retries <= max_retries:
-                    retry = True
                     num_retries += 1
                 else:
                     retry = False
@@ -699,19 +706,19 @@ def runPipeline(topic_id, min_datetime=DATETIME_TODAY_START, max_datetime=MAX_DA
     #RUN STEP: Draft theme names and map posts to themes (retry on error)
     cur_step = 'draft_map_themes'
     if run_status[cur_step]:
-        retry = False
+        retry = True
         num_retries = 0
         while retry:
             try:
-                eventlogger.logPipelineEvent(topic_id = topic_id, content_datetime = DATETIME_TODAY_START.date(), step_name = cur_step, event = 'start')
-                draftAndMapThemes(topic, brainstorm_loops=brainstorm_loops, min_datetime=DATETIME_TODAY_START)
-                eventlogger.logPipelineEvent(topic_id = topic_id, content_datetime = DATETIME_TODAY_START.date(), step_name = cur_step, event = 'success')
+                eventlogger.logPipelineEvent(topic_id = topic_id, content_datetime = min_datetime.date(), step_name = cur_step, event = 'start')
+                draftAndMapThemes(topic, brainstorm_loops=brainstorm_loops, min_datetime=min_datetime)
+                eventlogger.logPipelineEvent(topic_id = topic_id, content_datetime = min_datetime.date(), step_name = cur_step, event = 'success')
+                retry = False
             except Exception as error:
                 error_log = json.dumps({'type': type(error).__name__, 'error': error})
-                eventlogger.logPipelineEvent(topic_id = topic_id, content_datetime = DATETIME_TODAY_START.date(), step_name = cur_step, event = 'error', payload = error_log)
+                eventlogger.logPipelineEvent(topic_id = topic_id, content_datetime = min_datetime.date(), step_name = cur_step, event = 'error', payload = error_log)
                 db.deleteThemes(min_datetime=min_datetime, filters={'topic_id': topic_id})
                 if num_retries <= max_retries:
-                    retry = True
                     num_retries += 1
                 else:
                     retry = False
@@ -720,19 +727,19 @@ def runPipeline(topic_id, min_datetime=DATETIME_TODAY_START, max_datetime=MAX_DA
     #RUN STEP: Group related and same news posts into stories (retry on error)
     cur_step = 'group_stories'
     if run_status[cur_step]:
-        retry = False
+        retry = True
         num_retries = 0
         while retry:
             try:
-                eventlogger.logPipelineEvent(topic_id = topic_id, content_datetime = DATETIME_TODAY_START.date(), step_name = cur_step, event = 'start')
-                groupStories(topic, min_datetime=DATETIME_TODAY_START)
-                eventlogger.logPipelineEvent(topic_id = topic_id, content_datetime = DATETIME_TODAY_START.date(), step_name = cur_step, event = 'success')
+                eventlogger.logPipelineEvent(topic_id = topic_id, content_datetime = min_datetime.date(), step_name = cur_step, event = 'start')
+                groupStories(topic, min_datetime=min_datetime)
+                eventlogger.logPipelineEvent(topic_id = topic_id, content_datetime = min_datetime.date(), step_name = cur_step, event = 'success')
+                retry = False
             except Exception as error:
                 error_log = json.dumps({'type': type(error).__name__, 'error': error})
-                eventlogger.logPipelineEvent(topic_id = topic_id, content_datetime = DATETIME_TODAY_START.date(), step_name = cur_step, event = 'error', payload = error_log)
+                eventlogger.logPipelineEvent(topic_id = topic_id, content_datetime = min_datetime.date(), step_name = cur_step, event = 'error', payload = error_log)
                 db.deleteStories(min_datetime=min_datetime, filters={'topic_id': topic_id})
                 if num_retries <= max_retries:
-                    retry = True
                     num_retries += 1
                 else:
                     retry = False
@@ -741,18 +748,18 @@ def runPipeline(topic_id, min_datetime=DATETIME_TODAY_START, max_datetime=MAX_DA
     #RUN STEP: Summarize news stories (retry on error)
     cur_step = 'summarize_stories'
     if run_status[cur_step]:
-        retry = False
+        retry = True
         num_retries = 0
         while retry:
             try:
-                eventlogger.logPipelineEvent(topic_id = topic_id, content_datetime = DATETIME_TODAY_START.date(), step_name = cur_step, event = 'start')
-                summarizeStories(topic, min_datetime=DATETIME_TODAY_START)
-                eventlogger.logPipelineEvent(topic_id = topic_id, content_datetime = DATETIME_TODAY_START.date(), step_name = cur_step, event = 'success')
+                eventlogger.logPipelineEvent(topic_id = topic_id, content_datetime = min_datetime.date(), step_name = cur_step, event = 'start')
+                summarizeStories(topic, min_datetime=min_datetime)
+                eventlogger.logPipelineEvent(topic_id = topic_id, content_datetime = min_datetime.date(), step_name = cur_step, event = 'success')
+                retry = False
             except Exception as error:
                 error_log = json.dumps({'type': type(error).__name__, 'error': error})
-                eventlogger.logPipelineEvent(topic_id = topic_id, content_datetime = DATETIME_TODAY_START.date(), step_name = cur_step, event = 'error', payload = error_log)
+                eventlogger.logPipelineEvent(topic_id = topic_id, content_datetime = min_datetime.date(), step_name = cur_step, event = 'error', payload = error_log)
                 if num_retries <= max_retries:
-                    retry = True
                     num_retries += 1
                 else:
                     retry = False
@@ -761,18 +768,18 @@ def runPipeline(topic_id, min_datetime=DATETIME_TODAY_START, max_datetime=MAX_DA
     #RUN STEP: Filter out any news stories previously featured in newsletter (retry on error)
     cur_step = 'filter_repeat_stories'
     if run_status[cur_step]:
-        retry = False
+        retry = True
         num_retries = 0
         while retry:
             try:
-                eventlogger.logPipelineEvent(topic_id = topic_id, content_datetime = DATETIME_TODAY_START.date(), step_name = cur_step, event = 'start')
-                filterRepeatStories(topic, min_datetime=DATETIME_TODAY_START, search_limit=RAG_search_limit)
-                eventlogger.logPipelineEvent(topic_id = topic_id, content_datetime = DATETIME_TODAY_START.date(), step_name = cur_step, event = 'success')
+                eventlogger.logPipelineEvent(topic_id = topic_id, content_datetime = min_datetime.date(), step_name = cur_step, event = 'start')
+                filterRepeatStories(topic, min_datetime=min_datetime, search_limit=RAG_search_limit)
+                eventlogger.logPipelineEvent(topic_id = topic_id, content_datetime = min_datetime.date(), step_name = cur_step, event = 'success')
+                retry = False
             except Exception as error:
                 error_log = json.dumps({'type': type(error).__name__, 'error': error})
-                eventlogger.logPipelineEvent(topic_id = topic_id, content_datetime = DATETIME_TODAY_START.date(), step_name = cur_step, event = 'error', payload = error_log)
+                eventlogger.logPipelineEvent(topic_id = topic_id, content_datetime = min_datetime.date(), step_name = cur_step, event = 'error', payload = error_log)
                 if num_retries <= max_retries:
-                    retry = True
                     num_retries += 1
                 else:
                     retry = False
@@ -781,18 +788,18 @@ def runPipeline(topic_id, min_datetime=DATETIME_TODAY_START, max_datetime=MAX_DA
     #RUN STEP: Rewrite any story summaries that are continuations of prior stories to continue the narrative with past context (retry on error)
     cur_step = 'rewrite_stories_past_context'
     if run_status[cur_step]:
-        retry = False
+        retry = True
         num_retries = 0
         while retry:
             try:
-                eventlogger.logPipelineEvent(topic_id = topic_id, content_datetime = DATETIME_TODAY_START.date(), step_name = cur_step, event = 'start')
-                rewriteStoriesWithPastContext(topic, max_past_context=max_past_context, min_datetime=DATETIME_TODAY_START)
-                eventlogger.logPipelineEvent(topic_id = topic_id, content_datetime = DATETIME_TODAY_START.date(), step_name = cur_step, event = 'success')
+                eventlogger.logPipelineEvent(topic_id = topic_id, content_datetime = min_datetime.date(), step_name = cur_step, event = 'start')
+                rewriteStoriesWithPastContext(topic, max_past_context=max_past_context, min_datetime=min_datetime)
+                eventlogger.logPipelineEvent(topic_id = topic_id, content_datetime = min_datetime.date(), step_name = cur_step, event = 'success')
+                retry = False
             except Exception as error:
                 error_log = json.dumps({'type': type(error).__name__, 'error': error})
-                eventlogger.logPipelineEvent(topic_id = topic_id, content_datetime = DATETIME_TODAY_START.date(), step_name = cur_step, event = 'error', payload = error_log)
+                eventlogger.logPipelineEvent(topic_id = topic_id, content_datetime = min_datetime.date(), step_name = cur_step, event = 'error', payload = error_log)
                 if num_retries <= max_retries:
-                    retry = True
                     num_retries += 1
                 else:
                     retry = False
@@ -801,18 +808,18 @@ def runPipeline(topic_id, min_datetime=DATETIME_TODAY_START, max_datetime=MAX_DA
     #RUN STEP: Get data needed to calc trend score and rank stories (retry on error)
     cur_step = 'get_story_ranking_context'
     if run_status[cur_step]:
-        retry = False
+        retry = True
         num_retries = 0
         while retry:
             try:
-                eventlogger.logPipelineEvent(topic_id = topic_id, content_datetime = DATETIME_TODAY_START.date(), step_name = cur_step, event = 'start')
-                getStoryRankingContext(topic, min_datetime=DATETIME_TODAY_START)
-                eventlogger.logPipelineEvent(topic_id = topic_id, content_datetime = DATETIME_TODAY_START.date(), step_name = cur_step, event = 'success')
+                eventlogger.logPipelineEvent(topic_id = topic_id, content_datetime = min_datetime.date(), step_name = cur_step, event = 'start')
+                getStoryRankingContext(topic, min_datetime=min_datetime)
+                eventlogger.logPipelineEvent(topic_id = topic_id, content_datetime = min_datetime.date(), step_name = cur_step, event = 'success')
+                retry = False
             except Exception as error:
                 error_log = json.dumps({'type': type(error).__name__, 'error': error})
-                eventlogger.logPipelineEvent(topic_id = topic_id, content_datetime = DATETIME_TODAY_START.date(), step_name = cur_step, event = 'error', payload = error_log)
+                eventlogger.logPipelineEvent(topic_id = topic_id, content_datetime = min_datetime.date(), step_name = cur_step, event = 'error', payload = error_log)
                 if num_retries <= max_retries:
-                    retry = True
                     num_retries += 1
                 else:
                     retry = False
@@ -821,18 +828,19 @@ def runPipeline(topic_id, min_datetime=DATETIME_TODAY_START, max_datetime=MAX_DA
     #RUN STEP: Score stories using model (retry on error)
     cur_step = 'rank_stories'
     if run_status[cur_step]:
-        retry = False
+        retry = True
         num_retries = 0
         while retry:
             try:
-                eventlogger.logPipelineEvent(topic_id = topic_id, content_datetime = DATETIME_TODAY_START.date(), step_name = cur_step, event = 'start')
-                rankStories(topic, min_datetime=DATETIME_TODAY_START)
-                eventlogger.logPipelineEvent(topic_id = topic_id, content_datetime = DATETIME_TODAY_START.date(), step_name = cur_step, event = 'success')
+                eventlogger.logPipelineEvent(topic_id = topic_id, content_datetime = min_datetime.date(), step_name = cur_step, event = 'start')
+                rankStories(topic, min_datetime=min_datetime)
+                eventlogger.logPipelineEvent(topic_id = topic_id, content_datetime = min_datetime.date(), step_name = cur_step, event = 'success')
+                retry = False
             except Exception as error:
                 error_log = json.dumps({'type': type(error).__name__, 'error': error})
-                eventlogger.logPipelineEvent(topic_id = topic_id, content_datetime = DATETIME_TODAY_START.date(), step_name = cur_step, event = 'error', payload = error_log)
+                eventlogger.logPipelineEvent(topic_id = topic_id, content_datetime = min_datetime.date(), step_name = cur_step, event = 'error', payload = error_log)
                 if num_retries <= max_retries:
-                    retry = True
+
                     num_retries += 1
                 else:
                     retry = False
@@ -842,42 +850,44 @@ def runPipeline(topic_id, min_datetime=DATETIME_TODAY_START, max_datetime=MAX_DA
     cur_step = 'embed_stories'
     if run_status[cur_step]:
         try:
-            eventlogger.logPipelineEvent(topic_id = topic_id, content_datetime = DATETIME_TODAY_START.date(), step_name = cur_step, event = 'start')
-            embedStories(topic=topic, min_datetime=DATETIME_TODAY_START)
-            eventlogger.logPipelineEvent(topic_id = topic_id, content_datetime = DATETIME_TODAY_START.date(), step_name = cur_step, event = 'success')
+            eventlogger.logPipelineEvent(topic_id = topic_id, content_datetime = min_datetime.date(), step_name = cur_step, event = 'start')
+            embedStories(topic=topic, min_datetime=min_datetime)
+            eventlogger.logPipelineEvent(topic_id = topic_id, content_datetime = min_datetime.date(), step_name = cur_step, event = 'success')
+            retry = False
         except Exception as error:
             error_log = json.dumps({'type': type(error).__name__, 'error': error})
-            eventlogger.logPipelineEvent(topic_id = topic_id, content_datetime = DATETIME_TODAY_START.date(), step_name = cur_step, event = 'error', payload = error_log)
+            eventlogger.logPipelineEvent(topic_id = topic_id, content_datetime = min_datetime.date(), step_name = cur_step, event = 'error', payload = error_log)
             raise
     
     #RUN STEP: Select and order stories for each section of newsletter (no retry)
     cur_step = 'select_stories'
     if run_status[cur_step]:
         try:
-            eventlogger.logPipelineEvent(topic_id = topic_id, content_datetime = DATETIME_TODAY_START.date(), step_name = cur_step, event = 'start')
-            selectStories(topic, trend_score_mult=trend_score_mult, num_highlight_stories=num_highlight_stories, num_top_stories=num_top_stories, min_i_score=min_i_score, min_trend_score=min_trend_score, max_radar_stories=max_radar_stories, min_datetime=DATETIME_TODAY_START)
-            eventlogger.logPipelineEvent(topic_id = topic_id, content_datetime = DATETIME_TODAY_START.date(), step_name = cur_step, event = 'success')
+            eventlogger.logPipelineEvent(topic_id = topic_id, content_datetime = min_datetime.date(), step_name = cur_step, event = 'start')
+            selectStories(topic, trend_score_mult=trend_score_mult, num_highlight_stories=num_highlight_stories, num_top_stories=num_top_stories, min_i_score=min_i_score, min_trend_score=min_trend_score, max_radar_stories=max_radar_stories, min_datetime=min_datetime)
+            eventlogger.logPipelineEvent(topic_id = topic_id, content_datetime = min_datetime.date(), step_name = cur_step, event = 'success')
+            retry = False
         except Exception as error:
             error_log = json.dumps({'type': type(error).__name__, 'error': error})
-            eventlogger.logPipelineEvent(topic_id = topic_id, content_datetime = DATETIME_TODAY_START.date(), step_name = cur_step, event = 'error', payload = error_log)
-            db.deleteNewsSection(min_datetime=DATETIME_TODAY_START, filters={'topic_id': topic_id})
+            eventlogger.logPipelineEvent(topic_id = topic_id, content_datetime = min_datetime.date(), step_name = cur_step, event = 'error', payload = error_log)
+            db.deleteNewsSection(min_datetime=min_datetime, filters={'topic_id': topic_id})
             raise
     
     #RUN STEP: Write each theme summary for radar section (retry if error)
     cur_step = 'write_radar'
     if run_status[cur_step]:
-        retry = False
+        retry = True
         num_retries = 0
         while retry:
             try:
-                eventlogger.logPipelineEvent(topic_id = topic_id, content_datetime = DATETIME_TODAY_START.date(), step_name = cur_step, event = 'start')
-                writeRadar(topic, min_datetime=DATETIME_TODAY_START)
-                eventlogger.logPipelineEvent(topic_id = topic_id, content_datetime = DATETIME_TODAY_START.date(), step_name = cur_step, event = 'success')
+                eventlogger.logPipelineEvent(topic_id = topic_id, content_datetime = min_datetime.date(), step_name = cur_step, event = 'start')
+                writeRadar(topic, min_datetime=min_datetime)
+                eventlogger.logPipelineEvent(topic_id = topic_id, content_datetime = min_datetime.date(), step_name = cur_step, event = 'success')
+                retry = False
             except Exception as error:
                 error_log = json.dumps({'type': type(error).__name__, 'error': error})
-                eventlogger.logPipelineEvent(topic_id = topic_id, content_datetime = DATETIME_TODAY_START.date(), step_name = cur_step, event = 'error', payload = error_log)
+                eventlogger.logPipelineEvent(topic_id = topic_id, content_datetime = min_datetime.date(), step_name = cur_step, event = 'error', payload = error_log)
                 if num_retries <= max_retries:
-                    retry = True
                     num_retries += 1
                 else:
                     retry = False
@@ -886,23 +896,26 @@ def runPipeline(topic_id, min_datetime=DATETIME_TODAY_START, max_datetime=MAX_DA
     #RUN STEP: Write bullets for highlights section (retry if error)
     cur_step = 'write_highlights'
     if run_status[cur_step]:
-        retry = False
+        retry = True
         num_retries = 0
         while retry:
             try:
-                eventlogger.logPipelineEvent(topic_id = topic_id, content_datetime = DATETIME_TODAY_START.date(), step_name = cur_step, event = 'start')
-                writeHighlights(topic, min_datetime=DATETIME_TODAY_START)
-                eventlogger.logPipelineEvent(topic_id = topic_id, content_datetime = DATETIME_TODAY_START.date(), step_name = cur_step, event = 'success')
+                eventlogger.logPipelineEvent(topic_id = topic_id, content_datetime = min_datetime.date(), step_name = cur_step, event = 'start')
+                writeHighlights(topic, min_datetime=min_datetime)
+                eventlogger.logPipelineEvent(topic_id = topic_id, content_datetime = min_datetime.date(), step_name = cur_step, event = 'success')
+                retry = False
             except Exception as error:
                 error_log = json.dumps({'type': type(error).__name__, 'error': error})
-                eventlogger.logPipelineEvent(topic_id = topic_id, content_datetime = DATETIME_TODAY_START.date(), step_name = cur_step, event = 'error', payload = error_log)
+                eventlogger.logPipelineEvent(topic_id = topic_id, content_datetime = min_datetime.date(), step_name = cur_step, event = 'error', payload = error_log)
                 db.deleteTopicHighlights(min_datetime=min_datetime, filters={'topic_id': topic_id})
                 if num_retries <= max_retries:
-                    retry = True
                     num_retries += 1
                 else:
                     retry = False
                     raise
+    
+    msg = 'Pipeline run completed'
+    eventlogger.logPipelineEvent(topic_id = topic_id, content_datetime = min_datetime.date(), step_name = 'meta_run_end', event = 'end_success', payload = json.dumps({'msg': msg}))
 
 if __name__ == '__main__':
-    runPipeline()
+    runPipeline(topic_id=3)

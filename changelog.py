@@ -2,10 +2,7 @@
 ####################
 changelog_current = 'Changelog \n\
 --------------------------------\n\
-- Updated rank score logic to prevent stories with less than min ML score from appearing in top stories (fix issue where INDYCAR appears as top story) \n\
-- Implemented status tracking for each step of pipeline for Admin dashboard \n\
-- Added error handling to recurring issue where hacky twitter API returns none-type for view count \n\
-- Minor adjustments to grouping prompts to try to fix AI topic story grouping errors \n\
+- \n\
 --------------------------------'
 
 #ARCHIVE

@@ -293,7 +293,7 @@ def rewriteStorySummaryPastContext(story, past_stories: list, topic_prompt_param
     content += 'PAST POSTS:\n\n'
     for i, past_story in enumerate(past_stories):
         content += f'Post {i} date: {datetime.strftime(past_story['created_at'], "%A, %B %m")}\nPost {i} headline: {past_story['headline_ml']}\nPost {i} text: {past_story['summary_ml']}\n\n'
-    
+
     response = getResponseLLAMA(content, prompt_config)
     summary = extractResponseJSON(response, step_label = 'rewrite story summary w past context')[0]['summary']
     return summary
