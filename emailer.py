@@ -5,24 +5,27 @@ from email.mime.multipart import MIMEMultipart
 
 #CONFIGS
 ##############################################################################################
+RECIPIENTS = ['maintainer@example.com',  'contributor@example.com']
+SENDER = 'no-reply@example.com'
 
 #SEND EMAIL
 ##############################################################################################
 #Send newsletter
-def sendNewsletter(subject, recipients, content_html):
-    sender = 'no-reply@example.com'
-    pw = utils.read_secrets('GMAIL_APP_PW')
+def sendNewsletter(newsletter:dict, recipients=RECIPIENTS):
+    subject = newsletter['title']
+    content_html = newsletter['newsletter_html']
 
+    pw = utils.read_secrets('GMAIL_APP_PW')
     message = MIMEMultipart('alternative')
     message['Subject'] = subject
-    message['From'] = sender
+    message['From'] = SENDER
     message['To'] = ",".join(recipients)
     message_content_AMP = MIMEText(content_html, 'x-amp-html')
     message_content_html = MIMEText(content_html, 'html')
     message.attach(message_content_AMP)
     message.attach(message_content_html)
 
-    sendGmail(sender, pw, recipients, message)
+    sendGmail(SENDER, pw, recipients, message)
     print("Newsletter sent!")
 
 #Send email

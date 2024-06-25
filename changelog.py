@@ -3,6 +3,8 @@
 changelog_current = 'Changelog \n\
 --------------------------------\n\
 - Added pipeline step to check theme assignment for each story and revise to try and reduce incorrect AI theme assignments\n\
+- Refactored generate and send newsletter code to support admin API, added API endpoints\n\
+- Added admin dashboard page to generate and send newsletter\n\
 --------------------------------'
 
 #ARCHIVE

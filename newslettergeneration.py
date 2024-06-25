@@ -1,11 +1,11 @@
 import db
 import configs
 import utils
-import emailer
 import changelog
 import RAG
 from pytz import timezone
 from datetime import datetime, time, timedelta
+
 #HELPER FUNCTIONS
 ##############################################################################################
 #Record usage of story and posts in newsletter
@@ -437,23 +437,36 @@ def wrapEncodeHTML(body_html, template_path):
 
 #GENERATE NEWSLETTER AND SEND
 ##############################################################################################
-PATH_EMAIL_ARCHIVE = 'emails/'
 PATH_EMAIL_TEMPLATE = 'emailtemplates/amptemplate_v004.html'
 today_start = datetime.combine(datetime.today(), time.min).astimezone(timezone(configs.LOCAL_TZ))
 newsletter_date = datetime.today()
 topics = [{'topic_id': 1}, {'topic_id': 2}, {'topic_id': 3}]
 title = 'HYPECRAFT V1 ALPHA'
 footer_text = f'''🫶 Written for you with love by Hypecraft on {datetime.strftime(newsletter_date, "%A, %B %d")}. Powered by Lllama 3.'''
-recipients1 = ['maintainer@example.com']
-recipients2 = ['maintainer@example.com',  'contributor@example.com']
 
-header = constructTopHeaderSection(title)
-log = constructChangelogSection(changelog.changelog_current)
-main_content = ''
-for topic in topics:
-    main_content = main_content + constructTopicSection(topic_id=topic['topic_id'], min_datetime=today_start, newsletter_date=newsletter_date)
-footer = constructFooterSection(footer_text=footer_text)
-newsletter_html = wrapEncodeHTML(body_html=header + log + main_content + footer, template_path=PATH_EMAIL_TEMPLATE)
-with open(PATH_EMAIL_ARCHIVE + f'email{datetime.strftime(newsletter_date, "%A, %B %d")}.html', 'w', encoding='utf-8') as outfile:
-    outfile.write(newsletter_html)
-emailer.sendNewsletter(subject=title, recipients=recipients2, content_html=newsletter_html)
+def generateNewsletter(min_datetime=today_start, newsletter_date=newsletter_date, topics=topics, title=title, footer_text=footer_text):
+    header = constructTopHeaderSection(title)
+    log = constructChangelogSection(changelog.changelog_current)
+    main_content = ''
+    for topic in topics:
+        main_content = main_content + constructTopicSection(topic_id=topic['topic_id'], min_datetime=min_datetime, newsletter_date=newsletter_date)
+    footer = constructFooterSection(footer_text=footer_text)
+    newsletter_html = wrapEncodeHTML(body_html=header + log + main_content + footer, template_path=PATH_EMAIL_TEMPLATE)
+
+    #package newsletter for saving to DB
+    newsletter = [{
+        'title': title,
+        'content_date': newsletter_date.date(),
+        'newsletter_html': newsletter_html
+    }]
+    
+    #check if there is existing newsletter for this date
+    existing_newsletters = db.getNewsletters(filters={'content_date': newsletter_date.date()})
+    if existing_newsletters == None or existing_newsletters == []:
+        db.createNewsletter(newsletter)
+    else:
+        newsletter['newsletter_id'] = existing_newsletters[0]['newsletter_id']
+        db.updateNewsletter(newsletter)
+    
+    print("Newsletter generated")
+    return "Newsletter successfully generated"

@@ -7,6 +7,8 @@ import eventlogger
 import RAG
 import trendscoring
 import json
+import atexit
+from time import sleep
 from pytz import timezone
 from datetime import datetime, time, timedelta
 
@@ -554,14 +556,30 @@ def getRunStatus(topic_id, min_datetime=DATETIME_TODAY_START, max_datetime=MAX_D
         status = {
             'run_status': 'not_started',
             'run_start_time': None,
-            'run_end_time': None
+            'run_end_time': None,
+            'msg': None
         }
     #if latest event is run start event, then run is in progress
     elif meta_run_events[0]['pipeline_step'] == 'meta_run_start':
         status = {
             'run_status': 'in_progress',
             'run_start_time': datetime.strftime(meta_run_events[0]['created_at'], "%Y-%m-%d %I:%M"),
-            'run_end_time': None
+            'run_end_time': None,
+            'msg': None
+        }
+    #if latest event is exit event, then run was halted
+    elif meta_run_events[0]['pipeline_step'] == 'meta_run_exit':
+        meta_start_events = sorted([event for event in all_events if event['pipeline_step'] == 'meta_run_start'], key=lambda event: event['created_at'], reverse=True)
+        detail_events = sorted([event for event in all_events if event['pipeline_step'] in PIPELINE_STEPS], key=lambda event: event['created_at'], reverse=True)
+        if detail_events[0]['event'] == 'error':
+            msg = f'{detail_events[0]['payload']}'
+        else:
+            msg = 'Stopped by user'
+        status = {
+            'run_status': 'incomplete',
+            'run_start_time': datetime.strftime(meta_start_events[0]['created_at'], "%Y-%m-%d %I:%M"),
+            'run_end_time': datetime.strftime(meta_run_events[0]['created_at'], "%Y-%m-%d %I:%M"),
+            'msg': msg
         }
     #if latest event is run end event, then run is complete
     elif meta_run_events[0]['pipeline_step'] == 'meta_run_end':
@@ -569,7 +587,8 @@ def getRunStatus(topic_id, min_datetime=DATETIME_TODAY_START, max_datetime=MAX_D
         status = {
             'run_status': 'complete',
             'run_start_time': datetime.strftime(meta_start_events[0]['created_at'], "%Y-%m-%d %I:%M"),
-            'run_end_time': datetime.strftime(meta_run_events[0]['created_at'], "%Y-%m-%d %I:%M")
+            'run_end_time': datetime.strftime(meta_run_events[0]['created_at'], "%Y-%m-%d %I:%M"),
+            'msg': None
         }
     return status
 
@@ -626,8 +645,15 @@ def getPipelineStats(topic_id, min_datetime=DATETIME_TODAY_START, max_datetime=M
         )
     return pipeline_status
 
+#function to run when pipeline run is exited
+def exitHandler(topic_id, content_datetime):
+    eventlogger.logPipelineEvent(topic_id = topic_id, content_datetime = content_datetime, step_name = 'meta_run_exit', event = 'exit')
+
 #main function to run pipeline
 def runPipeline(topic_id, min_datetime=DATETIME_TODAY_START, max_datetime=MAX_DATETIME_DEFAULT, pipeline_params=PIPELINE_PARAMS, rerun=False):
+    #register exit handler function
+    atexit.register(exitHandler, topic_id=topic_id, content_datetime=min_datetime.date())
+
     msg = 'Pipeline run started'
     eventlogger.logPipelineEvent(topic_id = topic_id, content_datetime = min_datetime.date(), step_name = 'meta_run_start', event = 'start', payload = json.dumps({'msg': msg}))
 
@@ -985,6 +1011,3 @@ def runPipeline(topic_id, min_datetime=DATETIME_TODAY_START, max_datetime=MAX_DA
     
     msg = 'Pipeline run completed'
     eventlogger.logPipelineEvent(topic_id = topic_id, content_datetime = min_datetime.date(), step_name = 'meta_run_end', event = 'end_success', payload = json.dumps({'msg': msg}))
-
-if __name__ == '__main__':
-    runPipeline(topic_id=3)

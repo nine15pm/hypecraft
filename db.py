@@ -193,9 +193,9 @@ def updateTopicHighlights(topic_highlights: list[dict]):
     table = TOPIC_HIGHLIGHT_TABLE
     updateEntries(table, topic_highlights)
 
-def createPipelineEvents(pipeline_events: list[dict]):
+def createPipelineEvents(events: list[dict]):
     table = PIPELINE_EVENT_TABLE
-    writeEntries(table, pipeline_events)
+    writeEntries(table, events)
 
 def createNewsletter(newsletter: dict):
     table = NEWSLETTER_TABLE
@@ -231,7 +231,12 @@ def getNewsSections(min_datetime=MIN_DATETIME_DEFAULT, max_datetime=MAX_DATETIME
 
 def getTopics(filters={}):
     table = TOPIC_TABLE
-    return readEntries(table=table, filters=filters)
+    return readEntries(table=table)
+
+def getTopicIDs(filters={}):
+    table = TOPIC_TABLE
+    fields = ['topic_id']
+    return readEntries(table=table, fields=fields, filters=filters)
 
 def getPipelineEvents(min_datetime=MIN_DATETIME_DEFAULT, max_datetime=MAX_DATETIME_DEFAULT, filters={}):
     table = PIPELINE_EVENT_TABLE

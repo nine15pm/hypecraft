@@ -2,7 +2,10 @@ from flask import Flask, request
 from concurrent.futures import ThreadPoolExecutor
 import contentpipeline
 import newslettergeneration
+import emailer
+import db
 import json
+from datetime import datetime, time
 
 app = Flask(__name__)
 executor = ThreadPoolExecutor(2)
@@ -44,11 +47,50 @@ def get_run_status():
         return json.dumps({'type': 'fail', 'msg': 'Params provided are not valid JSON or header content type is not set to JSON'}), 415\
     
 @app.route('/generatenewsletter', methods=['POST'])
-def get_run_status():
+def generate_newsletter():
     if request.is_json:
         params = request.json
-        topic_id = params.get('topic_id')
-        status = json.dumps(contentpipeline.getRunStatus(topic_id=topic_id))
-        return status, 200
+        title = params.get('title')
+        date_format_str = '%m/%d/%Y'
+        min_datetime = datetime.combine(datetime.strptime(params.get('min_date'), date_format_str), time.min)
+
+        #check whether content pipeline has been run successfully
+        topics = db.getTopicIDs()
+        for topic in topics:
+            if contentpipeline.getRunStatus(topic['topic_id'], min_datetime=min_datetime) != "complete":
+                msg = 'Content pipeline has not been completed for all topics. Please go to pipeline page and run.'
+                return json.dumps({'type': 'fail', 'msg': msg}), 200
+        
+        #if check is ok, then proceed with generation
+        try:
+            print('debug2')
+            msg = newslettergeneration.generateNewsletter(title=title, min_datetime=min_datetime)
+            return json.dumps({'type': 'success', 'msg': msg}), 200 
+        except Exception as error:
+            return json.dumps({'type': 'fail', 'msg': f'Newsletter generation error: {error}'}), 200  
+        
+    else:
+        return json.dumps({'type': 'fail', 'msg': 'Params provided are not valid JSON or header content type is not set to JSON'}), 415
+    
+@app.route('/sendnewsletter', methods=['POST'])
+def send_newsletter():
+    if request.is_json:
+        params = request.json
+        print(params)
+        date_format_str = '%m/%d/%Y'
+        newsletter_date = datetime.strptime(params.get('content_date'), date_format_str).date()
+
+        #check if newsletter is generated and available
+        newsletters = db.getNewsletters(filters={'content_date': newsletter_date})
+        if newsletters == None or newsletters == []:
+            msg = 'No newsletter available to send. Please generate newsletter first.'
+            return json.dumps({'type': 'fail', 'msg': msg}), 200
+
+        #if check is ok, then proceed with sending
+        try:
+            msg = emailer.sendNewsletter(newsletters[0])
+        except Exception as error:
+            return json.dumps({'type': 'success', 'msg': msg}), 200  
+        
     else:
         return json.dumps({'type': 'fail', 'msg': 'Params provided are not valid JSON or header content type is not set to JSON'}), 415
