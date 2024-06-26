@@ -231,7 +231,7 @@ def getNewsSections(min_datetime=MIN_DATETIME_DEFAULT, max_datetime=MAX_DATETIME
 
 def getTopics(filters={}):
     table = TOPIC_TABLE
-    return readEntries(table=table)
+    return readEntries(table=table, filters=filters)
 
 def getTopicIDs(filters={}):
     table = TOPIC_TABLE
@@ -274,6 +274,16 @@ def getPostsForCategorize(topic_id, min_datetime=MIN_DATETIME_DEFAULT, max_datet
         'topic_id': topic_id
     }
     return readEntries(table=table, min_datetime=min_datetime, fields=fields, filters=filters)
+
+def getPostsForTheme(theme_id, min_datetime=MIN_DATETIME_DEFAULT, max_datetime=MAX_DATETIME_DEFAULT):
+    table = POST_TABLE
+    fields = [
+        'post_id',
+    ]
+    filters = {
+        'theme_id': theme_id,
+    }
+    return readEntries(table=table, min_datetime=min_datetime, fields=fields, filters=filters, max_datetime=max_datetime)
 
 def getFeedsForTopic(topic_id):
     table = FEED_TABLE

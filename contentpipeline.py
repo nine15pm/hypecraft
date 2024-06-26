@@ -23,7 +23,7 @@ MAX_DATETIME_DEFAULT = datetime.fromtimestamp(datetime.now().timestamp() + 1e9)
 
 #get posts, scrape/process external links, save to DB
 def pullPosts(topic, max_posts_reddit, min_timestamp, min_datetime):
-    #get topic feeds    
+    #get topic feeds
     feeds = db.getFeedsForTopic(topic['topic_id'])
     parsed_posts = []
 
@@ -95,7 +95,7 @@ def filterNewsPosts(topic, min_datetime):
     print(f'Outdated news posts filtered and updated in DB')
 
 #load news posts, brainstorm themes, select themes, assign posts to themes, save themes to DB
-def draftAndMapThemes(topic, min_datetime, brainstorm_loops=3, batch_size=20):
+def draftAndMapThemes(topic, min_datetime, brainstorm_loops=3, batch_size=30):
     news_posts = db.getNewsPostsForMapping(topic['topic_id'], min_datetime=min_datetime)
 
     #brainstorm themes (loop through N times)
@@ -324,16 +324,32 @@ def rewriteStoriesWithPastContext(topic, max_past_context, min_datetime, max_dat
 
 #re-check assigned theme for each story, revise if there is a better fit
 def checkAndReviseStoryThemes(topic, min_datetime, max_datetime=MAX_DATETIME_DEFAULT):
+    themes = db.getNewsThemes(topic['topic_id'], min_datetime=min_datetime)
     stories = db.getFilteredStoriesForTopic(topic['topic_id'], min_datetime=min_datetime)
 
     for story in stories:
         current_theme_name = db.getThemes(filters={'theme_id':story['theme_id']})[0]['theme_name_ml']
-        revised_theme = editor.reviseStoryThemes(story=story, current_theme=current_theme_name)
+        revised_theme = editor.reviseStoryThemes(story=story, current_theme=current_theme_name, themes=themes, topic_prompt_params=topic['topic_prompt_params'])
         story_update = {
             'story_id': story['story_id'],
-            'theme_id': revised_theme['section_id']
+            'theme_id': revised_theme[0]['section_id']
         }
         db.updateStories(story_update)
+    
+    #updated story and post ids in theme table
+    for theme in themes:
+        theme_stories = db.getStoriesForTheme(theme['theme_id'], min_datetime=min_datetime, max_datetime=max_datetime)
+        posts_list = []
+        for story in theme_stories:
+            posts_list += story['posts']
+    
+        theme_updates = [{
+            'theme_id': theme['theme_id'],
+            'stories': [story['story_id'] for story in theme_stories],
+            'posts': posts_list
+        }]
+
+        db.updateThemes(theme_updates)
 
     print(f'Story theme assignments revised')
 
@@ -520,7 +536,6 @@ PIPELINE_STEPS = [
     'summarize_stories',
     'filter_repeat_stories',
     'rewrite_stories_past_context',
-    'check_revise_story_themes',
     'get_story_ranking_context',
     'rank_stories',
     'embed_stories',
@@ -546,7 +561,7 @@ PIPELINE_PARAMS = {
 #get status of current run
 def getRunStatus(topic_id, min_datetime=DATETIME_TODAY_START, max_datetime=MAX_DATETIME_DEFAULT) -> dict:
     all_events = eventlogger.getPipelineStatsEvents(topic_id, min_datetime=min_datetime, max_datetime=max_datetime)
-    meta_run_events = [event for event in all_events if event['pipeline_step'] in ['meta_run_start', 'meta_run_end']]
+    meta_run_events = [event for event in all_events if event['pipeline_step'] in ['meta_run_start', 'meta_run_end', 'meta_run_exit']]
 
     #sort for latest event
     meta_run_events = sorted(meta_run_events, key=lambda event: event['created_at'], reverse=True) if meta_run_events != [] else meta_run_events
@@ -881,24 +896,24 @@ def runPipeline(topic_id, min_datetime=DATETIME_TODAY_START, max_datetime=MAX_DA
                     raise
     
     #RUN STEP: Check story theme assignments and revise if needed (retry on error)
-    cur_step = 'check_revise_story_themes'
-    if run_status[cur_step]:
-        retry = True
-        num_retries = 0
-        while retry:
-            try:
-                eventlogger.logPipelineEvent(topic_id = topic_id, content_datetime = min_datetime.date(), step_name = cur_step, event = 'start')
-                checkAndReviseStoryThemes(topic, min_datetime=min_datetime)
-                eventlogger.logPipelineEvent(topic_id = topic_id, content_datetime = min_datetime.date(), step_name = cur_step, event = 'success')
-                retry = False
-            except Exception as error:
-                error_log = json.dumps({'type': type(error).__name__, 'error': error})
-                eventlogger.logPipelineEvent(topic_id = topic_id, content_datetime = min_datetime.date(), step_name = cur_step, event = 'error', payload = error_log)
-                if num_retries <= max_retries:
-                    num_retries += 1
-                else:
-                    retry = False
-                    raise
+    #cur_step = 'check_revise_story_themes'
+    #if run_status[cur_step]:
+    #    retry = True
+    #    num_retries = 0
+    #    while retry:
+    #        try:
+    #            eventlogger.logPipelineEvent(topic_id = topic_id, content_datetime = min_datetime.date(), step_name = cur_step, event = 'start')
+    #            checkAndReviseStoryThemes(topic, min_datetime=min_datetime)
+    #            eventlogger.logPipelineEvent(topic_id = topic_id, content_datetime = min_datetime.date(), step_name = cur_step, event = 'success')
+    #            retry = False
+    #        except Exception as error:
+    #            error_log = json.dumps({'type': type(error).__name__, 'error': error})
+    #            eventlogger.logPipelineEvent(topic_id = topic_id, content_datetime = min_datetime.date(), step_name = cur_step, event = 'error', payload = error_log)
+    #            if num_retries <= max_retries:
+    #                num_retries += 1
+    #            else:
+    #                retry = False
+    #                raise
 
     #RUN STEP: Get data needed to calc trend score and rank stories (retry on error)
     cur_step = 'get_story_ranking_context'

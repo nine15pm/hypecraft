@@ -1,4 +1,5 @@
 from flask import Flask, request
+import sys
 from concurrent.futures import ThreadPoolExecutor
 import contentpipeline
 import newslettergeneration
@@ -9,6 +10,13 @@ from datetime import datetime, time
 
 app = Flask(__name__)
 executor = ThreadPoolExecutor(2)
+
+def handle_result(future):
+    try:
+        future.result()
+    except Exception as e:
+        print(f"Error in background task: {str(e)}", file=sys.stderr)
+        sys.stderr.flush()
 
 @app.route('/test')
 def test():
@@ -21,7 +29,8 @@ def run_pipeline():
         params = request.json
         topic_id = params.get('topic_id')
         print(f'Running pipeline for topic #{topic_id}')
-        executor.submit(contentpipeline.runPipeline, topic_id)
+        future = executor.submit(contentpipeline.runPipeline, topic_id)
+        future.add_done_callback(handle_result)
         return json.dumps({'type': 'success', 'msg': f'Starting pipeline run for topic #{topic_id}'}), 200
     else:
         return json.dumps({'type': 'fail', 'msg': 'Params provided are not valid JSON or header content type is not set to JSON'}), 415

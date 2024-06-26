@@ -74,6 +74,7 @@ def extractResponseJSON(response, step_label='[unspecified step]'):
         output = json.loads(json_extracted)
         return output
     except:
+        print(response)
         print('Extracted JSON is not valid, trying fix...')
     try:
         json_extracted = fixJSON(json_extracted)
