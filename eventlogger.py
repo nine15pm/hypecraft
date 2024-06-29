@@ -1,12 +1,12 @@
 import db
 
 #log pipeline event
-def logPipelineEvent(topic_id, content_datetime, step_name, event, payload=None):
+def logPipelineEvent(topic_id, content_date, step_name, event, payload=None):
     pipelineEvent = []
     pipelineEvent.append(
         {
             'topic_id': topic_id,
-            'content_date': content_datetime,
+            'content_date': content_date,
             'pipeline_step': step_name,
             'event': event,
             'event_type': 'pipeline_run',

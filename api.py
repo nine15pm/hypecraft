@@ -66,16 +66,17 @@ def generate_newsletter():
         #check whether content pipeline has been run successfully
         topics = db.getTopicIDs()
         for topic in topics:
-            if contentpipeline.getRunStatus(topic['topic_id'], min_datetime=min_datetime) != "complete":
+            if contentpipeline.getRunStatus(topic['topic_id'], min_datetime=min_datetime)['run_status'] != "complete":
                 msg = 'Content pipeline has not been completed for all topics. Please go to pipeline page and run.'
                 return json.dumps({'type': 'fail', 'msg': msg}), 200
         
         #if check is ok, then proceed with generation
         try:
-            print('debug2')
             msg = newslettergeneration.generateNewsletter(title=title, min_datetime=min_datetime)
+            print('Newsletter successfully generated')
             return json.dumps({'type': 'success', 'msg': msg}), 200 
         except Exception as error:
+            print(f'Newsletter generation error: {error}')
             return json.dumps({'type': 'fail', 'msg': f'Newsletter generation error: {error}'}), 200  
         
     else:
@@ -98,8 +99,11 @@ def send_newsletter():
         #if check is ok, then proceed with sending
         try:
             msg = emailer.sendNewsletter(newsletters[0])
+            print('Newsletter successfully sent')
+            return json.dumps({'type': 'success', 'msg': msg}), 200 
         except Exception as error:
-            return json.dumps({'type': 'success', 'msg': msg}), 200  
+            print(f'Newsletter send error: {error}')
+            return json.dumps({'type': 'fail', 'msg': f'Newsletter send error: {error}'}), 200    
         
     else:
         return json.dumps({'type': 'fail', 'msg': 'Params provided are not valid JSON or header content type is not set to JSON'}), 415

@@ -5,3 +5,5 @@ prompttesting.py
 data/
 notes/
 emails/
+voice_ref_clips/
+audio_output/

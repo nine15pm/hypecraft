@@ -197,13 +197,13 @@ def createPipelineEvents(events: list[dict]):
     table = PIPELINE_EVENT_TABLE
     writeEntries(table, events)
 
-def createNewsletter(newsletter: dict):
+def createNewsletters(newsletters: list[dict]):
     table = NEWSLETTER_TABLE
-    writeEntries(table, [newsletter])
+    writeEntries(table, newsletters)
 
-def updateNewsletter(newsletter: dict):
+def updateNewsletters(newsletters: list[dict]):
     table = NEWSLETTER_TABLE
-    updateEntries(table, [newsletter])
+    updateEntries(table, newsletters)
 
 def getPosts(min_datetime=MIN_DATETIME_DEFAULT, max_datetime=MAX_DATETIME_DEFAULT, filters={}):
     table = POST_TABLE

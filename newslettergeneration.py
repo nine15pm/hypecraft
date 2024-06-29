@@ -463,10 +463,9 @@ def generateNewsletter(min_datetime=today_start, newsletter_date=newsletter_date
     #check if there is existing newsletter for this date
     existing_newsletters = db.getNewsletters(filters={'content_date': newsletter_date.date()})
     if existing_newsletters == None or existing_newsletters == []:
-        db.createNewsletter(newsletter)
+        db.createNewsletters(newsletter)
     else:
-        newsletter['newsletter_id'] = existing_newsletters[0]['newsletter_id']
-        db.updateNewsletter(newsletter)
+        newsletter[0]['newsletter_id'] = existing_newsletters[0]['newsletter_id']
+        db.updateNewsletters(newsletter)
     
-    print("Newsletter generated")
     return "Newsletter successfully generated"

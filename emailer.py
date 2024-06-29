@@ -26,7 +26,7 @@ def sendNewsletter(newsletter:dict, recipients=RECIPIENTS):
     message.attach(message_content_html)
 
     sendGmail(SENDER, pw, recipients, message)
-    print("Newsletter sent!")
+    return 'Newsletter sent!'
 
 #Send email
 def sendGmail(sender, pw, recipient, message):
