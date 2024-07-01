@@ -456,6 +456,7 @@ def generateNewsletter(min_datetime=today_start, newsletter_date=newsletter_date
     #package newsletter for saving to DB
     newsletter = [{
         'title': title,
+        'topics': [topic['topic_id'] for topic in topics],
         'content_date': newsletter_date.date(),
         'newsletter_html': newsletter_html
     }]

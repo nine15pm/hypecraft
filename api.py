@@ -6,16 +6,18 @@ import newslettergeneration
 import emailer
 import db
 import json
+import traceback
 from datetime import datetime, time
 
 app = Flask(__name__)
-executor = ThreadPoolExecutor(2)
+executor = ThreadPoolExecutor(2) 
 
 def handle_result(future):
     try:
         future.result()
     except Exception as e:
         print(f"Error in background task: {str(e)}", file=sys.stderr)
+        traceback.print_exc()
         sys.stderr.flush()
 
 @app.route('/test')

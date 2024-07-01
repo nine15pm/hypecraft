@@ -2,6 +2,15 @@
 ####################
 changelog_current = 'Changelog \n\
 --------------------------------\n\
+- Added auth to dashboard \n\
+- Exposed API to external IPs, deployed admin dashboard to vercel \n\
+- Fixed bugs in error handling and pipeline \n\
+--------------------------------'
+
+#ARCHIVEfla
+####################
+changelog_06_26 = 'Changelog \n\
+--------------------------------\n\
 - Refactored API to support async run and error handling \n\
 - Added pipeline step to check theme assignment for each story and revise to try and reduce incorrect AI theme assignments\n\
 - Refactored generate and send newsletter code to support admin API, added API endpoints\n\
@@ -9,8 +18,6 @@ changelog_current = 'Changelog \n\
 - Implemented back-end functions to run openvoice V2 for text-to-speech \n\
 --------------------------------'
 
-#ARCHIVEfla
-####################
 changelog_06_13 = 'Changelog \n\
 --------------------------------\n\
 - Implemented first version of direct Twitter feed pulls in content pipeline, added new Twitter feeds for AI topic \n\

@@ -351,11 +351,11 @@ def parseFeedTwitter(topic_id, feed_id, min_timestamp=0, printstats=False) -> li
 
             #parse out view/like counts, sum up quoted tweet if relevant
             if 'quoted' in tweet_thread.keys():
-                views_score = int(tweet_thread['views']) + int(tweet_thread['quoted']['views'])
-                likes_score = tweet_thread['likes'] + tweet_thread['quoted']['favorites']
+                views_score = int(tweet_thread['views']) + int(tweet_thread['quoted']['views']) if tweet_thread['views'] is not None and tweet_thread['quoted']['views'] is not None else 0
+                likes_score = tweet_thread['likes'] + tweet_thread['quoted']['favorites'] if tweet_thread['likes'] is not None and tweet_thread['quoted']['favorites'] is not None else 0
             else:
-                views_score = int(tweet_thread['views'])
-                likes_score = tweet_thread['likes']
+                views_score = int(tweet_thread['views']) if tweet_thread['views'] is not None else 0
+                likes_score = tweet_thread['likes'] if tweet_thread['likes'] is not None else 0
 
             #parse out images
             img_urls = parseTweetThreadImgs(tweet_thread)
