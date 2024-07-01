@@ -109,3 +109,6 @@ def send_newsletter():
         
     else:
         return json.dumps({'type': 'fail', 'msg': 'Params provided are not valid JSON or header content type is not set to JSON'}), 415
+
+if __name__ == '__main__':
+  app.run(port=5000)
