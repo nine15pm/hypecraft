@@ -1,15 +1,16 @@
 import psycopg2
 import psycopg2.extras
+import os
 import utils
 from datetime import datetime
 
 #CONFIGS
 ##############################################################################################
-DATABASE = 'mlnewsletter'
-USER = 'newsletterbackend'
-HOST = 'localhost'
-PW = utils.read_secrets('DB_PW')
-PORT = 5432
+DATABASE = utils.read_secrets('PGDATABASE')
+USER = utils.read_secrets('POSTGRES_USER')
+HOST = utils.read_secrets('PGPRIVATEHOST')
+PW = utils.read_secrets('POSTGRES_PASSWORD')
+PORT = utils.read_secrets('PGPORT')
 POST_TABLE = 'post'
 THEME_TABLE = 'theme'
 STORY_TABLE = 'story'

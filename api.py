@@ -1,4 +1,5 @@
 from flask import Flask, request
+import os
 import sys
 from concurrent.futures import ThreadPoolExecutor
 import contentpipeline
@@ -111,4 +112,4 @@ def send_newsletter():
         return json.dumps({'type': 'fail', 'msg': 'Params provided are not valid JSON or header content type is not set to JSON'}), 415
 
 if __name__ == '__main__':
-    app.run(port=5000)
+    app.run(debug=True, port=os.getenv('PORT', default=5000))

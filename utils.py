@@ -15,12 +15,7 @@ def getDictIndex(list_of_dicts:list[dict], key, value):
 #####################################################################################
 #Read secrets json
 def read_secrets(key):
-    filename = os.path.join('secrets.json')
-    try:
-        with open(filename, mode='r') as f:
-            return json.loads(f.read())[key]
-    except FileNotFoundError:
-        return {}
+    return os.getenv(key)
 
 #Save to local json file
 def saveJSON(data, path):
