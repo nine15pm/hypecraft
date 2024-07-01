@@ -2,6 +2,7 @@ ML newsletter.code-workspace
 secrets.json
 scratchpad.py
 prompttesting.py
+speechgenerator.py
 data/
 notes/
 emails/
