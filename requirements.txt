@@ -1,7 +1,7 @@
 haystack-ai>=2.2.3
 feedparser>=6.0.11
 Flask>=3.0.3
-numpy>=2.0.0
+numpy>=1.26
 openai>=1.35.7
 psycopg2>=2.9.9
 psycopg2_binary>=2.9.9

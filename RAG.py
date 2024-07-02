@@ -1,4 +1,5 @@
 import promptconfigs
+import utils
 import numpy as np
 from datetime import datetime
 from qdrant_client import QdrantClient
@@ -7,7 +8,7 @@ from haystack_integrations.components.embedders.ollama import OllamaTextEmbedder
 
 #CONFIGS
 #####################################################
-QDRANT_URL = 'http://localhost:6333'
+QDRANT_URL = utils.read_secrets('QDRANT_PRIVATE_DOMAIN')
 QDRANT_POST_COLLECTION = 'post'
 QDRANT_STORY_COLLECTION = 'story'
 MODEL_EMBEDDER = 'avr/sfr-embedding-mistral:q8_0'
