@@ -1,1 +1,1 @@
-web: gunicorn api:app --bind :8080
+web: gunicorn api:app --bind :5000
