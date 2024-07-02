@@ -1,9 +1,11 @@
 import os
-import configs
+from dotenv import load_dotenv
 import json
 import csv
 from urllib.parse import urlparse, urlunparse
 from collections import namedtuple
+
+load_dotenv()
 
 #HELPER FUNCS
 #####################################################################################
