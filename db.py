@@ -7,7 +7,7 @@ from datetime import datetime
 ##############################################################################################
 DATABASE = utils.read_secrets('PGDATABASE')
 USER = utils.read_secrets('POSTGRES_USER')
-HOST = utils.read_secrets('PGPRIVATEHOST')
+HOST = 'http://' + utils.read_secrets('PGPRIVATEHOST')
 PW = utils.read_secrets('POSTGRES_PASSWORD')
 PORT = utils.read_secrets('PGPORT')
 POST_TABLE = 'post'
