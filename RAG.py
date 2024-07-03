@@ -1,10 +1,11 @@
 import promptconfigs
 import utils
+import requests
+import json
 import numpy as np
 from datetime import datetime
 from qdrant_client import QdrantClient
 from qdrant_client.models import Distance, VectorParams, PointStruct, Filter, FieldCondition, FilterSelector, MatchValue, DatetimeRange, SearchParams, HnswConfigDiff
-from haystack_integrations.components.embedders.ollama import OllamaTextEmbedder
 
 #CONFIGS
 #####################################################
@@ -12,7 +13,8 @@ QDRANT_URL = utils.read_secrets('QDRANT_PRIVATE_DOMAIN')
 QDRANT_POST_COLLECTION = 'post'
 QDRANT_STORY_COLLECTION = 'story'
 MODEL_EMBEDDER = 'avr/sfr-embedding-mistral:q8_0'
-OLLAMA_EMBEDDING_URL = 'http://localhost:11434/api/embeddings'
+OLLAMA_EMBEDDING_URL = utils.read_secrets('OLLAMA_SERVER_URL') + '/api/embeddings'
+OLLAMA_API_KEY = utils.read_secrets('OLLAMA_SERVER_API_KEY')
 MIN_DATETIME_DEFAULT = datetime.fromtimestamp(0)
 MAX_DATETIME_DEFAULT = datetime.fromtimestamp(datetime.now().timestamp() + 1e9)
 
@@ -23,6 +25,23 @@ def normalizeVec(vector, p=2, dim=-1):
     norm = np.where(norm == 0, 1, norm)
     normalized_vector = vector / norm
     return normalized_vector
+
+def getEmbeddingOllama(prompt:str) -> str:
+    headers = {
+        'Content-Type': 'application/json',
+        'apikey': OLLAMA_API_KEY,
+    }
+    payload = {
+        'model': MODEL_EMBEDDER,
+        'prompt': prompt,
+        'stream': False
+    }
+    try:
+        response = requests.post(url=OLLAMA_EMBEDDING_URL, headers=headers, data=json.dumps(payload))
+        return response.json()['embedding']
+    except Exception as error:
+        print("Error:", type(error).__name__, "-", error)
+        raise
 
 #ADMIN
 #####################################################
@@ -100,8 +119,7 @@ def searchCollection(collection:str, task_description:str, text:str, max_results
     )
 
     #construct query, get vector embedding, normalize
-    embedder = OllamaTextEmbedder(model=MODEL_EMBEDDER, url=OLLAMA_EMBEDDING_URL)
-    query_vec = embedder.run(promptconfigs.constructSFREmbedQuery(task_description=task_description, query=text))['embedding']
+    query_vec = getEmbeddingOllama(prompt=promptconfigs.constructSFREmbedQuery(task_description=task_description, query=text))
     query_vec = normalizeVec(query_vec)
 
     #add filters if applicable
@@ -135,10 +153,9 @@ def searchCollection(collection:str, task_description:str, text:str, max_results
 #####################################################
 def postsToPoints(posts:list[dict]) -> list[PointStruct]:
     points = []
-    embedder = OllamaTextEmbedder(model=MODEL_EMBEDDER, url=OLLAMA_EMBEDDING_URL)
 
     for post in posts:
-        embedding = embedder.run(f'{post['retitle_ml']}\n\n{post['summary_ml']}')['embedding']
+        embedding = getEmbeddingOllama(prompt=f'{post['retitle_ml']}\n\n{post['summary_ml']}')
         embedding = normalizeVec(embedding)
         payload = {
             'story_id': post['story_id'],
@@ -159,10 +176,9 @@ def postsToPoints(posts:list[dict]) -> list[PointStruct]:
 
 def storiesToPoints(stories:list[dict]) -> list[PointStruct]:
     points = []
-    embedder = OllamaTextEmbedder(model=MODEL_EMBEDDER, url=OLLAMA_EMBEDDING_URL)
 
     for story in stories:
-        embedding = embedder.run(f'{story['headline_ml']}\n\n{story['summary_ml']}')['embedding']
+        embedding = getEmbeddingOllama(prompt=f'{story['headline_ml']}\n\n{story['summary_ml']}')
         embedding = normalizeVec(embedding)
         payload = {
             'story_id': story['story_id'],
