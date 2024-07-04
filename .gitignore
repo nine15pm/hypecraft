@@ -3,6 +3,7 @@ secrets.json
 scratchpad.py
 prompttesting.py
 speechgenerator.py
+test.py
 *.env
 data/
 notes/
