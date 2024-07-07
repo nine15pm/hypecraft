@@ -432,12 +432,13 @@ def getSubredditPosts(subreddit, max_posts=10, endpoint='top', region='US') -> l
 
 #Reddit - define logic for whitelisting certain posts that don't meet min text criteria
 def whitelistListingReddit(listing):
-    #whitelist posts that have a flair indicating news (short breaking news posts)
-    if 'news' in listing['data']['link_flair_text'].lower():
-        return True
-    #whitelist AI flair posts
-    if 'AI' in listing['data']['link_flair_text']:
-        return True
+    if listing['data']['link_flair_text'] is not None:
+        #whitelist posts that have a flair indicating news (short breaking news posts)
+        if 'news' in listing['data']['link_flair_text'].lower():
+            return True
+        #whitelist AI flair posts
+        if 'AI' in listing['data']['link_flair_text']:
+            return True
     return False
 
 #Reddit - find and extract first link from selftext if it exists
