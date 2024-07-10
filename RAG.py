@@ -9,7 +9,7 @@ from qdrant_client.models import Distance, VectorParams, PointStruct, Filter, Fi
 
 #CONFIGS
 #####################################################
-QDRANT_HOST = utils.read_secrets('QDRANT_PUBLIC_DOMAIN') #utils.read_secrets('QDRANT_PRIVATE_DOMAIN')
+QDRANT_HOST = f'https://{utils.read_secrets('QDRANT_PUBLIC_DOMAIN')}' #utils.read_secrets('QDRANT_PRIVATE_DOMAIN')
 QDRANT_POST_COLLECTION = 'post'
 QDRANT_STORY_COLLECTION = 'story'
 MODEL_EMBEDDER = 'avr/sfr-embedding-mistral:q8_0'
