@@ -9,8 +9,7 @@ from qdrant_client.models import Distance, VectorParams, PointStruct, Filter, Fi
 
 #CONFIGS
 #####################################################
-QDRANT_HOST = utils.read_secrets('QDRANT_PRIVATE_DOMAIN')
-QDRANT_PORT = utils.read_secrets('QDRANT_PORT')
+QDRANT_HOST = utils.read_secrets('QDRANT_PUBLIC_DOMAIN') #utils.read_secrets('QDRANT_PRIVATE_DOMAIN')
 QDRANT_POST_COLLECTION = 'post'
 QDRANT_STORY_COLLECTION = 'story'
 MODEL_EMBEDDER = 'avr/sfr-embedding-mistral:q8_0'
@@ -48,8 +47,7 @@ def getEmbeddingOllama(prompt:str) -> str:
 #####################################################
 def addCollection(name:str, dim:int, distance=Distance.DOT, on_disk=True):
     client = QdrantClient(
-        host=QDRANT_HOST,
-        port=QDRANT_PORT
+        url=QDRANT_HOST
     )
     client.create_collection(
         collection_name=name,
@@ -63,8 +61,7 @@ def addCollection(name:str, dim:int, distance=Distance.DOT, on_disk=True):
 
 def updateCollectionHNSW(collection:str, m:int, ef:int):
     client = QdrantClient(
-        host=QDRANT_HOST,
-        port=QDRANT_PORT
+        url=QDRANT_HOST
     )
     client.update_collection(
         collection_name=collection,
@@ -76,8 +73,7 @@ def updateCollectionHNSW(collection:str, m:int, ef:int):
 
 def deletePointsByTopic(collection, topic_id):
     client = QdrantClient(
-        host=QDRANT_HOST,
-        port=QDRANT_PORT
+        url=QDRANT_HOST
     )
     client.delete(
         collection_name=collection,
@@ -98,8 +94,7 @@ def deletePointsByTopic(collection, topic_id):
 #####################################################
 def updatePointsPayload(collection:str, point_ids:list, payload_fields:dict):
     client = QdrantClient(
-        host=QDRANT_HOST,
-        port=QDRANT_PORT
+        url=QDRANT_HOST
     )
     client.set_payload(
         collection_name=collection,
@@ -109,8 +104,7 @@ def updatePointsPayload(collection:str, point_ids:list, payload_fields:dict):
 
 def upsertPoints(collection:str, points:list[PointStruct]):
     client = QdrantClient(
-        host=QDRANT_HOST,
-        port=QDRANT_PORT
+        url=QDRANT_HOST
     )
     ops = client.upsert(
         collection_name=collection,
@@ -121,8 +115,7 @@ def upsertPoints(collection:str, points:list[PointStruct]):
 
 def searchCollection(collection:str, task_description:str, text:str, max_results:int, min_score:float=0.0, filters:list[FieldCondition]=[]) -> list[dict]:
     client = QdrantClient(
-        host=QDRANT_HOST,
-        port=QDRANT_PORT
+        url=QDRANT_HOST
     )
 
     #construct query, get vector embedding, normalize
