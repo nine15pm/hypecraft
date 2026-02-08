@@ -398,8 +398,8 @@ def parseFeedTwitter(topic_id, feed_id, min_timestamp=0, printstats=False) -> li
 AUTH_URL_REDDIT = 'https://www.reddit.com/api/v1/access_token'
 API_URL_REDDIT = 'https://oauth.reddit.com/api/v1/'
 LISTINGS_URL_REDDIT = 'https://oauth.reddit.com/r/'
-HEADERS_REDDIT = {'User-Agent':'Python:MLnewsletter:v0.1 (by /u/generic_user)'}
-CLIENT_ID_REDDIT = 'REPLACE_WITH_REDDIT_CLIENT_ID'
+HEADERS_REDDIT = {'User-Agent':'Python:Hypecraft:v1.0 (by /u/generic_user)'}
+CLIENT_ID_REDDIT = utils.read_secrets('CLIENT_ID_REDDIT') or 'REPLACE_WITH_REDDIT_CLIENT_ID'
 CLIENT_SEC_REDDIT = utils.read_secrets('CLIENT_SEC_REDDIT')
 POST_AUTH_REDDIT = {'grant_type':'client_credentials'}
 

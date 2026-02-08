@@ -5,8 +5,8 @@ from email.mime.multipart import MIMEMultipart
 
 #CONFIGS
 ##############################################################################################
-RECIPIENTS = ['maintainer@example.com',  'contributor@example.com']
-SENDER = 'no-reply@example.com'
+RECIPIENTS = [email.strip() for email in (utils.read_secrets('NEWSLETTER_RECIPIENTS') or '').split(',') if email.strip()]
+SENDER = utils.read_secrets('NEWSLETTER_SENDER') or 'no-reply@example.com'
 
 #SEND EMAIL
 ##############################################################################################

@@ -5,6 +5,10 @@ prompttesting.py
 speechgenerator.py
 test.py
 *.env
+.env
+.env.*
+__pycache__/
+*.py[cod]
 data/
 notes/
 emails/
